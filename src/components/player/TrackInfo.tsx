@@ -10,7 +10,7 @@ interface TrackInfoProps {
 export function TrackInfo({ fileName, mediaType, metadata }: TrackInfoProps) {
   if (!fileName) return null
 
-  const stripped = fileName.replace(/\.(mp3|mp4|webm|mov)$/i, '')
+  const stripped = fileName.replace(/\.(mp3|mp4|webm|mov|mpg|mpeg)$/i, '')
   const title = metadata?.title || stripped
   const artist = metadata?.artist
 

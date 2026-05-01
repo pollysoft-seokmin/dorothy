@@ -1,17 +1,27 @@
 import { useRef, useEffect, useCallback } from 'react'
 import { usePlayerStore } from '~/stores/player-store'
 import { readID3Tags } from '~/lib/id3-reader'
+import { transcodeMpgToMp4 } from '~/lib/transcode'
 import { toast } from 'sonner'
 import type { MediaType } from '~/types'
 
 const VIDEO_EXTS = new Set(['mp4', 'webm', 'mov'])
 const AUDIO_EXTS = new Set(['mp3'])
+const TRANSCODE_VIDEO_EXTS = new Set(['mpg', 'mpeg'])
+
+function getExt(fileName: string): string {
+  return fileName.toLowerCase().split('.').pop() ?? ''
+}
 
 function detectMediaType(fileName: string): MediaType | null {
-  const ext = fileName.toLowerCase().split('.').pop() ?? ''
-  if (VIDEO_EXTS.has(ext)) return 'video'
+  const ext = getExt(fileName)
+  if (VIDEO_EXTS.has(ext) || TRANSCODE_VIDEO_EXTS.has(ext)) return 'video'
   if (AUDIO_EXTS.has(ext)) return 'audio'
   return null
+}
+
+function needsTranscode(fileName: string): boolean {
+  return TRANSCODE_VIDEO_EXTS.has(getExt(fileName))
 }
 
 export function useMediaPlayer() {
@@ -163,7 +173,27 @@ export function useMediaPlayer() {
         URL.revokeObjectURL(objectUrlRef.current)
       }
 
-      const url = URL.createObjectURL(file)
+      // 비호환 비디오(.mpg/.mpeg)는 ffmpeg.wasm으로 트랜스코딩 후 진행
+      let playable = file
+      let displayName = file.name
+      if (needsTranscode(file.name)) {
+        const toastId = toast.loading(
+          '비디오 변환 중... (FFmpeg 코어 로드 ~25MB, 첫 사용 시에만)',
+        )
+        try {
+          playable = await transcodeMpgToMp4(file, ({ ratio }) => {
+            const pct = Math.round(ratio * 100)
+            toast.loading(`비디오 변환 중... ${pct}%`, { id: toastId })
+          })
+          toast.success('비디오 변환 완료', { id: toastId })
+        } catch (err) {
+          console.error('transcode failed:', err)
+          toast.error('비디오 변환에 실패했습니다', { id: toastId })
+          return
+        }
+      }
+
+      const url = URL.createObjectURL(playable)
       objectUrlRef.current = url
 
       // 같은 mediaType이면 현재 엘리먼트에 즉시 src 적용 (동기 동작 보장).
@@ -173,9 +203,9 @@ export function useMediaPlayer() {
         current.src = url
       }
 
-      // ID3 태그는 오디오일 때만 읽기
+      // ID3 태그는 오디오일 때만 읽기. 표시는 원본 파일명(displayName)을 유지.
       const metadata = newType === 'audio' ? await readID3Tags(file) : null
-      store.getState().loadTrack(file.name, newType, metadata)
+      store.getState().loadTrack(displayName, newType, metadata)
     },
     [stopRafLoop],
   )
