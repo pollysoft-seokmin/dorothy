@@ -4,30 +4,32 @@ import { Button } from '~/components/ui/button'
 import { cn } from '~/lib/utils'
 import { toast } from 'sonner'
 
+const MEDIA_EXTS = new Set(['mp3', 'mp4', 'webm', 'mov'])
+
 interface FileDropZoneProps {
-  onMp3Load: (file: File) => void
+  onMediaLoad: (file: File) => void
   onLrcLoad: (file: File) => void
   fileName: string
 }
 
-export function FileDropZone({ onMp3Load, onLrcLoad, fileName }: FileDropZoneProps) {
+export function FileDropZone({ onMediaLoad, onLrcLoad, fileName }: FileDropZoneProps) {
   const [isDragging, setIsDragging] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const processFiles = useCallback(
     (files: FileList | File[]) => {
       for (const file of Array.from(files)) {
-        const ext = file.name.toLowerCase().split('.').pop()
-        if (ext === 'mp3') {
-          onMp3Load(file)
+        const ext = file.name.toLowerCase().split('.').pop() ?? ''
+        if (MEDIA_EXTS.has(ext)) {
+          onMediaLoad(file)
         } else if (ext === 'lrc') {
           onLrcLoad(file)
         } else {
-          toast.error('MP3 또는 LRC 파일만 지원합니다')
+          toast.error('MP3/MP4/LRC 파일만 지원합니다')
         }
       }
     },
-    [onMp3Load, onLrcLoad],
+    [onMediaLoad, onLrcLoad],
   )
 
   const handleDrop = useCallback(
@@ -75,7 +77,7 @@ export function FileDropZone({ onMp3Load, onLrcLoad, fileName }: FileDropZonePro
       >
         <Upload className="h-8 w-8 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
-          MP3 / LRC 파일을 여기에 드롭하거나 클릭하여 선택
+          MP3/MP4 또는 LRC 파일을 여기에 드롭하거나 클릭하여 선택
         </p>
         {fileName && (
           <div className="flex items-center gap-1.5 text-xs text-foreground mt-1">
@@ -105,7 +107,7 @@ export function FileDropZone({ onMp3Load, onLrcLoad, fileName }: FileDropZonePro
       <input
         ref={inputRef}
         type="file"
-        accept=".mp3,.lrc"
+        accept=".mp3,.mp4,.webm,.mov,.lrc"
         multiple
         className="hidden"
         onChange={handleChange}
