@@ -1,0 +1,29 @@
+node_modules/
+.output/
+dist/
+*.local
+.env
+.env.*
+!.env.example
+.DS_Store
+
+# Logs
+*.log
+
+# TypeScript incremental build
+*.tsbuildinfo
+
+# Build / framework caches
+.tanstack/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# Playwright MCP local artifacts
+.playwright-mcp/
+
+# Claude Code (user-local only; commit shared settings.json explicitly if desired)
+.claude/settings.local.json
