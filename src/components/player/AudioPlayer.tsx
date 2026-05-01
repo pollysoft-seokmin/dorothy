@@ -142,7 +142,11 @@ export function AudioPlayer() {
       />
 
       {/* 곡 정보 */}
-      <TrackInfo fileName={fileName} metadata={metadata} />
+      <TrackInfo
+        fileName={fileName}
+        mediaType={mediaType}
+        metadata={metadata}
+      />
 
       {/* 가사 패널 */}
       <LyricsPanel

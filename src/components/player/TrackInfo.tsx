@@ -1,16 +1,27 @@
 import { Music } from 'lucide-react'
-import type { TrackMetadata } from '~/types'
+import type { MediaType, TrackMetadata } from '~/types'
 
 interface TrackInfoProps {
   fileName: string
+  mediaType: MediaType
   metadata: TrackMetadata | null
 }
 
-export function TrackInfo({ fileName, metadata }: TrackInfoProps) {
+export function TrackInfo({ fileName, mediaType, metadata }: TrackInfoProps) {
   if (!fileName) return null
 
-  const title = metadata?.title || fileName.replace(/\.mp3$/i, '')
+  const stripped = fileName.replace(/\.(mp3|mp4|webm|mov)$/i, '')
+  const title = metadata?.title || stripped
   const artist = metadata?.artist
+
+  // 비디오는 비디오 프레임이 시각적 정체성을 대체하므로 파일명만 한 줄로 표시
+  if (mediaType === 'video') {
+    return (
+      <p className="text-sm font-medium truncate text-center px-1">
+        {stripped}
+      </p>
+    )
+  }
 
   return (
     <div className="flex items-center gap-3 px-1">
