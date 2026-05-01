@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { PlayStatus, TrackMetadata, ParsedLyrics } from '~/types'
+import type { MediaType, PlayStatus, TrackMetadata, ParsedLyrics } from '~/types'
 
 export interface PlayerStore {
   // 재생 상태
@@ -12,6 +12,7 @@ export interface PlayerStore {
 
   // 파일 정보
   fileName: string
+  mediaType: MediaType
   metadata: TrackMetadata | null
 
   // 가사
@@ -30,7 +31,11 @@ export interface PlayerStore {
   setVolume: (volume: number) => void
   toggleMute: () => void
   toggleLoop: () => void
-  loadTrack: (fileName: string, metadata: TrackMetadata | null) => void
+  loadTrack: (
+    fileName: string,
+    mediaType: MediaType,
+    metadata: TrackMetadata | null,
+  ) => void
   loadLyrics: (lyrics: ParsedLyrics) => void
   setCurrentLineIndex: (index: number) => void
   toggleCheckedLine: (index: number) => void
@@ -48,6 +53,7 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
   isMuted: false,
   isLooping: false,
   fileName: '',
+  mediaType: 'audio',
   metadata: null,
   lyrics: null,
   currentLineIndex: -1,
@@ -61,9 +67,10 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
   setVolume: (volume) => set({ volume }),
   toggleMute: () => set((s) => ({ isMuted: !s.isMuted })),
   toggleLoop: () => set((s) => ({ isLooping: !s.isLooping })),
-  loadTrack: (fileName, metadata) =>
+  loadTrack: (fileName, mediaType, metadata) =>
     set({
       fileName,
+      mediaType,
       metadata,
       status: 'idle',
       currentTime: 0,
@@ -94,6 +101,7 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
       currentTime: 0,
       duration: 0,
       fileName: '',
+      mediaType: 'audio',
       metadata: null,
       lyrics: null,
       currentLineIndex: -1,

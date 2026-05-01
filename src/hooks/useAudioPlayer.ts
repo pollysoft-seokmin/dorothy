@@ -154,7 +154,7 @@ export function useAudioPlayer() {
 
       // ID3 태그 읽기
       const metadata = await readID3Tags(file)
-      store.getState().loadTrack(file.name, metadata)
+      store.getState().loadTrack(file.name, 'audio', metadata)
     },
     [stopRafLoop],
   )
