@@ -1,20 +1,29 @@
-# Dorothy - Local MP3 Player Web Application
+# Dorothy - Local Media Player Web Application
 
 ## 1. Overview
 
-Dorothy는 사용자가 로컬 MP3 파일을 선택하여 브라우저에서 재생하고, 동기화된 가사(LRC)를 카라오케 스타일로 표시하는 웹 애플리케이션입니다. 모든 처리는 클라이언트에서 수행되며, 서버에 파일을 업로드하지 않습니다.
+Dorothy는 사용자가 로컬 미디어 파일(MP3 오디오·MP4/WebM/MOV 비디오)을 선택하여 브라우저에서 재생하고, 동기화된 가사(LRC)를 카라오케 스타일로 표시하는 웹 애플리케이션입니다. 모든 처리는 클라이언트에서 수행되며, 서버에 파일을 업로드하지 않습니다.
 
-### 1.1 핵심 기능
+### 1.1 지원 포맷
+
+| 종류 | 확장자 | 비고 |
+|------|--------|------|
+| 오디오 | `.mp3` | ID3v2 태그 파싱 (제목/아티스트/앨범아트) |
+| 비디오 | `.mp4`, `.webm`, `.mov` | H.264/AAC MP4 권장. 메타데이터 미파싱(파일명 표시) |
+| 가사 | `.lrc` | UTF-8 |
+
+### 1.2 핵심 기능
 
 | 기능 | 설명 |
 |------|------|
-| 파일 선택 | Drag & Drop (데스크톱) 또는 파일 선택 버튼으로 MP3/LRC 로드 |
+| 파일 선택 | Drag & Drop (데스크톱) 또는 파일 선택 버튼으로 미디어/LRC 로드 |
+| 비디오 영역 | 비디오 파일 로드 시 16:9 프레임 노출 (모바일은 `playsInline`) |
 | 재생 컨트롤 | Play/Pause 토글, Stop, 반복 재생 토글 |
 | Progress Bar | 현재 재생 위치 실시간 표시 및 Seek (클릭/드래그) |
 | 시간 표시 | 현재 시간 / 전체 시간 (`01:23 / 04:56`) |
 | 볼륨 조절 | 슬라이더 볼륨 조절 + 음소거 토글 |
-| 가사 표시 | LRC 파일 로드 시 카라오케 스타일 시간 동기화 가사 |
-| ID3 메타데이터 | MP3의 제목, 아티스트, 앨범 아트 썸네일 표시 |
+| 가사 표시 | LRC 파일 로드 시 카라오케 스타일 시간 동기화 가사 (오디오/비디오 공통) |
+| ID3 메타데이터 | MP3의 제목, 아티스트, 앨범 아트 썸네일 표시 (오디오 한정) |
 | 키보드 단축키 | Space, 화살표, M 등 기본 단축키 지원 |
 
 ### 1.2 설계 원칙
@@ -45,13 +54,13 @@ Dorothy는 사용자가 로컬 MP3 파일을 선택하여 브라우저에서 재
 | [Radix UI](https://www.radix-ui.com) | shadcn/ui 기반 Primitive (Slider, Toggle 등) |
 | [Lucide React](https://lucide.dev) | 아이콘 (Play, Pause, Stop, Volume, Repeat 등) |
 
-### 2.3 Audio & Lyrics & Metadata
+### 2.3 Media & Lyrics & Metadata
 
 | 기술 | 용도 |
 |------|------|
-| [HTML5 Audio API](https://developer.mozilla.org/en-US/docs/Web/API/HTMLAudioElement) | MP3 재생, 시간 추적, Seek |
+| [HTML5 Media Element](https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement) | `<audio>`/`<video>` 공통 재생, 시간 추적, Seek (`useMediaPlayer` 훅으로 추상화) |
 | 직접 구현 LRC 파서 (`src/lib/lrc-parser.ts`) | LRC 파일 파싱 (정규식 기반) |
-| 직접 구현 ID3 리더 (`src/lib/id3-reader.ts`) | MP3 ID3v2.2/2.3/2.4 태그 바이너리 파싱 |
+| 직접 구현 ID3 리더 (`src/lib/id3-reader.ts`) | MP3 ID3v2.2/2.3/2.4 태그 바이너리 파싱 (오디오 한정) |
 
 > **Web Audio API는 초기 버전에서 제외**합니다. 시각화(파형, 스펙트럼 등)는 향후 확장 사항입니다.
 >
