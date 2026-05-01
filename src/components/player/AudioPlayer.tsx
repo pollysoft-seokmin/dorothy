@@ -25,6 +25,7 @@ export function AudioPlayer() {
   const isMuted = usePlayerStore((s) => s.isMuted)
   const isLooping = usePlayerStore((s) => s.isLooping)
   const fileName = usePlayerStore((s) => s.fileName)
+  const mediaType = usePlayerStore((s) => s.mediaType)
   const metadata = usePlayerStore((s) => s.metadata)
   const lyrics = usePlayerStore((s) => s.lyrics)
   const currentLineIndex = usePlayerStore((s) => s.currentLineIndex)
@@ -106,11 +107,20 @@ export function AudioPlayer() {
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:py-10 flex flex-col gap-4">
-      {/* 숨겨진 audio 엘리먼트 (3단계에서 video 분기 추가 예정) */}
-      <audio
-        ref={mediaRef as React.Ref<HTMLAudioElement>}
-        preload="metadata"
-      />
+      {/* 미디어 엘리먼트: 비디오는 표시, 오디오는 숨김 */}
+      {mediaType === 'video' ? (
+        <video
+          ref={mediaRef as React.Ref<HTMLVideoElement>}
+          className="w-full aspect-video bg-black rounded-md"
+          preload="metadata"
+          playsInline
+        />
+      ) : (
+        <audio
+          ref={mediaRef as React.Ref<HTMLAudioElement>}
+          preload="metadata"
+        />
+      )}
 
       {/* 숨겨진 LRC input */}
       <input
