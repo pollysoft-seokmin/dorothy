@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from 'react'
+import { useRef, useEffect, useCallback, useState } from 'react'
 import { usePlayerStore } from '~/stores/player-store'
 import { readID3Tags } from '~/lib/id3-reader'
 import { toast } from 'sonner'
@@ -19,8 +19,10 @@ export function useMediaPlayer() {
   const objectUrlRef = useRef<string | null>(null)
   const rafRef = useRef<number>(0)
   const lastSyncRef = useRef<number>(0)
+  const [objectUrl, setObjectUrl] = useState<string | null>(null)
 
   const store = usePlayerStore
+  const mediaType = usePlayerStore((s) => s.mediaType)
 
   // rAF loop: currentTime 추적 + Zustand 동기화
   const startRafLoop = useCallback(() => {
@@ -148,33 +150,44 @@ export function useMediaPlayer() {
 
   const loadFile = useCallback(
     async (file: File) => {
-      const media = mediaRef.current
-      if (!media) return
-
-      const mediaType = detectMediaType(file.name)
-      if (!mediaType) {
+      const newType = detectMediaType(file.name)
+      if (!newType) {
         toast.error('지원하지 않는 파일 형식입니다')
         return
       }
 
       // 기존 재생 정리
-      media.pause()
+      const current = mediaRef.current
+      if (current) current.pause()
       stopRafLoop()
       if (objectUrlRef.current) {
         URL.revokeObjectURL(objectUrlRef.current)
       }
 
-      // 새 ObjectURL 생성
+      // 새 ObjectURL 생성 — src 적용은 useEffect에서 (엘리먼트 교체 대응)
       const url = URL.createObjectURL(file)
       objectUrlRef.current = url
-      media.src = url
+      setObjectUrl(url)
 
       // ID3 태그는 오디오일 때만 읽기
-      const metadata = mediaType === 'audio' ? await readID3Tags(file) : null
-      store.getState().loadTrack(file.name, mediaType, metadata)
+      const metadata = newType === 'audio' ? await readID3Tags(file) : null
+      store.getState().loadTrack(file.name, newType, metadata)
     },
     [stopRafLoop],
   )
+
+  // mediaType/objectUrl 변경 시 활성 엘리먼트에 src 적용
+  // (오디오↔비디오 전환 시 ref가 새 엘리먼트로 교체되므로 effect로 처리)
+  useEffect(() => {
+    const media = mediaRef.current
+    if (!media) return
+    if (objectUrl) {
+      if (media.src !== objectUrl) media.src = objectUrl
+    } else {
+      media.removeAttribute('src')
+      media.load()
+    }
+  }, [mediaType, objectUrl])
 
   // media 이벤트 리스너
   useEffect(() => {
