@@ -1,6 +1,9 @@
 /** 오디오 재생 상태 */
 export type PlayStatus = 'idle' | 'playing' | 'paused' | 'stopped'
 
+/** 미디어 종류 (오디오/비디오) */
+export type MediaType = 'audio' | 'video'
+
 /** ID3 메타데이터 */
 export interface TrackMetadata {
   title?: string
