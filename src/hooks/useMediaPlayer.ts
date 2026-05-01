@@ -2,9 +2,20 @@ import { useRef, useEffect, useCallback } from 'react'
 import { usePlayerStore } from '~/stores/player-store'
 import { readID3Tags } from '~/lib/id3-reader'
 import { toast } from 'sonner'
+import type { MediaType } from '~/types'
 
-export function useAudioPlayer() {
-  const audioRef = useRef<HTMLAudioElement>(null)
+const VIDEO_EXTS = new Set(['mp4', 'webm', 'mov'])
+const AUDIO_EXTS = new Set(['mp3'])
+
+function detectMediaType(fileName: string): MediaType | null {
+  const ext = fileName.toLowerCase().split('.').pop() ?? ''
+  if (VIDEO_EXTS.has(ext)) return 'video'
+  if (AUDIO_EXTS.has(ext)) return 'audio'
+  return null
+}
+
+export function useMediaPlayer() {
+  const mediaRef = useRef<HTMLMediaElement>(null)
   const objectUrlRef = useRef<string | null>(null)
   const rafRef = useRef<number>(0)
   const lastSyncRef = useRef<number>(0)
@@ -14,10 +25,10 @@ export function useAudioPlayer() {
   // rAF loop: currentTime 추적 + Zustand 동기화
   const startRafLoop = useCallback(() => {
     const tick = () => {
-      const audio = audioRef.current
-      if (!audio) return
+      const media = mediaRef.current
+      if (!media) return
 
-      const now = audio.currentTime
+      const now = media.currentTime
       const elapsed = performance.now() - lastSyncRef.current
 
       // 100ms마다 Zustand에 동기화
@@ -55,7 +66,7 @@ export function useAudioPlayer() {
           if (sectionEnd > 0 && now >= sectionEnd) {
             const nextCurrent = sectionRepeatCurrent + 1
             if (nextCurrent < sectionRepeatCount) {
-              audio.currentTime = sectionStart
+              media.currentTime = sectionStart
               setSectionRepeatCurrent(nextCurrent)
             } else {
               setSectionRepeatCurrent(0)
@@ -100,27 +111,27 @@ export function useAudioPlayer() {
   }
 
   const play = useCallback(() => {
-    const audio = audioRef.current
-    if (!audio || !audio.src) return
-    audio.play().then(() => {
+    const media = mediaRef.current
+    if (!media || !media.src) return
+    media.play().then(() => {
       store.getState().setStatus('playing')
       startRafLoop()
     })
   }, [startRafLoop])
 
   const pause = useCallback(() => {
-    const audio = audioRef.current
-    if (!audio) return
-    audio.pause()
+    const media = mediaRef.current
+    if (!media) return
+    media.pause()
     store.getState().setStatus('paused')
     stopRafLoop()
   }, [stopRafLoop])
 
   const stop = useCallback(() => {
-    const audio = audioRef.current
-    if (!audio) return
-    audio.pause()
-    audio.currentTime = 0
+    const media = mediaRef.current
+    if (!media) return
+    media.pause()
+    media.currentTime = 0
     store.getState().setStatus('stopped')
     store.getState().setCurrentTime(0)
     store.getState().setCurrentLineIndex(-1)
@@ -128,20 +139,26 @@ export function useAudioPlayer() {
   }, [stopRafLoop])
 
   const seek = useCallback((time: number) => {
-    const audio = audioRef.current
-    if (!audio) return
-    const clamped = Math.max(0, Math.min(time, audio.duration || 0))
-    audio.currentTime = clamped
+    const media = mediaRef.current
+    if (!media) return
+    const clamped = Math.max(0, Math.min(time, media.duration || 0))
+    media.currentTime = clamped
     store.getState().setCurrentTime(clamped)
   }, [])
 
   const loadFile = useCallback(
     async (file: File) => {
-      const audio = audioRef.current
-      if (!audio) return
+      const media = mediaRef.current
+      if (!media) return
+
+      const mediaType = detectMediaType(file.name)
+      if (!mediaType) {
+        toast.error('지원하지 않는 파일 형식입니다')
+        return
+      }
 
       // 기존 재생 정리
-      audio.pause()
+      media.pause()
       stopRafLoop()
       if (objectUrlRef.current) {
         URL.revokeObjectURL(objectUrlRef.current)
@@ -150,30 +167,30 @@ export function useAudioPlayer() {
       // 새 ObjectURL 생성
       const url = URL.createObjectURL(file)
       objectUrlRef.current = url
-      audio.src = url
+      media.src = url
 
-      // ID3 태그 읽기
-      const metadata = await readID3Tags(file)
-      store.getState().loadTrack(file.name, 'audio', metadata)
+      // ID3 태그는 오디오일 때만 읽기
+      const metadata = mediaType === 'audio' ? await readID3Tags(file) : null
+      store.getState().loadTrack(file.name, mediaType, metadata)
     },
     [stopRafLoop],
   )
 
-  // audio 이벤트 리스너
+  // media 이벤트 리스너
   useEffect(() => {
-    const audio = audioRef.current
-    if (!audio) return
+    const media = mediaRef.current
+    if (!media) return
 
     const onLoadedMetadata = () => {
-      store.getState().setDuration(audio.duration)
+      store.getState().setDuration(media.duration)
     }
 
     const onEnded = () => {
       const { isLooping, checkedLines } = store.getState()
       if (checkedLines.size > 0) return
       if (isLooping) {
-        audio.currentTime = 0
-        audio.play()
+        media.currentTime = 0
+        media.play()
       } else {
         store.getState().setStatus('stopped')
         store.getState().setCurrentTime(0)
@@ -183,35 +200,40 @@ export function useAudioPlayer() {
     }
 
     const onError = () => {
-      toast.error('오디오 파일을 재생할 수 없습니다')
+      const mediaType = store.getState().mediaType
+      const msg =
+        mediaType === 'video'
+          ? '비디오 파일을 재생할 수 없습니다 (H.264/AAC MP4 권장)'
+          : '오디오 파일을 재생할 수 없습니다'
+      toast.error(msg)
       store.getState().reset()
       stopRafLoop()
     }
 
-    audio.addEventListener('loadedmetadata', onLoadedMetadata)
-    audio.addEventListener('ended', onEnded)
-    audio.addEventListener('error', onError)
+    media.addEventListener('loadedmetadata', onLoadedMetadata)
+    media.addEventListener('ended', onEnded)
+    media.addEventListener('error', onError)
 
     return () => {
-      audio.removeEventListener('loadedmetadata', onLoadedMetadata)
-      audio.removeEventListener('ended', onEnded)
-      audio.removeEventListener('error', onError)
+      media.removeEventListener('loadedmetadata', onLoadedMetadata)
+      media.removeEventListener('ended', onEnded)
+      media.removeEventListener('error', onError)
     }
   }, [stopRafLoop])
 
   // Zustand volume/muted 동기화
   useEffect(() => {
     const unsub = store.subscribe((state, prev) => {
-      const audio = audioRef.current
-      if (!audio) return
-      if (state.volume !== prev.volume) audio.volume = state.volume
-      if (state.isMuted !== prev.isMuted) audio.muted = state.isMuted
+      const media = mediaRef.current
+      if (!media) return
+      if (state.volume !== prev.volume) media.volume = state.volume
+      if (state.isMuted !== prev.isMuted) media.muted = state.isMuted
     })
     // 초기값 설정
-    const audio = audioRef.current
-    if (audio) {
-      audio.volume = store.getState().volume
-      audio.muted = store.getState().isMuted
+    const media = mediaRef.current
+    if (media) {
+      media.volume = store.getState().volume
+      media.muted = store.getState().isMuted
     }
     return unsub
   }, [])
@@ -226,5 +248,5 @@ export function useAudioPlayer() {
     }
   }, [stopRafLoop])
 
-  return { audioRef, play, pause, stop, seek, loadFile }
+  return { mediaRef, play, pause, stop, seek, loadFile }
 }
