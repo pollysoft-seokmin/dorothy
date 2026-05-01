@@ -35,7 +35,7 @@ export function AudioPlayer() {
   const hasFile = !!fileName
   const disabled = !hasFile
 
-  const handleMp3Load = useCallback(
+  const handleMediaLoad = useCallback(
     (file: File) => loadFile(file),
     [loadFile],
   )
@@ -136,7 +136,7 @@ export function AudioPlayer() {
 
       {/* 파일 선택 */}
       <FileDropZone
-        onMp3Load={handleMp3Load}
+        onMediaLoad={handleMediaLoad}
         onLrcLoad={handleLrcLoad}
         fileName={fileName}
       />
