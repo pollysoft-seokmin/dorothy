@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState } from 'react'
+import { useRef, useEffect, useCallback } from 'react'
 import { usePlayerStore } from '~/stores/player-store'
 import { readID3Tags } from '~/lib/id3-reader'
 import { toast } from 'sonner'
@@ -19,7 +19,6 @@ export function useMediaPlayer() {
   const objectUrlRef = useRef<string | null>(null)
   const rafRef = useRef<number>(0)
   const lastSyncRef = useRef<number>(0)
-  const [objectUrl, setObjectUrl] = useState<string | null>(null)
 
   const store = usePlayerStore
   const mediaType = usePlayerStore((s) => s.mediaType)
@@ -164,10 +163,15 @@ export function useMediaPlayer() {
         URL.revokeObjectURL(objectUrlRef.current)
       }
 
-      // 새 ObjectURL 생성 — src 적용은 useEffect에서 (엘리먼트 교체 대응)
       const url = URL.createObjectURL(file)
       objectUrlRef.current = url
-      setObjectUrl(url)
+
+      // 같은 mediaType이면 현재 엘리먼트에 즉시 src 적용 (동기 동작 보장).
+      // 다른 mediaType이면 loadTrack이 mediaType을 바꿔 엘리먼트가 교체되며,
+      // 아래 useEffect가 새 엘리먼트에 src를 적용한다.
+      if (current && store.getState().mediaType === newType) {
+        current.src = url
+      }
 
       // ID3 태그는 오디오일 때만 읽기
       const metadata = newType === 'audio' ? await readID3Tags(file) : null
@@ -176,18 +180,16 @@ export function useMediaPlayer() {
     [stopRafLoop],
   )
 
-  // mediaType/objectUrl 변경 시 활성 엘리먼트에 src 적용
-  // (오디오↔비디오 전환 시 ref가 새 엘리먼트로 교체되므로 effect로 처리)
+  // mediaType 변경 시 새로 마운트된 엘리먼트에 보관해둔 ObjectURL 적용
+  // (오디오↔비디오 전환 시 ref가 새 엘리먼트로 교체되는 케이스 대응)
   useEffect(() => {
     const media = mediaRef.current
     if (!media) return
-    if (objectUrl) {
-      if (media.src !== objectUrl) media.src = objectUrl
-    } else {
-      media.removeAttribute('src')
-      media.load()
+    const url = objectUrlRef.current
+    if (url && media.src !== url) {
+      media.src = url
     }
-  }, [mediaType, objectUrl])
+  }, [mediaType])
 
   // media 이벤트 리스너
   useEffect(() => {
