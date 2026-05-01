@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react'
 import { Toaster } from 'sonner'
 import { usePlayerStore } from '~/stores/player-store'
-import { useAudioPlayer } from '~/hooks/useAudioPlayer'
+import { useMediaPlayer } from '~/hooks/useMediaPlayer'
 import { useLyrics } from '~/hooks/useLyrics'
 import { useKeyboardShortcuts } from '~/hooks/useKeyboardShortcuts'
 import { FileDropZone } from './FileDropZone'
@@ -14,7 +14,7 @@ import { SectionRepeatControls } from './SectionRepeatControls'
 import { LyricsPanel } from '~/components/lyrics/LyricsPanel'
 
 export function AudioPlayer() {
-  const { audioRef, play, pause, stop, seek, loadFile } = useAudioPlayer()
+  const { mediaRef, play, pause, stop, seek, loadFile } = useMediaPlayer()
   const { loadLrcFile } = useLyrics()
   const lrcInputRef = useRef<HTMLInputElement>(null)
 
@@ -106,8 +106,11 @@ export function AudioPlayer() {
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:py-10 flex flex-col gap-4">
-      {/* 숨겨진 audio 엘리먼트 */}
-      <audio ref={audioRef} preload="metadata" />
+      {/* 숨겨진 audio 엘리먼트 (3단계에서 video 분기 추가 예정) */}
+      <audio
+        ref={mediaRef as React.Ref<HTMLAudioElement>}
+        preload="metadata"
+      />
 
       {/* 숨겨진 LRC input */}
       <input
