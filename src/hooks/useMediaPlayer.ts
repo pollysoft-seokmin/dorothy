@@ -210,24 +210,19 @@ export function useMediaPlayer() {
     [stopRafLoop],
   )
 
-  // mediaType 변경 시 새로 마운트된 엘리먼트에 보관해둔 ObjectURL 적용
-  // (오디오↔비디오 전환 시 ref가 새 엘리먼트로 교체되는 케이스 대응)
-  useEffect(() => {
-    const media = mediaRef.current
-    if (!media) return
-    const url = objectUrlRef.current
-    if (url && media.src !== url) {
-      media.src = url
-    }
-  }, [mediaType])
-
-  // media 이벤트 리스너
+  // media 이벤트 리스너 + ObjectURL 적용을 한 effect로 묶는다.
+  // mediaType이 바뀌면 audio↔video 엘리먼트가 교체되며 mediaRef.current가
+  // 새 엘리먼트로 갱신되므로 리스너를 새로 붙여야 한다. 또한 listener를
+  // src 적용보다 먼저 붙여야 빠르게 발생하는 loadedmetadata/durationchange를
+  // 놓치지 않는다.
   useEffect(() => {
     const media = mediaRef.current
     if (!media) return
 
-    const onLoadedMetadata = () => {
-      store.getState().setDuration(media.duration)
+    const onDurationChange = () => {
+      if (Number.isFinite(media.duration)) {
+        store.getState().setDuration(media.duration)
+      }
     }
 
     const onEnded = () => {
@@ -255,16 +250,29 @@ export function useMediaPlayer() {
       stopRafLoop()
     }
 
-    media.addEventListener('loadedmetadata', onLoadedMetadata)
+    media.addEventListener('loadedmetadata', onDurationChange)
+    media.addEventListener('durationchange', onDurationChange)
     media.addEventListener('ended', onEnded)
     media.addEventListener('error', onError)
 
+    // 보관해둔 ObjectURL을 새 엘리먼트에 적용 (audio↔video 전환 케이스).
+    // 리스너 attach 후에 src를 설정해야 빠른 metadata 이벤트를 받을 수 있다.
+    const url = objectUrlRef.current
+    if (url && media.src !== url) {
+      media.src = url
+    } else if (Number.isFinite(media.duration)) {
+      // 이미 src가 적용돼 metadata 이벤트가 지나간 케이스(엘리먼트 재마운트
+      // 없이 src만 갱신)에서도 store에 반영
+      store.getState().setDuration(media.duration)
+    }
+
     return () => {
-      media.removeEventListener('loadedmetadata', onLoadedMetadata)
+      media.removeEventListener('loadedmetadata', onDurationChange)
+      media.removeEventListener('durationchange', onDurationChange)
       media.removeEventListener('ended', onEnded)
       media.removeEventListener('error', onError)
     }
-  }, [stopRafLoop])
+  }, [stopRafLoop, mediaType])
 
   // Zustand volume/muted 동기화
   useEffect(() => {

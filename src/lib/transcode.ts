@@ -9,8 +9,8 @@
 
 import type { FFmpeg } from '@ffmpeg/ffmpeg'
 
-const CORE_VERSION = '0.12.6'
-const CORE_BASE_URL = `https://unpkg.com/@ffmpeg/core@${CORE_VERSION}/dist/umd`
+const CORE_VERSION = '0.12.10'
+const CORE_BASE_URL = `https://unpkg.com/@ffmpeg/core@${CORE_VERSION}/dist/esm`
 
 let ffmpegPromise: Promise<FFmpeg> | null = null
 
@@ -63,10 +63,19 @@ export async function transcodeMpgToMp4(
     const ratio = Math.max(0, Math.min(1, progress))
     onProgress?.({ ratio })
   }
+  const handleLog = ({ type, message }: { type: string; message: string }) => {
+    // ffmpeg stderr/stdout을 콘솔로 흘려 디버깅을 돕는다 (Playwright가 캡처)
+    console.log(`[ffmpeg:${type}] ${message}`)
+  }
   ffmpeg.on('progress', handleProgress)
+  ffmpeg.on('log', handleLog)
 
   try {
-    await ffmpeg.writeFile(inputName, await fetchFile(file))
+    const inputBytes = await fetchFile(file)
+    console.log(
+      `[transcode] input: name=${file.name} size=${file.size} fetched=${inputBytes.byteLength}`,
+    )
+    await ffmpeg.writeFile(inputName, inputBytes)
     const exitCode = await ffmpeg.exec([
       '-i', inputName,
       '-c:v', 'libx264',
@@ -81,11 +90,15 @@ export async function transcodeMpgToMp4(
       throw new Error(`ffmpeg exited with code ${exitCode}`)
     }
     const data = (await ffmpeg.readFile(outputName)) as Uint8Array
-    const blob = new Blob([data.buffer as ArrayBuffer], { type: 'video/mp4' })
+    console.log(
+      `[transcode] output: bytes=${data.byteLength} bufferBytes=${data.buffer.byteLength} byteOffset=${data.byteOffset}`,
+    )
+    const blob = new Blob([data], { type: 'video/mp4' })
     const newName = file.name.replace(/\.(mpg|mpeg)$/i, '.mp4')
     return new File([blob], newName, { type: 'video/mp4' })
   } finally {
     ffmpeg.off('progress', handleProgress)
+    ffmpeg.off('log', handleLog)
     // FFmpeg 가상 파일시스템 정리 (실패 시 무시)
     await ffmpeg.deleteFile(inputName).catch(() => {})
     await ffmpeg.deleteFile(outputName).catch(() => {})
