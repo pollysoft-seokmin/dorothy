@@ -1,6 +1,7 @@
 import { useRef, useEffect, useCallback } from 'react'
 import { usePlayerStore } from '~/stores/player-store'
 import { readID3Tags } from '~/lib/id3-reader'
+import { extractEmbeddedSami } from '~/lib/sami-trailer'
 import { transcodeToMp4, probeVideoPlayable } from '~/lib/transcode'
 import { toast } from 'sonner'
 import type { MediaType } from '~/types'
@@ -191,6 +192,11 @@ export function useMediaPlayer() {
         URL.revokeObjectURL(objectUrlRef.current)
       }
 
+      // Polly-format SAMI 자막 트레일러는 원본 파일 끝부분에 붙어 있다.
+      // 트랜스코딩하면 트레일러가 사라지므로 변환 전에 추출한다.
+      // 실패/없음은 silent — 일반 미디어 파일에선 기대된 동작.
+      const embeddedLyrics = await extractEmbeddedSami(file).catch(() => null)
+
       // 비호환 비디오는 ffmpeg.wasm으로 H.264/AAC MP4로 트랜스코딩 후 진행.
       // 분류:
       //  - .mpg/.mpeg: 브라우저가 demux 자체를 못하므로 항상 트랜스코딩
@@ -235,6 +241,12 @@ export function useMediaPlayer() {
       // ID3 태그는 오디오일 때만 읽기. 표시는 원본 파일명(displayName)을 유지.
       const metadata = newType === 'audio' ? await readID3Tags(file) : null
       store.getState().loadTrack(displayName, newType, metadata)
+
+      // 임베디드 SAMI 자막이 있으면 LRC 가사 자리에 채운다.
+      // loadTrack이 lyrics를 null로 리셋한 직후에 호출해야 덮이지 않는다.
+      if (embeddedLyrics && embeddedLyrics.lines.length > 0) {
+        store.getState().loadLyrics(embeddedLyrics)
+      }
     },
     [stopRafLoop],
   )

@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { blowfishEncryptECB } from "../src/lib/blowfish";
 
 const fixtures = path.join(import.meta.dirname, "fixtures");
 const mp3Path = path.join(fixtures, "test.mp3");
@@ -13,6 +14,83 @@ const mpgMpeg2Path = path.join(fixtures, "test-mpeg2.mpg");
 const mpgMpeg2Ac3Path = path.join(fixtures, "test-mpeg2-ac3.mpg");
 const mpeg4Part2Path = path.join(fixtures, "test-mpeg4-part2.mp4");
 const xvidAviPath = path.join(fixtures, "test-xvid.avi");
+
+// Polly-format SAMI trailer = ciphertext || u64 LE length || 10B ASCII tag.
+// Korean language directives in the SAMI body must be emitted as EUC-KR bytes.
+// `truncateBytes` lets a test simulate the real-world polly writer quirk:
+// the cipher is written to disk truncated by N bytes, and dataSize is
+// stored as the unpadded plaintext length (not a multiple of 8). The reader
+// rounds up to recover the full cipher size, stealing N bytes from the
+// scriptLength field for the last block.
+function buildSamiTrailerMp3(
+  samplePath: string,
+  outPath: string,
+  truncateBytes = 0,
+  duplicateEnKo = false,
+): void {
+  const ascii = (s: string) => new TextEncoder().encode(s);
+  const concat = (...parts: Uint8Array[]) => {
+    const total = parts.reduce((n, p) => n + p.length, 0);
+    const out = new Uint8Array(total);
+    let off = 0;
+    for (const p of parts) {
+      out.set(p, off);
+      off += p.length;
+    }
+    return out;
+  };
+  // 영어 자막 / 한글 자막 in EUC-KR
+  const EN_TAG = concat(
+    ascii("<!-- "),
+    new Uint8Array([0xbf, 0xb5, 0xbe, 0xee, 0x20, 0xc0, 0xda, 0xb8, 0xb7]),
+    ascii(" -->\n"),
+  );
+  const KO_TAG = concat(
+    ascii("<!-- "),
+    new Uint8Array([0xc7, 0xd1, 0xb1, 0xdb, 0x20, 0xc0, 0xda, 0xb8, 0xb7]),
+    ascii(" -->\n"),
+  );
+  const enFirst = duplicateEnKo ? "SAMI shared one" : "SAMI hello en";
+  const enSecond = duplicateEnKo ? "SAMI shared two" : "SAMI second en";
+  const koFirst = duplicateEnKo ? "SAMI shared one" : "SAMI hello ko";
+  const koSecond = duplicateEnKo ? "SAMI shared two" : "SAMI second ko";
+  const samiBytes = concat(
+    ascii("<SAMI>\n<HEAD>\n<TITLE>SamiTest</TITLE>\n</HEAD>\n<BODY>\n"),
+    EN_TAG,
+    ascii(`<SYNC Start=500>\n<P Class=ENCC>${enFirst}\n`),
+    ascii("<SYNC Start=2000>&nbsp;\n"),
+    ascii(`<SYNC Start=2500>\n<P Class=ENCC>${enSecond}\n`),
+    ascii("<SYNC Start=4000>&nbsp;\n"),
+    KO_TAG,
+    ascii(`<SYNC Start=500>\n<P Class=KRCC>${koFirst}\n`),
+    ascii("<SYNC Start=2000>&nbsp;\n"),
+    ascii(`<SYNC Start=2500>\n<P Class=KRCC>${koSecond}\n`),
+    ascii("<SYNC Start=4000>&nbsp;\n"),
+    ascii("</BODY>\n</SAMI>\n"),
+  );
+  // Pad to 8-byte boundary with spaces (encryption requires alignment).
+  const plainLen = samiBytes.length;
+  const pad = (8 - (plainLen % 8)) % 8;
+  const padded = new Uint8Array(plainLen + pad);
+  padded.set(samiBytes, 0);
+  for (let i = plainLen; i < padded.length; i++) padded[i] = 0x20;
+  const cipher = blowfishEncryptECB(ascii("singlepc"), padded);
+  // Real polly writers store fewer cipher bytes than they actually produced
+  // (paddedLen) and record dataSize = paddedLen - truncateBytes. The reader
+  // rounds up to recover paddedLen, with the trailing N bytes stolen from
+  // the scriptLength field — last 8-byte block decrypts to garbage that the
+  // SAMI parser ignores (it breaks on </SAMI>).
+  const truncatedCipher =
+    truncateBytes > 0 ? cipher.subarray(0, cipher.length - truncateBytes) : cipher;
+  const dataSize = truncatedCipher.length;
+  const lenBytes = new Uint8Array(8);
+  new DataView(lenBytes.buffer).setUint32(0, dataSize, true);
+  const tag = ascii("singlepubl");
+
+  const original = fs.readFileSync(samplePath);
+  const trailer = concat(truncatedCipher, lenBytes, tag);
+  fs.writeFileSync(outPath, Buffer.concat([original, Buffer.from(trailer)]));
+}
 
 async function uploadFiles(
   page: import("@playwright/test").Page,
@@ -457,5 +535,58 @@ test.describe("Dorothy", () => {
     await uploadFiles(page, mp4Path);
     await expect(page.locator("video")).toHaveCount(1);
     await expect(page.locator("audio")).toHaveCount(0);
+  });
+
+  test("Polly-format SAMI 트레일러가 임베디드된 MP3 업로드 시 자막 자동 로드", async ({
+    page,
+  }) => {
+    const tmpFile = path.join(
+      fs.mkdtempSync(path.join(os.tmpdir(), "dorothy-sami-")),
+      "sami.mp3",
+    );
+    buildSamiTrailerMp3(mp3Path, tmpFile);
+
+    await page.goto("/");
+    await uploadFiles(page, tmpFile);
+
+    // 외부 LRC 없이도 EN+KO 라인이 동시에 렌더되어야 한다.
+    await expect(page.getByText("SAMI hello en")).toBeVisible();
+    await expect(page.getByText("SAMI hello ko")).toBeVisible();
+    await expect(page.getByText("SAMI second en")).toBeVisible();
+    await expect(page.getByText("SAMI second ko")).toBeVisible();
+  });
+
+  test("EN/KO 본문이 동일한 SAMI는 한 번만 표시", async ({ page }) => {
+    // 일부 콘텐츠는 EN 섹션과 KO 섹션에 동일한 한국어 번역을 그대로
+    // 복제해 두는 경우가 있다 — 두 줄로 표시하면 중복이라 한 줄만 노출.
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "dorothy-sami-dup-"));
+    const tmpFile = path.join(dir, "sami.mp3");
+    buildSamiTrailerMp3(mp3Path, tmpFile, 0, true);
+
+    await page.goto("/");
+    await uploadFiles(page, tmpFile);
+
+    await expect(page.getByText("SAMI shared one")).toHaveCount(1);
+    await expect(page.getByText("SAMI shared two")).toHaveCount(1);
+  });
+
+  test("dataSize가 8의 배수가 아닌 SAMI 트레일러도 자막 로드", async ({
+    page,
+  }) => {
+    // 실제 polly 출력 파일들은 cipher가 disk에서 잘린 채(예: -2바이트)로
+    // 저장되고, dataSize 필드에는 그 절단된 길이(8 미배수)가 기록되어 있다.
+    // 리더는 ceil(dataSize/8)*8 만큼 읽어 마지막 블록의 일부 바이트를
+    // 다음 필드에서 빌려와 복호화한다 — 이 경로 회귀 방지.
+    const dir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "dorothy-sami-unaligned-"),
+    );
+    const tmpFile = path.join(dir, "sami.mp3");
+    buildSamiTrailerMp3(mp3Path, tmpFile, 2); // truncate cipher by 2 bytes
+
+    await page.goto("/");
+    await uploadFiles(page, tmpFile);
+
+    await expect(page.getByText("SAMI hello en")).toBeVisible();
+    await expect(page.getByText("SAMI second ko")).toBeVisible();
   });
 });
