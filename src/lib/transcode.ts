@@ -1,6 +1,6 @@
 /**
- * 브라우저에서 비호환 비디오 포맷(.mpg/.mpeg)을 ffmpeg.wasm으로
- * H.264/AAC MP4로 트랜스코딩한다.
+ * 브라우저에서 재생 불가능한 비디오 파일(.mpg/.mpeg, MPEG-4 Part 2 mp4 등)을
+ * ffmpeg.wasm으로 H.264/AAC MP4로 트랜스코딩한다.
  *
  * - ffmpeg.wasm 코어(~25MB)는 lazy import + CDN(unpkg)에서 한 번만 로드되며
  *   같은 세션에서 재사용된다.
@@ -42,20 +42,63 @@ export interface TranscodeProgress {
 }
 
 /**
- * .mpg/.mpeg 파일을 H.264/AAC MP4로 트랜스코딩한다.
+ * 비디오 파일을 브라우저가 디코딩할 수 있는지 빠르게 확인한다.
+ * 컨테이너만 mp4고 안의 코덱이 비호환(예: MPEG-4 Part 2)인 경우
+ * `loadeddata`가 발생하지 않거나 `videoWidth=0`이 된다.
+ */
+export function probeVideoPlayable(file: File, timeoutMs = 8000): Promise<boolean> {
+  return new Promise((resolve) => {
+    const video = document.createElement('video')
+    video.muted = true
+    video.preload = 'metadata'
+    const url = URL.createObjectURL(file)
+    let settled = false
+    const settle = (ok: boolean) => {
+      if (settled) return
+      settled = true
+      URL.revokeObjectURL(url)
+      video.removeAttribute('src')
+      video.load()
+      resolve(ok)
+    }
+    const timer = setTimeout(() => settle(false), timeoutMs)
+    video.addEventListener(
+      'loadeddata',
+      () => {
+        clearTimeout(timer)
+        settle(video.videoWidth > 0 && video.videoHeight > 0)
+      },
+      { once: true },
+    )
+    video.addEventListener(
+      'error',
+      () => {
+        clearTimeout(timer)
+        settle(false)
+      },
+      { once: true },
+    )
+    video.src = url
+  })
+}
+
+/**
+ * 임의 비디오 파일을 H.264/AAC MP4로 트랜스코딩한다.
  * 결과는 기존 비디오 처리 파이프라인(<video>, useMediaPlayer)에서
  * 그대로 사용 가능한 File이다 (확장자 .mp4, MIME video/mp4).
  *
  * `preset=ultrafast`로 변환 속도를 우선하며, 화질은 재생용으로 충분.
  */
-export async function transcodeMpgToMp4(
+export async function transcodeToMp4(
   file: File,
   onProgress?: (p: TranscodeProgress) => void,
 ): Promise<File> {
   const ffmpeg = await getFFmpeg()
   const { fetchFile } = await import('@ffmpeg/util')
 
-  const inputName = 'input.mpg'
+  // ffmpeg가 demuxer를 정확히 고를 수 있도록 원본 확장자를 유지한다
+  const origExt = file.name.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1] ?? 'bin'
+  const inputName = `input.${origExt}`
   const outputName = 'output.mp4'
 
   const handleProgress = ({ progress }: { progress: number }) => {
@@ -94,7 +137,7 @@ export async function transcodeMpgToMp4(
       `[transcode] output: bytes=${data.byteLength} bufferBytes=${data.buffer.byteLength} byteOffset=${data.byteOffset}`,
     )
     const blob = new Blob([data], { type: 'video/mp4' })
-    const newName = file.name.replace(/\.(mpg|mpeg)$/i, '.mp4')
+    const newName = file.name.replace(/\.[^.]+$/, '') + '.mp4'
     return new File([blob], newName, { type: 'video/mp4' })
   } finally {
     ffmpeg.off('progress', handleProgress)

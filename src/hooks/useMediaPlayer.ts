@@ -1,13 +1,35 @@
 import { useRef, useEffect, useCallback } from 'react'
 import { usePlayerStore } from '~/stores/player-store'
 import { readID3Tags } from '~/lib/id3-reader'
-import { transcodeMpgToMp4 } from '~/lib/transcode'
+import { transcodeToMp4, probeVideoPlayable } from '~/lib/transcode'
 import { toast } from 'sonner'
 import type { MediaType } from '~/types'
 
-const VIDEO_EXTS = new Set(['mp4', 'webm', 'mov'])
+const VIDEO_EXTS = new Set([
+  'mp4',
+  'webm',
+  'mov',
+  'mpg',
+  'mpeg',
+  'm4v',
+  'avi',
+  'mkv',
+  'flv',
+  'wmv',
+  '3gp',
+])
 const AUDIO_EXTS = new Set(['mp3'])
-const TRANSCODE_VIDEO_EXTS = new Set(['mpg', 'mpeg'])
+// 브라우저가 native로 재생하지 않는 컨테이너 — probe해도 의미 없으므로
+// 항상 ffmpeg.wasm으로 변환한다.
+const ALWAYS_TRANSCODE_EXTS = new Set([
+  'mpg',
+  'mpeg',
+  'avi',
+  'mkv',
+  'flv',
+  'wmv',
+  '3gp',
+])
 
 function getExt(fileName: string): string {
   return fileName.toLowerCase().split('.').pop() ?? ''
@@ -15,13 +37,9 @@ function getExt(fileName: string): string {
 
 function detectMediaType(fileName: string): MediaType | null {
   const ext = getExt(fileName)
-  if (VIDEO_EXTS.has(ext) || TRANSCODE_VIDEO_EXTS.has(ext)) return 'video'
+  if (VIDEO_EXTS.has(ext)) return 'video'
   if (AUDIO_EXTS.has(ext)) return 'audio'
   return null
-}
-
-function needsTranscode(fileName: string): boolean {
-  return TRANSCODE_VIDEO_EXTS.has(getExt(fileName))
 }
 
 export function useMediaPlayer() {
@@ -173,23 +191,34 @@ export function useMediaPlayer() {
         URL.revokeObjectURL(objectUrlRef.current)
       }
 
-      // 비호환 비디오(.mpg/.mpeg)는 ffmpeg.wasm으로 트랜스코딩 후 진행
+      // 비호환 비디오는 ffmpeg.wasm으로 H.264/AAC MP4로 트랜스코딩 후 진행.
+      // 분류:
+      //  - .mpg/.mpeg: 브라우저가 demux 자체를 못하므로 항상 트랜스코딩
+      //  - 그 외 비디오(.mp4/.webm/.mov): 컨테이너만 호환이고 안의 코덱이
+      //    비호환(예: MPEG-4 Part 2)인 케이스가 있어 먼저 재생 가능 여부를
+      //    프로브하고, 실패하면 트랜스코딩
       let playable = file
-      let displayName = file.name
-      if (needsTranscode(file.name)) {
-        const toastId = toast.loading(
-          '비디오 변환 중... (FFmpeg 코어 로드 ~25MB, 첫 사용 시에만)',
-        )
-        try {
-          playable = await transcodeMpgToMp4(file, ({ ratio }) => {
-            const pct = Math.round(ratio * 100)
-            toast.loading(`비디오 변환 중... ${pct}%`, { id: toastId })
-          })
-          toast.success('비디오 변환 완료', { id: toastId })
-        } catch (err) {
-          console.error('transcode failed:', err)
-          toast.error('비디오 변환에 실패했습니다', { id: toastId })
-          return
+      const displayName = file.name
+      if (newType === 'video') {
+        const ext = getExt(file.name)
+        const alwaysTranscode = ALWAYS_TRANSCODE_EXTS.has(ext)
+        const needs =
+          alwaysTranscode || !(await probeVideoPlayable(file))
+        if (needs) {
+          const toastId = toast.loading(
+            '비디오 변환 중... (FFmpeg 코어 로드 ~25MB, 첫 사용 시에만)',
+          )
+          try {
+            playable = await transcodeToMp4(file, ({ ratio }) => {
+              const pct = Math.round(ratio * 100)
+              toast.loading(`비디오 변환 중... ${pct}%`, { id: toastId })
+            })
+            toast.success('비디오 변환 완료', { id: toastId })
+          } catch (err) {
+            console.error('transcode failed:', err)
+            toast.error('비디오 변환에 실패했습니다', { id: toastId })
+            return
+          }
         }
       }
 
