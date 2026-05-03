@@ -4,6 +4,8 @@ import {
   Scripts,
   createRootRoute,
 } from '@tanstack/react-router'
+import { Toaster } from 'sonner'
+import { AuthHeader } from '~/components/auth/AuthHeader'
 import appCss from '~/styles/app.css?url'
 
 export const Route = createRootRoute({
@@ -32,7 +34,9 @@ function RootDocument() {
         <HeadContent />
       </head>
       <body className="min-h-screen bg-background text-foreground antialiased">
+        <AuthHeader />
         <Outlet />
+        <Toaster richColors closeButton position="bottom-center" />
         <Scripts />
       </body>
     </html>

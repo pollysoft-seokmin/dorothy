@@ -136,7 +136,7 @@ export async function transcodeToMp4(
     console.log(
       `[transcode] output: bytes=${data.byteLength} bufferBytes=${data.buffer.byteLength} byteOffset=${data.byteOffset}`,
     )
-    const blob = new Blob([data], { type: 'video/mp4' })
+    const blob = new Blob([data as BlobPart], { type: 'video/mp4' })
     const newName = file.name.replace(/\.[^.]+$/, '') + '.mp4'
     return new File([blob], newName, { type: 'video/mp4' })
   } finally {

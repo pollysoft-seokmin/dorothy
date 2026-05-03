@@ -1,9 +1,10 @@
 import { useCallback, useRef } from 'react'
-import { Toaster } from 'sonner'
 import { usePlayerStore } from '~/stores/player-store'
 import { useMediaPlayer } from '~/hooks/useMediaPlayer'
 import { useLyrics } from '~/hooks/useLyrics'
 import { useKeyboardShortcuts } from '~/hooks/useKeyboardShortcuts'
+import { usePreferencesSync } from '~/hooks/usePreferencesSync'
+import { usePlaybackHistorySync } from '~/hooks/usePlaybackHistorySync'
 import { FileDropZone } from './FileDropZone'
 import { TrackInfo } from './TrackInfo'
 import { PlaybackControls } from './PlaybackControls'
@@ -88,6 +89,8 @@ export function AudioPlayer() {
   )
 
   useKeyboardShortcuts({ play, pause, seek })
+  usePreferencesSync()
+  usePlaybackHistorySync()
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:py-10 flex flex-col gap-4">
@@ -114,9 +117,6 @@ export function AudioPlayer() {
         className="hidden"
         onChange={handleLrcInputChange}
       />
-
-      {/* 헤더 */}
-      <h1 className="text-xl font-bold text-center">Dorothy</h1>
 
       {/* 파일 선택 */}
       <FileDropZone
@@ -172,8 +172,6 @@ export function AudioPlayer() {
           onToggleMute={handleToggleMute}
         />
       </div>
-
-      <Toaster position="bottom-center" />
     </div>
   )
 }
