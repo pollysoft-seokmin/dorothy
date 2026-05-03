@@ -1,42 +1,62 @@
-import { Play, Pause, Square, Repeat } from 'lucide-react'
+import { Play, Pause, Square, Repeat, RepeatOff } from 'lucide-react'
 import { Button } from '~/components/ui/button'
 import { cn } from '~/lib/utils'
 import type { PlayStatus } from '~/types'
 
 interface PlaybackControlsProps {
   status: PlayStatus
-  isLooping: boolean
+  repeatCount: number
+  hasCheckedLines: boolean
   disabled: boolean
   onPlay: () => void
   onPause: () => void
   onStop: () => void
-  onToggleLoop: () => void
+  onCycleRepeat: () => void
 }
 
 export function PlaybackControls({
   status,
-  isLooping,
+  repeatCount,
+  hasCheckedLines,
   disabled,
   onPlay,
   onPause,
   onStop,
-  onToggleLoop,
+  onCycleRepeat,
 }: PlaybackControlsProps) {
   const isPlaying = status === 'playing'
+  const isRepeating = repeatCount > 0
+  // 반복 기능은 체크된 가사 구간이 있을 때만 의미가 있다.
+  const repeatDisabled = disabled || !hasCheckedLines
+  const repeatLabel = !hasCheckedLines
+    ? '반복 (구간 체크 필요)'
+    : isRepeating
+      ? `반복 ${repeatCount}회`
+      : '반복 끄기'
 
   return (
     <div className="flex items-center justify-center gap-2">
-      {/* Repeat 토글 */}
+      {/* Repeat 사이클 (Off → 2x → 5x). Off는 RepeatOff 아이콘으로 명시. */}
       <Button
         variant="ghost"
         size="icon"
-        disabled={disabled}
-        onClick={onToggleLoop}
-        aria-label="반복 재생"
-        className={cn(isLooping && 'text-primary')}
+        disabled={repeatDisabled}
+        onClick={onCycleRepeat}
+        aria-label={repeatLabel}
+        className={cn(isRepeating ? 'text-primary' : 'text-muted-foreground')}
       >
-        <Repeat className="h-4 w-4" />
+        {isRepeating ? <Repeat /> : <RepeatOff />}
       </Button>
+      {/* 카운트 상태 표시 — 버튼 밖에 라벨로 노출 (Off일 땐 폭만 유지) */}
+      <span
+        aria-hidden
+        className={cn(
+          'text-xs font-medium tabular-nums w-5 text-center',
+          isRepeating ? 'text-primary' : 'text-transparent',
+        )}
+      >
+        {isRepeating ? `${repeatCount}x` : '0x'}
+      </span>
 
       {/* Play / Pause 토글 */}
       <Button

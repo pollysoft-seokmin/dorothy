@@ -10,7 +10,6 @@ import { PlaybackControls } from './PlaybackControls'
 import { ProgressBar } from './ProgressBar'
 import { TimeDisplay } from './TimeDisplay'
 import { VolumeControl } from './VolumeControl'
-import { SectionRepeatControls } from './SectionRepeatControls'
 import { LyricsPanel } from '~/components/lyrics/LyricsPanel'
 
 export function AudioPlayer() {
@@ -23,14 +22,13 @@ export function AudioPlayer() {
   const duration = usePlayerStore((s) => s.duration)
   const volume = usePlayerStore((s) => s.volume)
   const isMuted = usePlayerStore((s) => s.isMuted)
-  const isLooping = usePlayerStore((s) => s.isLooping)
+  const repeatCount = usePlayerStore((s) => s.repeatCount)
   const fileName = usePlayerStore((s) => s.fileName)
   const mediaType = usePlayerStore((s) => s.mediaType)
   const metadata = usePlayerStore((s) => s.metadata)
   const lyrics = usePlayerStore((s) => s.lyrics)
   const currentLineIndex = usePlayerStore((s) => s.currentLineIndex)
   const checkedLines = usePlayerStore((s) => s.checkedLines)
-  const sectionRepeatCount = usePlayerStore((s) => s.sectionRepeatCount)
 
   const hasFile = !!fileName
   const disabled = !hasFile
@@ -58,26 +56,12 @@ export function AudioPlayer() {
     usePlayerStore.getState().toggleMute()
   }, [])
 
-  const handleToggleLoop = useCallback(() => {
-    usePlayerStore.getState().toggleLoop()
+  const handleCycleRepeat = useCallback(() => {
+    usePlayerStore.getState().cycleRepeat()
   }, [])
 
   const handleToggleCheck = useCallback((index: number) => {
     usePlayerStore.getState().toggleCheckedLine(index)
-  }, [])
-
-  const handleClearCheckedLines = useCallback(() => {
-    usePlayerStore.getState().clearCheckedLines()
-  }, [])
-
-  const handleIncrementRepeat = useCallback(() => {
-    const current = usePlayerStore.getState().sectionRepeatCount
-    usePlayerStore.getState().setSectionRepeatCount(current + 1)
-  }, [])
-
-  const handleDecrementRepeat = useCallback(() => {
-    const current = usePlayerStore.getState().sectionRepeatCount
-    usePlayerStore.getState().setSectionRepeatCount(current - 1)
   }, [])
 
   const handleLineClick = useCallback(
@@ -173,22 +157,14 @@ export function AudioPlayer() {
       <div className="flex items-center justify-between sticky bottom-0 sm:static bg-background pb-2 sm:pb-0">
         <PlaybackControls
           status={status}
-          isLooping={isLooping}
+          repeatCount={repeatCount}
+          hasCheckedLines={checkedLines.size > 0}
           disabled={disabled}
           onPlay={play}
           onPause={pause}
           onStop={stop}
-          onToggleLoop={handleToggleLoop}
+          onCycleRepeat={handleCycleRepeat}
         />
-        {lyrics && (
-          <SectionRepeatControls
-            repeatCount={sectionRepeatCount}
-            hasCheckedLines={checkedLines.size > 0}
-            onIncrement={handleIncrementRepeat}
-            onDecrement={handleDecrementRepeat}
-            onClearAll={handleClearCheckedLines}
-          />
-        )}
         <VolumeControl
           volume={volume}
           isMuted={isMuted}

@@ -75,15 +75,20 @@ export function useMediaPlayer() {
           }
         }
 
-        // 구간 반복 경계 감지
+        // 구간 반복 경계 감지 (체크된 라인이 있을 때만 의미 있음)
         const {
           checkedLines,
-          sectionRepeatCount,
-          sectionRepeatCurrent,
-          setSectionRepeatCurrent,
+          repeatCount,
+          repeatCurrent,
+          setRepeatCurrent,
           duration: dur,
         } = store.getState()
-        if (checkedLines.size > 0 && lyrics && lyrics.lines.length > 0) {
+        if (
+          checkedLines.size > 0 &&
+          repeatCount > 0 &&
+          lyrics &&
+          lyrics.lines.length > 0
+        ) {
           const indices = Array.from(checkedLines)
           const minIdx = Math.min(...indices)
           const maxIdx = Math.max(...indices)
@@ -94,12 +99,14 @@ export function useMediaPlayer() {
               : dur
 
           if (sectionEnd > 0 && now >= sectionEnd) {
-            const nextCurrent = sectionRepeatCurrent + 1
-            if (nextCurrent < sectionRepeatCount) {
+            const nextCurrent = repeatCurrent + 1
+            if (nextCurrent < repeatCount) {
               media.currentTime = sectionStart
-              setSectionRepeatCurrent(nextCurrent)
+              setRepeatCurrent(nextCurrent)
             } else {
-              setSectionRepeatCurrent(0)
+              // 마지막 회차 종료 — 체크 자동 해제 (clearCheckedLines가
+              // repeatCount/repeatCurrent까지 리셋하므로 다음 tick부터 분기 미진입).
+              store.getState().clearCheckedLines()
             }
           }
         }
@@ -267,17 +274,12 @@ export function useMediaPlayer() {
     }
 
     const onEnded = () => {
-      const { isLooping, checkedLines } = store.getState()
-      if (checkedLines.size > 0) return
-      if (isLooping) {
-        media.currentTime = 0
-        media.play()
-      } else {
-        store.getState().setStatus('stopped')
-        store.getState().setCurrentTime(0)
-        store.getState().setCurrentLineIndex(-1)
-        stopRafLoop()
-      }
+      // 반복은 체크된 구간이 있을 때만 동작하며 rAF 경계 검출이 처리한다.
+      // 트랙이 끝난 시점이면 정상 정지로 처리.
+      store.getState().setStatus('stopped')
+      store.getState().setCurrentTime(0)
+      store.getState().setCurrentLineIndex(-1)
+      stopRafLoop()
     }
 
     const onError = () => {
