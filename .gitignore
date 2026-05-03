@@ -27,3 +27,6 @@ dist/
 
 # Claude Code (user-local only; commit shared settings.json explicitly if desired)
 .claude/settings.local.json
+
+# 사용자 로컬 미디어 샘플 (커밋 금지 — 큰 바이너리 / 저작권 자료)
+/samples/

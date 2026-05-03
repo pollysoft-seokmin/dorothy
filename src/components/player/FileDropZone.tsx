@@ -4,7 +4,22 @@ import { Button } from '~/components/ui/button'
 import { cn } from '~/lib/utils'
 import { toast } from 'sonner'
 
-const MEDIA_EXTS = new Set(['mp3', 'mp4', 'webm', 'mov'])
+// 받아주는 미디어 파일 확장자. 브라우저 비호환 포맷(.avi/.mkv/.flv/...)은
+// useMediaPlayer가 ffmpeg.wasm으로 자동 변환한다.
+const MEDIA_EXTS = new Set([
+  'mp3',
+  'mp4',
+  'webm',
+  'mov',
+  'mpg',
+  'mpeg',
+  'm4v',
+  'avi',
+  'mkv',
+  'flv',
+  'wmv',
+  '3gp',
+])
 
 interface FileDropZoneProps {
   onMediaLoad: (file: File) => void
@@ -25,7 +40,7 @@ export function FileDropZone({ onMediaLoad, onLrcLoad, fileName }: FileDropZoneP
         } else if (ext === 'lrc') {
           onLrcLoad(file)
         } else {
-          toast.error('MP3/MP4/LRC 파일만 지원합니다')
+          toast.error('지원하지 않는 파일 형식입니다 (오디오/비디오/LRC)')
         }
       }
     },
@@ -77,7 +92,7 @@ export function FileDropZone({ onMediaLoad, onLrcLoad, fileName }: FileDropZoneP
       >
         <Upload className="h-8 w-8 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
-          MP3/MP4 또는 LRC 파일을 여기에 드롭하거나 클릭하여 선택
+          오디오/비디오 또는 LRC 파일을 여기에 드롭하거나 클릭하여 선택
         </p>
         {fileName && (
           <div className="flex items-center gap-1.5 text-xs text-foreground mt-1">
@@ -107,7 +122,7 @@ export function FileDropZone({ onMediaLoad, onLrcLoad, fileName }: FileDropZoneP
       <input
         ref={inputRef}
         type="file"
-        accept=".mp3,.mp4,.webm,.mov,.lrc"
+        accept=".mp3,.mp4,.webm,.mov,.mpg,.mpeg,.m4v,.avi,.mkv,.flv,.wmv,.3gp,.lrc"
         multiple
         className="hidden"
         onChange={handleChange}

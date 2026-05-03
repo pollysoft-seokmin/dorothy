@@ -1,14 +1,42 @@
 import { useRef, useEffect, useCallback } from 'react'
 import { usePlayerStore } from '~/stores/player-store'
 import { readID3Tags } from '~/lib/id3-reader'
+import { transcodeToMp4, probeVideoPlayable } from '~/lib/transcode'
 import { toast } from 'sonner'
 import type { MediaType } from '~/types'
 
-const VIDEO_EXTS = new Set(['mp4', 'webm', 'mov'])
+const VIDEO_EXTS = new Set([
+  'mp4',
+  'webm',
+  'mov',
+  'mpg',
+  'mpeg',
+  'm4v',
+  'avi',
+  'mkv',
+  'flv',
+  'wmv',
+  '3gp',
+])
 const AUDIO_EXTS = new Set(['mp3'])
+// 브라우저가 native로 재생하지 않는 컨테이너 — probe해도 의미 없으므로
+// 항상 ffmpeg.wasm으로 변환한다.
+const ALWAYS_TRANSCODE_EXTS = new Set([
+  'mpg',
+  'mpeg',
+  'avi',
+  'mkv',
+  'flv',
+  'wmv',
+  '3gp',
+])
+
+function getExt(fileName: string): string {
+  return fileName.toLowerCase().split('.').pop() ?? ''
+}
 
 function detectMediaType(fileName: string): MediaType | null {
-  const ext = fileName.toLowerCase().split('.').pop() ?? ''
+  const ext = getExt(fileName)
   if (VIDEO_EXTS.has(ext)) return 'video'
   if (AUDIO_EXTS.has(ext)) return 'audio'
   return null
@@ -163,7 +191,38 @@ export function useMediaPlayer() {
         URL.revokeObjectURL(objectUrlRef.current)
       }
 
-      const url = URL.createObjectURL(file)
+      // 비호환 비디오는 ffmpeg.wasm으로 H.264/AAC MP4로 트랜스코딩 후 진행.
+      // 분류:
+      //  - .mpg/.mpeg: 브라우저가 demux 자체를 못하므로 항상 트랜스코딩
+      //  - 그 외 비디오(.mp4/.webm/.mov): 컨테이너만 호환이고 안의 코덱이
+      //    비호환(예: MPEG-4 Part 2)인 케이스가 있어 먼저 재생 가능 여부를
+      //    프로브하고, 실패하면 트랜스코딩
+      let playable = file
+      const displayName = file.name
+      if (newType === 'video') {
+        const ext = getExt(file.name)
+        const alwaysTranscode = ALWAYS_TRANSCODE_EXTS.has(ext)
+        const needs =
+          alwaysTranscode || !(await probeVideoPlayable(file))
+        if (needs) {
+          const toastId = toast.loading(
+            '비디오 변환 중... (FFmpeg 코어 로드 ~25MB, 첫 사용 시에만)',
+          )
+          try {
+            playable = await transcodeToMp4(file, ({ ratio }) => {
+              const pct = Math.round(ratio * 100)
+              toast.loading(`비디오 변환 중... ${pct}%`, { id: toastId })
+            })
+            toast.success('비디오 변환 완료', { id: toastId })
+          } catch (err) {
+            console.error('transcode failed:', err)
+            toast.error('비디오 변환에 실패했습니다', { id: toastId })
+            return
+          }
+        }
+      }
+
+      const url = URL.createObjectURL(playable)
       objectUrlRef.current = url
 
       // 같은 mediaType이면 현재 엘리먼트에 즉시 src 적용 (동기 동작 보장).
@@ -173,31 +232,26 @@ export function useMediaPlayer() {
         current.src = url
       }
 
-      // ID3 태그는 오디오일 때만 읽기
+      // ID3 태그는 오디오일 때만 읽기. 표시는 원본 파일명(displayName)을 유지.
       const metadata = newType === 'audio' ? await readID3Tags(file) : null
-      store.getState().loadTrack(file.name, newType, metadata)
+      store.getState().loadTrack(displayName, newType, metadata)
     },
     [stopRafLoop],
   )
 
-  // mediaType 변경 시 새로 마운트된 엘리먼트에 보관해둔 ObjectURL 적용
-  // (오디오↔비디오 전환 시 ref가 새 엘리먼트로 교체되는 케이스 대응)
-  useEffect(() => {
-    const media = mediaRef.current
-    if (!media) return
-    const url = objectUrlRef.current
-    if (url && media.src !== url) {
-      media.src = url
-    }
-  }, [mediaType])
-
-  // media 이벤트 리스너
+  // media 이벤트 리스너 + ObjectURL 적용을 한 effect로 묶는다.
+  // mediaType이 바뀌면 audio↔video 엘리먼트가 교체되며 mediaRef.current가
+  // 새 엘리먼트로 갱신되므로 리스너를 새로 붙여야 한다. 또한 listener를
+  // src 적용보다 먼저 붙여야 빠르게 발생하는 loadedmetadata/durationchange를
+  // 놓치지 않는다.
   useEffect(() => {
     const media = mediaRef.current
     if (!media) return
 
-    const onLoadedMetadata = () => {
-      store.getState().setDuration(media.duration)
+    const onDurationChange = () => {
+      if (Number.isFinite(media.duration)) {
+        store.getState().setDuration(media.duration)
+      }
     }
 
     const onEnded = () => {
@@ -225,16 +279,29 @@ export function useMediaPlayer() {
       stopRafLoop()
     }
 
-    media.addEventListener('loadedmetadata', onLoadedMetadata)
+    media.addEventListener('loadedmetadata', onDurationChange)
+    media.addEventListener('durationchange', onDurationChange)
     media.addEventListener('ended', onEnded)
     media.addEventListener('error', onError)
 
+    // 보관해둔 ObjectURL을 새 엘리먼트에 적용 (audio↔video 전환 케이스).
+    // 리스너 attach 후에 src를 설정해야 빠른 metadata 이벤트를 받을 수 있다.
+    const url = objectUrlRef.current
+    if (url && media.src !== url) {
+      media.src = url
+    } else if (Number.isFinite(media.duration)) {
+      // 이미 src가 적용돼 metadata 이벤트가 지나간 케이스(엘리먼트 재마운트
+      // 없이 src만 갱신)에서도 store에 반영
+      store.getState().setDuration(media.duration)
+    }
+
     return () => {
-      media.removeEventListener('loadedmetadata', onLoadedMetadata)
+      media.removeEventListener('loadedmetadata', onDurationChange)
+      media.removeEventListener('durationchange', onDurationChange)
       media.removeEventListener('ended', onEnded)
       media.removeEventListener('error', onError)
     }
-  }, [stopRafLoop])
+  }, [stopRafLoop, mediaType])
 
   // Zustand volume/muted 동기화
   useEffect(() => {
