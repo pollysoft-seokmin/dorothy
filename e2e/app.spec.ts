@@ -312,11 +312,15 @@ test.describe("Dorothy", () => {
       )
       .toBeGreaterThan(25);
 
-    // UI에 표시되는 "/ MM:SS" 텍스트가 00:00이 아닌 실제 duration이어야 한다.
-    const durationLocator = page.locator("text=/\\/ \\d{2}:\\d{2}/").first();
-    await expect(durationLocator).not.toHaveText("/ 00:00", { timeout: 10_000 });
+    // UI duration 표시가 00:00이 아닌 실제 duration이어야 한다.
+    // TimeDisplay 행의 두 번째 span이 duration.
+    const durationLocator = page
+      .locator("div.tabular-nums")
+      .locator("span")
+      .last();
+    await expect(durationLocator).not.toHaveText("00:00", { timeout: 10_000 });
     const durationText = await durationLocator.textContent();
-    expect(durationText).toMatch(/\/ 00:(2[5-9]|3[0-5])/);
+    expect(durationText).toMatch(/^00:(2[5-9]|3[0-5])$/);
   });
 
   // "첫 프레임에서 멈춤" 증상 재현/회귀 검증.
