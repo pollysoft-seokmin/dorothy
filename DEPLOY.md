@@ -2,6 +2,15 @@
 
 이 문서는 Dorothy를 Vercel + Neon Postgres + Google OAuth로 배포하기 위한 절차를 정리합니다. 코드는 모두 준비되어 있으며, 외부 계정 작업만 차례로 수행하면 됩니다.
 
+## Current deployment
+
+| 항목 | 값 |
+|---|---|
+| Production URL | https://dorothy-teal.vercel.app |
+| Vercel Application Preset | Nitro (자동 감지) |
+| Neon region | AWS `ap-southeast-1` (Singapore), pooled connection |
+| OAuth | 이메일+비번만 활성, Google 미연결 (env 비움) |
+
 ## 1. Neon Postgres 생성
 
 옵션 A — Vercel Marketplace에서 (권장):
@@ -53,17 +62,18 @@ openssl rand -base64 32
 ## 5. Vercel 배포
 
 1. https://vercel.com/new → GitHub `pollysoft-seokmin/dorothy` 선택 → Import
-2. Framework Preset: **Other** (TanStack Start + Nitro Vercel preset이 자동 처리)
+2. Application Preset: **Nitro** (TanStack Start의 서버 엔진을 Vercel이 자동 감지)
 3. Build Command: `pnpm build` (기본값 사용 가능)
 4. Output Directory: 비움 (Nitro가 `.output/`을 자동 사용)
 5. Environment Variables:
    - `DATABASE_URL` (Neon이 자동 주입했으면 그대로)
-   - `BETTER_AUTH_SECRET`
-   - `BETTER_AUTH_URL` = 프로덕션 도메인 (예: `https://dorothy.vercel.app`)
+   - `BETTER_AUTH_SECRET` (로컬과 분리해서 새로 발급 권장)
+   - `BETTER_AUTH_URL` = 프로덕션 도메인 — **첫 배포 전엔 placeholder**(`https://placeholder.vercel.app`)로 두고, 첫 배포 후 자동 할당된 도메인으로 갱신 후 재배포
    - `BETTER_AUTH_TRUSTED_ORIGINS` (선택, preview 도메인 등)
-   - `GOOGLE_CLIENT_ID`
-   - `GOOGLE_CLIENT_SECRET`
-6. Deploy → 첫 배포 완료 후 도메인 확정 → Google Console redirect URI 업데이트 → 재배포
+   - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` (선택, 비우면 Google 로그인 버튼만 비활성)
+6. Deploy → 첫 배포 완료 후 도메인 확정 → `BETTER_AUTH_URL` 갱신 + (Google 쓰면) Console redirect URI 업데이트 → Redeploy
+
+> 갱신은 Settings → Environment Variables에서 값 수정 후 Deployments 탭 → 최신 배포 `⋯` → **Redeploy**.
 
 ## 6. 배포 후 검증
 
