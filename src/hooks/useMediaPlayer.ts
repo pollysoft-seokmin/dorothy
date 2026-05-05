@@ -1,7 +1,8 @@
 import { useRef, useEffect, useCallback } from 'react'
 import { usePlayerStore } from '~/stores/player-store'
 import { readID3Tags } from '~/lib/id3-reader'
-import { extractEmbeddedSami } from '~/lib/sami-trailer'
+import { extractEmbeddedSami, extractEmbeddedSamiFromUrl } from '~/lib/sami-trailer'
+import { fetchLyricsFromUrl } from '~/lib/lrc-parser'
 import { transcodeToMp4, probeVideoPlayable } from '~/lib/transcode'
 import { toast } from 'sonner'
 import type { MediaType } from '~/types'
@@ -48,6 +49,10 @@ export function useMediaPlayer() {
   const objectUrlRef = useRef<string | null>(null)
   const rafRef = useRef<number>(0)
   const lastSyncRef = useRef<number>(0)
+  // 빠른 연속 클릭 시 늦게 도착한 이전 트랙의 가사가 새 트랙을 덮어쓰지 않도록
+  // 매 loadUrl 호출마다 generation을 증가시키고, 비동기 가사 로드 완료 시점에
+  // 비교해서 stale이면 무시한다.
+  const lyricsLoadGenRef = useRef<number>(0)
 
   const store = usePlayerStore
   const mediaType = usePlayerStore((s) => s.mediaType)
@@ -191,6 +196,10 @@ export function useMediaPlayer() {
         return
       }
 
+      // 새 트랙 — 직전 loadUrl의 비동기 가사 fetch가 아직 진행 중이면 무시되도록
+      // generation을 올린다.
+      lyricsLoadGenRef.current++
+
       // 기존 재생 정리
       const current = mediaRef.current
       if (current) current.pause()
@@ -261,8 +270,15 @@ export function useMediaPlayer() {
   // 라이브러리(Vercel Blob URL)에서 직접 로드. 트랜스코딩/태그 읽기는 생략.
   // ObjectURL과 동일한 슬롯(objectUrlRef)에 보관 — revokeObjectURL은 일반 URL에
   // 대해선 no-op이므로 안전하게 공유 가능.
+  // lrcUrl이 주어지면 비디오의 SAMI trailer를 우선 시도하고, 없으면 .lrc를 가져와
+  // 가사 패널에 채운다. 미디어 src 적용은 즉시 진행(스트리밍 차단 X).
   const loadUrl = useCallback(
-    (params: { url: string; name: string; mediaType: MediaType }) => {
+    (params: {
+      url: string
+      name: string
+      mediaType: MediaType
+      lrcUrl?: string
+    }) => {
       const current = mediaRef.current
       if (current) current.pause()
       stopRafLoop()
@@ -274,6 +290,27 @@ export function useMediaPlayer() {
         current.src = params.url
       }
       store.getState().loadTrack(params.name, params.mediaType, null)
+
+      const gen = ++lyricsLoadGenRef.current
+      void (async () => {
+        // 1순위: 비디오의 SAMI trailer
+        if (params.mediaType === 'video') {
+          const sami = await extractEmbeddedSamiFromUrl(params.url)
+          if (gen !== lyricsLoadGenRef.current) return
+          if (sami && sami.lines.length > 0) {
+            store.getState().loadLyrics(sami)
+            return
+          }
+        }
+        // 2순위: 사이드카 .lrc
+        if (params.lrcUrl) {
+          const lrc = await fetchLyricsFromUrl(params.lrcUrl)
+          if (gen !== lyricsLoadGenRef.current) return
+          if (lrc && lrc.lines.length > 0) {
+            store.getState().loadLyrics(lrc)
+          }
+        }
+      })()
     },
     [stopRafLoop],
   )
