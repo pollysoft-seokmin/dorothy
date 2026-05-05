@@ -43,6 +43,40 @@ function pickKey(tag: string): string | null {
 }
 
 /**
+ * Returns the raw trailer bytes (ciphertext + 8B length + 10B tag) when the
+ * input has a recognizable Polly SAMI trailer; otherwise null.
+ *
+ * Used by the library upload flow: when a video must be transcoded, the
+ * trailer is dropped by ffmpeg's re-encode (it lives past the last mp4 box).
+ * We grab the trailer beforehand so we can re-append it to the transcoded
+ * output without ever decrypting it.
+ */
+export async function extractSamiTrailerBytes(
+  file: Blob,
+): Promise<ArrayBuffer | null> {
+  if (file.size < TRAILER_META_SIZE) return null
+  const footerBuf = await file
+    .slice(file.size - TRAILER_META_SIZE)
+    .arrayBuffer()
+  const footer = new Uint8Array(footerBuf)
+  const tag = ASCII.decode(footer.subarray(SCRIPT_LEN_SIZE, TRAILER_META_SIZE))
+  if (!pickKey(tag)) return null
+
+  const lenView = new DataView(footer.buffer, footer.byteOffset, SCRIPT_LEN_SIZE)
+  const lo = lenView.getUint32(0, true)
+  const hi = lenView.getUint32(4, true)
+  if (hi !== 0) return null
+  const dataSize = lo
+  if (dataSize <= 0) return null
+  if (dataSize > file.size - TRAILER_META_SIZE) return null
+
+  const chunkSize = (dataSize + 7) & ~7
+  const totalSize = chunkSize + TRAILER_META_SIZE
+  if (totalSize > file.size) return null
+  return file.slice(file.size - totalSize).arrayBuffer()
+}
+
+/**
  * Best-effort extraction of an embedded SAMI subtitle trailer.
  * Returns parsed dorothy-compatible lyrics, or null if the file has no
  * recognizable trailer (or the trailer is malformed).
