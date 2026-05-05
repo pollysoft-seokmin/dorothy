@@ -77,7 +77,17 @@ type PendingItem = {
 
 type Props = {
   userId: string
-  onPlay: (params: { url: string; name: string; mediaType: 'audio' | 'video' }) => void
+  onPlay: (params: {
+    url: string
+    name: string
+    mediaType: 'audio' | 'video'
+    lrcUrl?: string
+  }) => void
+}
+
+function basenameNoExt(name: string): string {
+  const lastDot = name.lastIndexOf('.')
+  return (lastDot > 0 ? name.slice(0, lastDot) : name).toLowerCase()
 }
 
 function formatBytes(n: number): string {
@@ -685,13 +695,20 @@ export function MediaLibrary({ userId, onPlay }: Props) {
                       ) : (
                         <button
                           className="flex-1 text-left text-sm truncate min-w-0"
-                          onClick={() =>
+                          onClick={() => {
+                            const stem = basenameNoExt(a.name)
+                            const sibling = assets.find(
+                              (s) =>
+                                s.mediaType === 'lyrics' &&
+                                basenameNoExt(s.name) === stem,
+                            )
                             onPlay({
                               url: a.blobUrl,
                               name: a.name,
                               mediaType: a.mediaType === 'video' ? 'video' : 'audio',
+                              lrcUrl: sibling?.blobUrl,
                             })
-                          }
+                          }}
                           title={a.name}
                         >
                           {a.name}

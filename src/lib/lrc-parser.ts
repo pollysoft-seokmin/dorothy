@@ -57,3 +57,24 @@ export function parseLrc(lrcText: string): ParsedLyrics {
 
   return { title, artist, album, lines }
 }
+
+/**
+ * URL에서 LRC 텍스트를 가져와 파싱한다. 실패/빈 파싱은 null.
+ * (사용자 토스트는 호출 측에서 결정 — 라이브러리 자동 로딩 같은 silent
+ * 경로에서도 쓰기 위해 토스트는 띄우지 않는다.)
+ */
+export async function fetchLyricsFromUrl(
+  url: string,
+): Promise<ParsedLyrics | null> {
+  try {
+    const res = await fetch(url)
+    if (!res.ok) return null
+    const text = await res.text()
+    if (text.includes('�')) return null
+    const parsed = parseLrc(text)
+    if (parsed.lines.length === 0) return null
+    return parsed
+  } catch {
+    return null
+  }
+}

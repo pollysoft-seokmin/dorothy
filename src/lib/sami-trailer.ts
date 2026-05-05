@@ -46,9 +46,13 @@ function pickKey(tag: string): string | null {
  * Best-effort extraction of an embedded SAMI subtitle trailer.
  * Returns parsed dorothy-compatible lyrics, or null if the file has no
  * recognizable trailer (or the trailer is malformed).
+ *
+ * Accepts any Blob — the function only inspects the **last** N bytes, so a
+ * partial Blob (e.g. trailing range fetch from a URL) works as long as the
+ * trailer is included.
  */
 export async function extractEmbeddedSami(
-  file: File,
+  file: Blob,
 ): Promise<ParsedLyrics | null> {
   if (file.size < TRAILER_META_SIZE) return null
 
@@ -229,4 +233,27 @@ function composeText(en: string, ko: string): string {
 
 function normalizeForCompare(s: string): string {
   return s.replace(/\s+/g, ' ').trim()
+}
+
+/**
+ * URL 기반 변형 — Range 헤더로 끝부분(기본 1MB)만 받아 SAMI trailer 추출.
+ * Range를 지원하지 않는 서버(혹은 1MB 이내인 작은 파일)는 200으로 전체를
+ * 돌려주므로 그 경우에도 동작한다. trailer가 1MB를 초과하는 매우 큰 자막일
+ * 경우 null이 반환되며, 호출자는 null을 "임베디드 없음"으로 취급해 .lrc
+ * fallback으로 진행하면 된다.
+ */
+export async function extractEmbeddedSamiFromUrl(
+  url: string,
+  rangeBytes = 1024 * 1024,
+): Promise<ParsedLyrics | null> {
+  try {
+    const res = await fetch(url, {
+      headers: { Range: `bytes=-${rangeBytes}` },
+    })
+    if (!res.ok && res.status !== 206) return null
+    const blob = await res.blob()
+    return await extractEmbeddedSami(blob)
+  } catch {
+    return null
+  }
 }
