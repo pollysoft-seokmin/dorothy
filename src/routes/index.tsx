@@ -16,7 +16,7 @@ function Home() {
   return (
     <main className="min-h-screen flex">
       <div className="flex-1 flex items-start justify-center min-w-0">
-        <AudioPlayer player={player} />
+        <AudioPlayer player={player} isLoggedIn={!!userId} />
       </div>
       {userId && (
         <aside className="hidden lg:flex w-96 border-l flex-col h-screen sticky top-0">

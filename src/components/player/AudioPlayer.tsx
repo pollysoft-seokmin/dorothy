@@ -15,9 +15,10 @@ import { LyricsPanel } from '~/components/lyrics/LyricsPanel'
 
 type Props = {
   player: ReturnType<typeof useMediaPlayer>
+  isLoggedIn: boolean
 }
 
-export function AudioPlayer({ player }: Props) {
+export function AudioPlayer({ player, isLoggedIn }: Props) {
   const { mediaRef, play, pause, stop, seek, loadFile } = player
   const { loadLrcFile } = useLyrics()
   const lrcInputRef = useRef<HTMLInputElement>(null)
@@ -113,21 +114,25 @@ export function AudioPlayer({ player }: Props) {
         />
       )}
 
-      {/* 숨겨진 LRC input */}
-      <input
-        ref={lrcInputRef}
-        type="file"
-        accept=".lrc"
-        className="hidden"
-        onChange={handleLrcInputChange}
-      />
+      {/* 숨겨진 LRC input — 비로그인 사용자만 */}
+      {!isLoggedIn && (
+        <input
+          ref={lrcInputRef}
+          type="file"
+          accept=".lrc"
+          className="hidden"
+          onChange={handleLrcInputChange}
+        />
+      )}
 
-      {/* 파일 선택 */}
-      <FileDropZone
-        onMediaLoad={handleMediaLoad}
-        onLrcLoad={handleLrcLoad}
-        fileName={fileName}
-      />
+      {/* 파일 선택 — 비로그인 사용자만. 로그인 시에는 우측 라이브러리에서 처리 */}
+      {!isLoggedIn && (
+        <FileDropZone
+          onMediaLoad={handleMediaLoad}
+          onLrcLoad={handleLrcLoad}
+          fileName={fileName}
+        />
+      )}
 
       {/* 곡 정보 */}
       <TrackInfo
@@ -143,7 +148,7 @@ export function AudioPlayer({ player }: Props) {
         checkedLines={checkedLines}
         onLineClick={handleLineClick}
         onToggleCheck={handleToggleCheck}
-        onAddLrc={handleAddLrc}
+        onAddLrc={isLoggedIn ? undefined : handleAddLrc}
       />
 
       {/* Progress Bar */}

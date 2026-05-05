@@ -9,7 +9,7 @@ interface LyricsPanelProps {
   checkedLines: Set<number>
   onLineClick: (time: number) => void
   onToggleCheck: (index: number) => void
-  onAddLrc: () => void
+  onAddLrc?: () => void
 }
 
 export function LyricsPanel({
@@ -38,14 +38,16 @@ export function LyricsPanel({
     return (
       <div className="flex flex-col items-center justify-center gap-3 h-48 sm:h-64 text-muted-foreground">
         <FileText className="h-8 w-8" />
-        <p className="text-sm">LRC 파일을 추가하면 가사가 표시됩니다</p>
-        <button
-          type="button"
-          onClick={onAddLrc}
-          className="text-xs text-primary hover:underline cursor-pointer"
-        >
-          LRC 파일 추가
-        </button>
+        <p className="text-sm">가사가 없습니다</p>
+        {onAddLrc && (
+          <button
+            type="button"
+            onClick={onAddLrc}
+            className="text-xs text-primary hover:underline cursor-pointer"
+          >
+            LRC 파일 추가
+          </button>
+        )}
       </div>
     )
   }

@@ -139,6 +139,7 @@ export function MediaLibrary({ userId, onPlay }: Props) {
   const [submittingRename, setSubmittingRename] = useState(false)
   const [pending, setPending] = useState<PendingItem[]>([])
   const [dragActive, setDragActive] = useState(false)
+  const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const refreshTree = useCallback(async () => {
@@ -258,7 +259,7 @@ export function MediaLibrary({ userId, onPlay }: Props) {
   )
 
   const startUpload = useCallback(
-    async (files: File[]) => {
+    async (files: File[], targetFolderId: string | null) => {
       const acceptable = files.filter(
         (f) => f.type.startsWith('audio/') || f.type.startsWith('video/'),
       )
@@ -275,8 +276,6 @@ export function MediaLibrary({ userId, onPlay }: Props) {
         )
         return
       }
-
-      const targetFolderId = currentFolderId
 
       const jobs = acceptable.map((file) => {
         const mediaType: 'audio' | 'video' = file.type.startsWith('video/')
@@ -378,7 +377,7 @@ export function MediaLibrary({ userId, onPlay }: Props) {
         }
       }
     },
-    [userId, currentFolderId, usage, refreshContents, refreshUsage],
+    [userId, usage, refreshContents, refreshUsage],
   )
 
   const dismissPending = useCallback((key: string) => {
@@ -388,20 +387,37 @@ export function MediaLibrary({ userId, onPlay }: Props) {
   const onFileInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = Array.from(e.target.files ?? [])
-      if (files.length > 0) startUpload(files)
+      if (files.length > 0) startUpload(files, currentFolderId)
       e.target.value = ''
     },
-    [startUpload],
+    [startUpload, currentFolderId],
   )
 
-  const onDrop = useCallback(
+  const onPaneDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    if (!Array.from(e.dataTransfer.types).includes('Files')) return
+    e.preventDefault()
+    setDragActive(true)
+  }, [])
+
+  const onPaneDragLeave = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      // 자식으로 이동하는 경우는 무시 (relatedTarget이 pane 내부)
+      if (e.currentTarget.contains(e.relatedTarget as Node | null)) return
+      setDragActive(false)
+      setDragOverFolderId(null)
+    },
+    [],
+  )
+
+  const onPaneDrop = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault()
       setDragActive(false)
+      setDragOverFolderId(null)
       const files = Array.from(e.dataTransfer.files)
-      if (files.length > 0) startUpload(files)
+      if (files.length > 0) startUpload(files, currentFolderId)
     },
-    [startUpload],
+    [startUpload, currentFolderId],
   )
 
   const usageRatio = Math.min(1, usage.used / usage.quota)
@@ -409,15 +425,13 @@ export function MediaLibrary({ userId, onPlay }: Props) {
 
   return (
     <div
-      className={`flex flex-col h-full overflow-hidden ${
-        dragActive ? 'bg-primary/5' : ''
+      className={`relative flex flex-col h-full overflow-hidden transition-colors ${
+        dragActive ? 'bg-primary/5 ring-2 ring-primary ring-inset' : ''
       }`}
-      onDragOver={(e) => {
-        e.preventDefault()
-        setDragActive(true)
-      }}
-      onDragLeave={() => setDragActive(false)}
-      onDrop={onDrop}
+      onDragOver={onPaneDragOver}
+      onDragEnter={onPaneDragOver}
+      onDragLeave={onPaneDragLeave}
+      onDrop={onPaneDrop}
     >
       <header className="px-4 py-3 border-b">
         <div className="flex items-center justify-between mb-2">
@@ -528,10 +542,34 @@ export function MediaLibrary({ userId, onPlay }: Props) {
           <ul className="flex flex-col gap-1">
             {folders.map((f) => {
               const isEditing = editing?.kind === 'folder' && editing.id === f.id
+              const isDropTarget = dragOverFolderId === f.id
               return (
                 <li
                   key={f.id}
-                  className="group flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted"
+                  className={`group flex items-center gap-2 px-2 py-1.5 rounded transition-colors ${
+                    isDropTarget
+                      ? 'bg-primary/15 ring-1 ring-primary'
+                      : 'hover:bg-muted'
+                  }`}
+                  onDragOver={(e) => {
+                    if (!Array.from(e.dataTransfer.types).includes('Files')) return
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setDragActive(true)
+                    setDragOverFolderId(f.id)
+                  }}
+                  onDragLeave={(e) => {
+                    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return
+                    setDragOverFolderId((cur) => (cur === f.id ? null : cur))
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setDragActive(false)
+                    setDragOverFolderId(null)
+                    const files = Array.from(e.dataTransfer.files)
+                    if (files.length > 0) startUpload(files, f.id)
+                  }}
                 >
                   <Folder className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                   {isEditing ? (
