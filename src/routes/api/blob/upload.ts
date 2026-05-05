@@ -57,10 +57,10 @@ const handle = async (request: Request): Promise<Response> => {
           )
         }
 
-        // .lrc는 브라우저가 빈 MIME 또는 text/plain을 보내므로 별도 허용.
-        // (확장자는 위에서 검증했으므로 텍스트 계열만 좁게 열어둔다.)
+        // .lrc는 Vercel Blob이 text/* 계열을 클라 업로드에서 거부하는 케이스가
+        // 있어 application/octet-stream으로 통일. 확장자는 위에서 검증했음.
         const allowedContentTypes = isLrc
-          ? ['text/plain', 'application/octet-stream']
+          ? ['application/octet-stream']
           : ['audio/*', 'video/*']
 
         return {
