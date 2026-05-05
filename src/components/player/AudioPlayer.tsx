@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react'
 import { usePlayerStore } from '~/stores/player-store'
-import { useMediaPlayer } from '~/hooks/useMediaPlayer'
+import type { useMediaPlayer } from '~/hooks/useMediaPlayer'
 import { useLyrics } from '~/hooks/useLyrics'
 import { useKeyboardShortcuts } from '~/hooks/useKeyboardShortcuts'
 import { usePreferencesSync } from '~/hooks/usePreferencesSync'
@@ -13,8 +13,12 @@ import { TimeDisplay } from './TimeDisplay'
 import { VolumeControl } from './VolumeControl'
 import { LyricsPanel } from '~/components/lyrics/LyricsPanel'
 
-export function AudioPlayer() {
-  const { mediaRef, play, pause, stop, seek, loadFile } = useMediaPlayer()
+type Props = {
+  player: ReturnType<typeof useMediaPlayer>
+}
+
+export function AudioPlayer({ player }: Props) {
+  const { mediaRef, play, pause, stop, seek, loadFile } = player
   const { loadLrcFile } = useLyrics()
   const lrcInputRef = useRef<HTMLInputElement>(null)
 

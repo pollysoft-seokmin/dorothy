@@ -1,4 +1,5 @@
 import {
+  bigint,
   boolean,
   index,
   integer,
@@ -6,7 +7,9 @@ import {
   real,
   text,
   timestamp,
+  unique,
   uniqueIndex,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core'
 
 
@@ -101,7 +104,52 @@ export const playbackHistory = pgTable(
   (t) => [index('playback_history_user_recent_idx').on(t.userId, t.lastPlayedAt)],
 )
 
+export const folder = pgTable(
+  'folder',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    parentId: text('parent_id').references((): AnyPgColumn => folder.id, {
+      onDelete: 'cascade',
+    }),
+    name: text('name').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('folder_user_parent_idx').on(t.userId, t.parentId),
+    unique('folder_user_parent_name_unique')
+      .on(t.userId, t.parentId, t.name)
+      .nullsNotDistinct(),
+  ],
+)
+
+export const mediaAsset = pgTable(
+  'media_asset',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    folderId: text('folder_id').references(() => folder.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    mediaType: text('media_type').notNull(),
+    mimeType: text('mime_type').notNull(),
+    sizeBytes: bigint('size_bytes', { mode: 'number' }).notNull(),
+    blobUrl: text('blob_url').notNull(),
+    blobPathname: text('blob_pathname').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('media_asset_user_folder_idx').on(t.userId, t.folderId),
+    index('media_asset_user_recent_idx').on(t.userId, t.createdAt),
+  ],
+)
+
 export type User = typeof user.$inferSelect
 export type Session = typeof session.$inferSelect
 export type UserPreferences = typeof userPreferences.$inferSelect
 export type PlaybackHistory = typeof playbackHistory.$inferSelect
+export type Folder = typeof folder.$inferSelect
+export type MediaAsset = typeof mediaAsset.$inferSelect

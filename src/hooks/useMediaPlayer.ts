@@ -258,6 +258,26 @@ export function useMediaPlayer() {
     [stopRafLoop],
   )
 
+  // 라이브러리(Vercel Blob URL)에서 직접 로드. 트랜스코딩/태그 읽기는 생략.
+  // ObjectURL과 동일한 슬롯(objectUrlRef)에 보관 — revokeObjectURL은 일반 URL에
+  // 대해선 no-op이므로 안전하게 공유 가능.
+  const loadUrl = useCallback(
+    (params: { url: string; name: string; mediaType: MediaType }) => {
+      const current = mediaRef.current
+      if (current) current.pause()
+      stopRafLoop()
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current)
+      }
+      objectUrlRef.current = params.url
+      if (current && store.getState().mediaType === params.mediaType) {
+        current.src = params.url
+      }
+      store.getState().loadTrack(params.name, params.mediaType, null)
+    },
+    [stopRafLoop],
+  )
+
   // media 이벤트 리스너 + ObjectURL 적용을 한 effect로 묶는다.
   // mediaType이 바뀌면 audio↔video 엘리먼트가 교체되며 mediaRef.current가
   // 새 엘리먼트로 갱신되므로 리스너를 새로 붙여야 한다. 또한 listener를
@@ -344,5 +364,5 @@ export function useMediaPlayer() {
     }
   }, [stopRafLoop])
 
-  return { mediaRef, play, pause, stop, seek, loadFile }
+  return { mediaRef, play, pause, stop, seek, loadFile, loadUrl }
 }
