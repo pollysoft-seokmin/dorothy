@@ -19,15 +19,7 @@ const handle = async (request: Request): Promise<Response> => {
         if (!pathname.startsWith(expectedPrefix)) {
           throw new Error('Invalid pathname scope')
         }
-        const lower = pathname.toLowerCase()
-        const isLrc = lower.endsWith('.lrc')
-        console.log(
-          '[blob/upload] pathname=%j len=%d lower=%j endsWithLrc=%s',
-          pathname,
-          pathname.length,
-          lower,
-          isLrc,
-        )
+        const isLrc = pathname.toLowerCase().endsWith('.lrc')
 
         let size = 0
         let folderId: string | null = null
