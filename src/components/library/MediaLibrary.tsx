@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { upload } from '@vercel/blob/client'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
-import { Film, Folder, MoreHorizontal, Music } from 'lucide-react'
+import { FileText, Film, Folder, MoreHorizontal, Music } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '~/components/ui/button'
 import { probeVideoPlayable, transcodeToMp4 } from '~/lib/transcode'
@@ -56,10 +56,19 @@ type AssetItem = {
   createdAt: string | Date
 }
 
+type LibraryMediaType = 'audio' | 'video' | 'lyrics'
+
+function detectFileMediaType(file: File): LibraryMediaType | null {
+  if (file.name.toLowerCase().endsWith('.lrc')) return 'lyrics'
+  if (file.type.startsWith('audio/')) return 'audio'
+  if (file.type.startsWith('video/')) return 'video'
+  return null
+}
+
 type PendingItem = {
   key: string
   name: string
-  mediaType: 'audio' | 'video'
+  mediaType: LibraryMediaType
   phase: 'preparing' | 'transcoding' | 'uploading' | 'error'
   progress: number
   errorMessage?: string
@@ -260,16 +269,17 @@ export function MediaLibrary({ userId, onPlay }: Props) {
 
   const startUpload = useCallback(
     async (files: File[], targetFolderId: string | null) => {
-      const acceptable = files.filter(
-        (f) => f.type.startsWith('audio/') || f.type.startsWith('video/'),
+      const classified = files.map((f) => ({ file: f, mediaType: detectFileMediaType(f) }))
+      const acceptable = classified.filter(
+        (c): c is { file: File; mediaType: LibraryMediaType } => c.mediaType !== null,
       )
       const rejected = files.length - acceptable.length
       if (rejected > 0) {
-        toast.error(`${rejected}개 파일은 오디오/비디오가 아니라 제외됨`)
+        toast.error(`${rejected}개 파일은 지원 형식이 아니라 제외됨 (오디오/비디오/.lrc)`)
       }
       if (acceptable.length === 0) return
 
-      const totalNew = acceptable.reduce((s, f) => s + f.size, 0)
+      const totalNew = acceptable.reduce((s, c) => s + c.file.size, 0)
       if (usage.used + totalNew > usage.quota) {
         toast.error(
           `용량 초과: ${formatBytes(usage.used + totalNew)} / ${formatBytes(usage.quota)}`,
@@ -277,16 +287,11 @@ export function MediaLibrary({ userId, onPlay }: Props) {
         return
       }
 
-      const jobs = acceptable.map((file) => {
-        const mediaType: 'audio' | 'video' = file.type.startsWith('video/')
-          ? 'video'
-          : 'audio'
-        return {
-          key: `${Date.now()}-${Math.random().toString(36).slice(2)}-${file.name}`,
-          file,
-          mediaType,
-        }
-      })
+      const jobs = acceptable.map(({ file, mediaType }) => ({
+        key: `${Date.now()}-${Math.random().toString(36).slice(2)}-${file.name}`,
+        file,
+        mediaType,
+      }))
 
       setPending((prev) => [
         ...prev,
@@ -308,7 +313,11 @@ export function MediaLibrary({ userId, onPlay }: Props) {
       for (const job of jobs) {
         let toUpload: File = job.file
         let finalName = job.file.name
-        let finalMime = job.file.type
+        // .lrc는 브라우저가 빈 MIME을 줄 수 있어 명시적으로 text/plain 지정.
+        let finalMime =
+          job.mediaType === 'lyrics'
+            ? job.file.type || 'text/plain'
+            : job.file.type
 
         // Phase 1: 변환 필요 여부 판단 + (필요하면) 트랜스코딩
         if (job.mediaType === 'video') {
@@ -514,7 +523,7 @@ export function MediaLibrary({ userId, onPlay }: Props) {
             <input
               ref={fileInputRef}
               type="file"
-              accept="audio/*,video/*"
+              accept="audio/*,video/*,.lrc"
               multiple
               hidden
               onChange={onFileInputChange}
@@ -630,6 +639,8 @@ export function MediaLibrary({ userId, onPlay }: Props) {
                 >
                   {a.mediaType === 'video' ? (
                     <Film className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  ) : a.mediaType === 'lyrics' ? (
+                    <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                   ) : (
                     <Music className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                   )}
@@ -663,19 +674,28 @@ export function MediaLibrary({ userId, onPlay }: Props) {
                     </>
                   ) : (
                     <>
-                      <button
-                        className="flex-1 text-left text-sm truncate min-w-0"
-                        onClick={() =>
-                          onPlay({
-                            url: a.blobUrl,
-                            name: a.name,
-                            mediaType: a.mediaType === 'video' ? 'video' : 'audio',
-                          })
-                        }
-                        title={a.name}
-                      >
-                        {a.name}
-                      </button>
+                      {a.mediaType === 'lyrics' ? (
+                        <span
+                          className="flex-1 text-left text-sm truncate min-w-0"
+                          title={a.name}
+                        >
+                          {a.name}
+                        </span>
+                      ) : (
+                        <button
+                          className="flex-1 text-left text-sm truncate min-w-0"
+                          onClick={() =>
+                            onPlay({
+                              url: a.blobUrl,
+                              name: a.name,
+                              mediaType: a.mediaType === 'video' ? 'video' : 'audio',
+                            })
+                          }
+                          title={a.name}
+                        >
+                          {a.name}
+                        </button>
+                      )}
                       <span className="text-xs text-muted-foreground shrink-0">
                         {formatBytes(a.sizeBytes)}
                       </span>
@@ -703,7 +723,12 @@ export function MediaLibrary({ userId, onPlay }: Props) {
               const showPercent =
                 p.phase === 'transcoding' || p.phase === 'uploading'
               const isError = p.phase === 'error'
-              const Icon = p.mediaType === 'video' ? Film : Music
+              const Icon =
+                p.mediaType === 'video'
+                  ? Film
+                  : p.mediaType === 'lyrics'
+                    ? FileText
+                    : Music
               return (
                 <li
                   key={p.key}

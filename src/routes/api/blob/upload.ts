@@ -19,6 +19,7 @@ const handle = async (request: Request): Promise<Response> => {
         if (!pathname.startsWith(expectedPrefix)) {
           throw new Error('Invalid pathname scope')
         }
+        const isLrc = pathname.toLowerCase().endsWith('.lrc')
 
         let size = 0
         let folderId: string | null = null
@@ -56,8 +57,14 @@ const handle = async (request: Request): Promise<Response> => {
           )
         }
 
+        // .lrc는 브라우저가 빈 MIME 또는 text/plain을 보내므로 별도 허용.
+        // (확장자는 위에서 검증했으므로 텍스트 계열만 좁게 열어둔다.)
+        const allowedContentTypes = isLrc
+          ? ['text/plain', 'application/octet-stream']
+          : ['audio/*', 'video/*']
+
         return {
-          allowedContentTypes: ['audio/*', 'video/*'],
+          allowedContentTypes,
           addRandomSuffix: true,
           tokenPayload: JSON.stringify({ userId: session.user.id, folderId }),
         }
