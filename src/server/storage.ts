@@ -72,7 +72,10 @@ async function requireUser() {
   return session.user
 }
 
-function mediaTypeFromMime(mime: string): 'audio' | 'video' | null {
+export type LibraryMediaType = 'audio' | 'video' | 'lyrics'
+
+function detectMediaType(name: string, mime: string): LibraryMediaType | null {
+  if (name.toLowerCase().endsWith('.lrc')) return 'lyrics'
   if (mime.startsWith('audio/')) return 'audio'
   if (mime.startsWith('video/')) return 'video'
   return null
@@ -351,11 +354,12 @@ export const confirmUpload = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     const user = await requireUser()
 
-    const mediaType = mediaTypeFromMime(data.mimeType)
+    const mediaType = detectMediaType(data.name, data.mimeType)
     if (!mediaType) {
-      throw new Response('지원하지 않는 파일 형식입니다 (오디오/비디오만)', {
-        status: 400,
-      })
+      throw new Response(
+        '지원하지 않는 파일 형식입니다 (오디오, 비디오, .lrc만)',
+        { status: 400 },
+      )
     }
 
     const expectedPrefix = `users/${user.id}/`
