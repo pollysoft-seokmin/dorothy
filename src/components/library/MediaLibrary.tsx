@@ -313,10 +313,11 @@ export function MediaLibrary({ userId, onPlay }: Props) {
       for (const job of jobs) {
         let toUpload: File = job.file
         let finalName = job.file.name
-        // .lrc는 브라우저가 빈 MIME을 줄 수 있어 명시적으로 text/plain 지정.
+        // .lrc는 Vercel Blob이 text/* 계열을 거부할 수 있어 octet-stream으로
+        // 강제. 서버 detectMediaType은 확장자 우선이라 영향 없음.
         let finalMime =
           job.mediaType === 'lyrics'
-            ? job.file.type || 'text/plain'
+            ? 'application/octet-stream'
             : job.file.type
 
         // Phase 1: 변환 필요 여부 판단 + (필요하면) 트랜스코딩
