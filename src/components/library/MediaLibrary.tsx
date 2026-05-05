@@ -441,7 +441,7 @@ export function MediaLibrary({ userId, onPlay }: Props) {
           className={`hover:underline ${currentFolderId === null ? 'font-semibold' : ''}`}
           onClick={() => setCurrentFolderId(null)}
         >
-          루트
+          홈
         </button>
         {breadcrumb.map((f) => (
           <span key={f.id} className="flex items-center gap-1">
