@@ -4,6 +4,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { FileText, Film, Folder, MoreHorizontal, Music } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '~/components/ui/button'
+import { extractSamiTrailerBytes } from '~/lib/sami-trailer'
 import { probeVideoPlayable, transcodeToMp4 } from '~/lib/transcode'
 import {
   createFolder,
@@ -339,11 +340,30 @@ export function MediaLibrary({ userId, onPlay }: Props) {
             need = false
           }
           if (need) {
+            // ffmpeg는 mp4 box 밖의 데이터를 보존하지 않으므로, Polly SAMI
+            // trailer가 붙은 원본은 변환 시 trailer가 사라진다. 변환 전에
+            // raw 바이트를 떼어 두었다가 변환 산출물 끝에 다시 이어붙인다.
+            // trailer 없는 일반 mp4는 null이라 그대로 통과.
+            const trailerBytes = await extractSamiTrailerBytes(job.file).catch(
+              () => null,
+            )
             setItem(job.key, { phase: 'transcoding', progress: 0 })
             try {
-              toUpload = await transcodeToMp4(job.file, ({ ratio }) => {
-                setItem(job.key, { progress: ratio * 100 })
-              })
+              const transcoded = await transcodeToMp4(
+                job.file,
+                ({ ratio }) => {
+                  setItem(job.key, { progress: ratio * 100 })
+                },
+              )
+              if (trailerBytes) {
+                toUpload = new File(
+                  [transcoded, trailerBytes],
+                  transcoded.name,
+                  { type: 'video/mp4', lastModified: Date.now() },
+                )
+              } else {
+                toUpload = transcoded
+              }
               finalName = toUpload.name
               finalMime = 'video/mp4'
               setItem(job.key, { name: finalName })
