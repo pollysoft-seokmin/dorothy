@@ -270,8 +270,9 @@ export function useMediaPlayer() {
   // 라이브러리(Vercel Blob URL)에서 직접 로드. 트랜스코딩/태그 읽기는 생략.
   // ObjectURL과 동일한 슬롯(objectUrlRef)에 보관 — revokeObjectURL은 일반 URL에
   // 대해선 no-op이므로 안전하게 공유 가능.
-  // lrcUrl이 주어지면 비디오의 SAMI trailer를 우선 시도하고, 없으면 .lrc를 가져와
-  // 가사 패널에 채운다. 미디어 src 적용은 즉시 진행(스트리밍 차단 X).
+  // 가사 정책: 오디오/비디오 무관하게 임베디드 SAMI trailer를 먼저 시도하고,
+  // 없으면 같은 basename의 .lrc 사이드카로 폴백. 미디어 src 적용은 즉시 진행
+  // (스트리밍 차단 X).
   const loadUrl = useCallback(
     (params: {
       url: string
@@ -293,14 +294,13 @@ export function useMediaPlayer() {
 
       const gen = ++lyricsLoadGenRef.current
       void (async () => {
-        // 1순위: 비디오의 SAMI trailer
-        if (params.mediaType === 'video') {
-          const sami = await extractEmbeddedSamiFromUrl(params.url)
-          if (gen !== lyricsLoadGenRef.current) return
-          if (sami && sami.lines.length > 0) {
-            store.getState().loadLyrics(sami)
-            return
-          }
+        // 1순위: 임베디드 SAMI trailer (Polly 포맷). 컨테이너 무관하므로
+        // 오디오/비디오 모두 시도. 없거나 추출 실패면 null 반환.
+        const sami = await extractEmbeddedSamiFromUrl(params.url)
+        if (gen !== lyricsLoadGenRef.current) return
+        if (sami && sami.lines.length > 0) {
+          store.getState().loadLyrics(sami)
+          return
         }
         // 2순위: 사이드카 .lrc
         if (params.lrcUrl) {
