@@ -262,6 +262,8 @@ export function useMediaPlayer() {
       // loadTrack이 lyrics를 null로 리셋한 직후에 호출해야 덮이지 않는다.
       if (embeddedLyrics && embeddedLyrics.lines.length > 0) {
         store.getState().loadLyrics(embeddedLyrics)
+      } else {
+        store.getState().setLyricsLoading(false)
       }
     },
     [stopRafLoop],
@@ -308,8 +310,10 @@ export function useMediaPlayer() {
           if (gen !== lyricsLoadGenRef.current) return
           if (lrc && lrc.lines.length > 0) {
             store.getState().loadLyrics(lrc)
+            return
           }
         }
+        store.getState().setLyricsLoading(false)
       })()
     },
     [stopRafLoop],

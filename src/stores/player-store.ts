@@ -21,6 +21,7 @@ export interface PlayerStore {
   // 가사
   lyrics: ParsedLyrics | null
   currentLineIndex: number
+  lyricsLoading: boolean
 
   // 반복 (구간이 선택돼 있으면 구간에, 아니면 전체 트랙에 적용)
   checkedLines: Set<number>
@@ -40,6 +41,7 @@ export interface PlayerStore {
     metadata: TrackMetadata | null,
   ) => void
   loadLyrics: (lyrics: ParsedLyrics) => void
+  setLyricsLoading: (loading: boolean) => void
   setCurrentLineIndex: (index: number) => void
   toggleCheckedLine: (index: number) => void
   clearCheckedLines: () => void
@@ -63,6 +65,7 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
   metadata: null,
   lyrics: null,
   currentLineIndex: -1,
+  lyricsLoading: false,
   checkedLines: new Set<number>(),
   repeatCount: 0,
   repeatCurrent: 0,
@@ -84,6 +87,7 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
       duration: 0,
       lyrics: null,
       currentLineIndex: -1,
+      lyricsLoading: true,
       checkedLines: new Set<number>(),
       repeatCount: 0,
       repeatCurrent: 0,
@@ -92,10 +96,12 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
     set({
       lyrics,
       currentLineIndex: -1,
+      lyricsLoading: false,
       checkedLines: new Set<number>(),
       repeatCount: 0,
       repeatCurrent: 0,
     }),
+  setLyricsLoading: (loading) => set({ lyricsLoading: loading }),
   setCurrentLineIndex: (index) => set({ currentLineIndex: index }),
   // 빈 상태에서 첫 체크가 들어오면 반복을 2x로 자동 설정해 세션을 연다.
   // 모두 풀리면 0으로 리셋해 버튼 disabled 상태와 카운트 표시를 일치.
@@ -127,6 +133,7 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
       metadata: null,
       lyrics: null,
       currentLineIndex: -1,
+      lyricsLoading: false,
       checkedLines: new Set<number>(),
       repeatCount: 0,
       repeatCurrent: 0,
