@@ -76,7 +76,19 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
   setVolume: (volume) => set({ volume }),
   toggleMute: () => set((s) => ({ isMuted: !s.isMuted })),
   cycleRepeat: () =>
-    set((s) => ({ repeatCount: nextRepeat(s.repeatCount), repeatCurrent: 0 })),
+    set((s) => {
+      const next = nextRepeat(s.repeatCount)
+      // OFF로 돌아오면 체크된 가사도 함께 해제 — 사용자가 "반복 끔"을 명시한 시점이므로
+      // 잔존 체크가 다음 첫 체크 시 자동 진입 로직과 부딪치지 않도록 정리한다.
+      if (next === 0) {
+        return {
+          repeatCount: next,
+          repeatCurrent: 0,
+          checkedLines: new Set<number>(),
+        }
+      }
+      return { repeatCount: next, repeatCurrent: 0 }
+    }),
   loadTrack: (fileName, mediaType, metadata) =>
     set({
       fileName,
