@@ -35,6 +35,7 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
   const lyrics = usePlayerStore((s) => s.lyrics)
   const currentLineIndex = usePlayerStore((s) => s.currentLineIndex)
   const checkedLines = usePlayerStore((s) => s.checkedLines)
+  const lyricsLoading = usePlayerStore((s) => s.lyricsLoading)
 
   const hasFile = !!fileName
   const disabled = !hasFile
@@ -146,6 +147,7 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
         lyrics={lyrics}
         currentLineIndex={currentLineIndex}
         checkedLines={checkedLines}
+        loading={lyricsLoading}
         onLineClick={handleLineClick}
         onToggleCheck={handleToggleCheck}
         onAddLrc={isLoggedIn ? undefined : handleAddLrc}
