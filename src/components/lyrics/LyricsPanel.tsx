@@ -25,14 +25,20 @@ export function LyricsPanel({
   const activeRef = useRef<HTMLButtonElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // 활성 라인이 변경되면 중앙으로 스크롤
+  // 활성 라인이 변경되면 컨테이너 내부에서 중앙으로 스크롤.
+  // scrollIntoView는 외부 스크롤(body)도 건드려 페이지가 가로로 밀리는
+  // 케이스가 있어(활성 버튼의 scale-105 박스가 viewport 우측을 넘을 때)
+  // 컨테이너의 scrollTop만 직접 계산해 갱신한다.
   useEffect(() => {
-    if (activeRef.current && containerRef.current) {
-      activeRef.current.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      })
-    }
+    const target = activeRef.current
+    const container = containerRef.current
+    if (!target || !container) return
+    const containerRect = container.getBoundingClientRect()
+    const targetRect = target.getBoundingClientRect()
+    const relativeTop = targetRect.top - containerRect.top + container.scrollTop
+    const desiredTop =
+      relativeTop - container.clientHeight / 2 + target.clientHeight / 2
+    container.scrollTo({ top: desiredTop, behavior: 'smooth' })
   }, [currentLineIndex])
 
   // 가사 로딩 중 — 추출/사이드카 fetch가 끝나기 전 빈 패널 대신 스피너 표시
