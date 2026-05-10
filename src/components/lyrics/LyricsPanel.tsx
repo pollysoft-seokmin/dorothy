@@ -29,6 +29,9 @@ export function LyricsPanel({
   // scrollIntoView는 외부 스크롤(body)도 건드려 페이지가 가로로 밀리는
   // 케이스가 있어(활성 버튼의 scale-105 박스가 viewport 우측을 넘을 때)
   // 컨테이너의 scrollTop만 직접 계산해 갱신한다.
+  // 이미 충분히 중앙에 있으면 호출을 생략 — sub-pixel 차이 때문에 매번
+  // smooth 애니메이션이 발동해 macOS overlay 스크롤바가 계속 노출되는
+  // 부작용을 막는다.
   useEffect(() => {
     const target = activeRef.current
     const container = containerRef.current
@@ -38,6 +41,7 @@ export function LyricsPanel({
     const relativeTop = targetRect.top - containerRect.top + container.scrollTop
     const desiredTop =
       relativeTop - container.clientHeight / 2 + target.clientHeight / 2
+    if (Math.abs(desiredTop - container.scrollTop) < 4) return
     container.scrollTo({ top: desiredTop, behavior: 'smooth' })
   }, [currentLineIndex])
 
