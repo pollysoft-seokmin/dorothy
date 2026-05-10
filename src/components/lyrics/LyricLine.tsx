@@ -17,6 +17,7 @@ export const LyricLine = forwardRef<HTMLButtonElement, LyricLineProps>(
           type="checkbox"
           checked={isChecked}
           onChange={onCheckToggle}
+          tabIndex={-1}
           className="relative z-10 h-3.5 w-3.5 shrink-0 accent-primary cursor-pointer"
           aria-label={`${text} 구간 선택`}
         />
@@ -24,6 +25,7 @@ export const LyricLine = forwardRef<HTMLButtonElement, LyricLineProps>(
           ref={ref}
           type="button"
           onClick={onClick}
+          tabIndex={-1}
           className={cn(
             'flex-1 min-w-0 whitespace-pre-line break-words text-center py-1.5 px-2 rounded transition-all duration-300 cursor-pointer',
             isActive
