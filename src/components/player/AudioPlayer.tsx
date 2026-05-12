@@ -35,6 +35,7 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
   const lyrics = usePlayerStore((s) => s.lyrics)
   const currentLineIndex = usePlayerStore((s) => s.currentLineIndex)
   const checkedLines = usePlayerStore((s) => s.checkedLines)
+  const lineMaskStates = usePlayerStore((s) => s.lineMaskStates)
   const lyricsLoading = usePlayerStore((s) => s.lyricsLoading)
 
   const hasFile = !!fileName
@@ -69,6 +70,10 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
 
   const handleToggleCheck = useCallback((index: number) => {
     usePlayerStore.getState().toggleCheckedLine(index)
+  }, [])
+
+  const handleMaskToggle = useCallback((index: number) => {
+    usePlayerStore.getState().cycleLineMask(index)
   }, [])
 
   const handleLineClick = useCallback(
@@ -147,9 +152,11 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
         lyrics={lyrics}
         currentLineIndex={currentLineIndex}
         checkedLines={checkedLines}
+        lineMaskStates={lineMaskStates}
         loading={lyricsLoading}
         onLineClick={handleLineClick}
         onToggleCheck={handleToggleCheck}
+        onMaskToggle={handleMaskToggle}
         onAddLrc={isLoggedIn ? undefined : handleAddLrc}
       />
 
