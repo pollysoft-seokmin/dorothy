@@ -61,10 +61,8 @@ export const LyricLine = forwardRef<HTMLButtonElement, LyricLineProps>(
           onClick={onClick}
           tabIndex={-1}
           className={cn(
-            'flex-1 min-w-0 whitespace-pre-line break-words text-center py-1.5 px-2 rounded transition-all duration-300 cursor-pointer',
-            isActive
-              ? 'text-lg font-bold text-foreground scale-105'
-              : 'text-sm text-muted-foreground/50 hover:text-muted-foreground/80',
+            'flex-1 min-w-0 whitespace-pre-line break-words text-left py-1.5 px-2 rounded cursor-pointer text-sm text-[#000000]',
+            isActive && 'font-bold',
           )}
         >
           {displayText}
