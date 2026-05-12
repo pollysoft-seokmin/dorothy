@@ -28,6 +28,10 @@ export interface PlayerStore {
   repeatCount: RepeatCount
   repeatCurrent: number
 
+  // 라인 마스킹 — 0(=entry 없음): 전부 가림, 1: 줄별 첫 3글자만 노출, 2: 전부 노출
+  // 토글 순환 0 → 1 → 2 → 0. 기본은 0(가림)이라 entry 없는 상태로 표현.
+  lineMaskStates: Map<number, 1 | 2>
+
   // 액션
   setStatus: (status: PlayStatus) => void
   setCurrentTime: (time: number) => void
@@ -46,6 +50,7 @@ export interface PlayerStore {
   toggleCheckedLine: (index: number) => void
   clearCheckedLines: () => void
   setRepeatCurrent: (current: number) => void
+  cycleLineMask: (index: number) => void
   reset: () => void
 }
 
@@ -69,6 +74,7 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
   checkedLines: new Set<number>(),
   repeatCount: 0,
   repeatCurrent: 0,
+  lineMaskStates: new Map<number, 1 | 2>(),
 
   setStatus: (status) => set({ status }),
   setCurrentTime: (currentTime) => set({ currentTime }),
@@ -103,6 +109,7 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
       checkedLines: new Set<number>(),
       repeatCount: 0,
       repeatCurrent: 0,
+      lineMaskStates: new Map<number, 1 | 2>(),
     }),
   loadLyrics: (lyrics) =>
     set({
@@ -112,6 +119,7 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
       checkedLines: new Set<number>(),
       repeatCount: 0,
       repeatCurrent: 0,
+      lineMaskStates: new Map<number, 1 | 2>(),
     }),
   setLyricsLoading: (loading) => set({ lyricsLoading: loading }),
   setCurrentLineIndex: (index) => set({ currentLineIndex: index }),
@@ -135,6 +143,16 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
   clearCheckedLines: () =>
     set({ checkedLines: new Set<number>(), repeatCount: 0, repeatCurrent: 0 }),
   setRepeatCurrent: (current) => set({ repeatCurrent: current }),
+  // 토글 순환 0 → 1 → 2 → 0. 다음이 0이면 entry를 지워 기본(가림) 상태로 환원.
+  cycleLineMask: (index) =>
+    set((s) => {
+      const current = s.lineMaskStates.get(index) ?? 0
+      const nextRaw = (current + 1) % 3
+      const next = new Map(s.lineMaskStates)
+      if (nextRaw === 0) next.delete(index)
+      else next.set(index, nextRaw as 1 | 2)
+      return { lineMaskStates: next }
+    }),
   reset: () =>
     set({
       status: 'idle',
@@ -149,5 +167,6 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
       checkedLines: new Set<number>(),
       repeatCount: 0,
       repeatCurrent: 0,
+      lineMaskStates: new Map<number, 1 | 2>(),
     }),
 }))

@@ -7,9 +7,11 @@ interface LyricsPanelProps {
   lyrics: ParsedLyrics | null
   currentLineIndex: number
   checkedLines: Set<number>
+  lineMaskStates: Map<number, 1 | 2>
   loading?: boolean
   onLineClick: (time: number) => void
   onToggleCheck: (index: number) => void
+  onMaskToggle: (index: number) => void
   onAddLrc?: () => void
 }
 
@@ -17,9 +19,11 @@ export function LyricsPanel({
   lyrics,
   currentLineIndex,
   checkedLines,
+  lineMaskStates,
   loading = false,
   onLineClick,
   onToggleCheck,
+  onMaskToggle,
   onAddLrc,
 }: LyricsPanelProps) {
   const activeRef = useRef<HTMLButtonElement>(null)
@@ -87,8 +91,10 @@ export function LyricsPanel({
             text={line.text}
             isActive={i === currentLineIndex}
             isChecked={checkedLines.has(i)}
+            maskState={lineMaskStates.get(i) ?? 0}
             onClick={() => onLineClick(line.time)}
             onCheckToggle={() => onToggleCheck(i)}
+            onMaskToggle={() => onMaskToggle(i)}
           />
         ))}
       </div>
