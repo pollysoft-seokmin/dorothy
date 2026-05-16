@@ -1,0 +1,1 @@
+ALTER TABLE "user_preferences" ADD COLUMN "lyrics_language" text DEFAULT 'en-ko' NOT NULL;

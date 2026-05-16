@@ -1,15 +1,30 @@
 import { createServerFn } from '@tanstack/react-start'
 
-const DEFAULT_PREFS = { volume: 0.8, theme: 'system' as const }
+const VALID_LYRICS_LANGUAGES = ['en-ko', 'en', 'ko'] as const
+type LyricsLanguagePref = (typeof VALID_LYRICS_LANGUAGES)[number]
+
+const DEFAULT_PREFS = {
+  volume: 0.8,
+  theme: 'system' as const,
+  lyricsLanguage: 'en-ko' as LyricsLanguagePref,
+}
+
+function isLyricsLanguage(v: unknown): v is LyricsLanguagePref {
+  return (
+    typeof v === 'string' &&
+    (VALID_LYRICS_LANGUAGES as readonly string[]).includes(v)
+  )
+}
 
 const isPrefsInput = (
   v: unknown,
-): v is { volume?: number; theme?: string } => {
+): v is { volume?: number; theme?: string; lyricsLanguage?: LyricsLanguagePref } => {
   if (typeof v !== 'object' || v === null) return false
   const o = v as Record<string, unknown>
   return (
     (o.volume === undefined || typeof o.volume === 'number') &&
-    (o.theme === undefined || typeof o.theme === 'string')
+    (o.theme === undefined || typeof o.theme === 'string') &&
+    (o.lyricsLanguage === undefined || isLyricsLanguage(o.lyricsLanguage))
   )
 }
 
@@ -48,7 +63,12 @@ export const getMyPreferences = createServerFn({ method: 'GET' }).handler(
       .where(eq(userPreferences.userId, user.id))
       .limit(1)
     if (!row) return DEFAULT_PREFS
-    return { volume: row.volume, theme: row.theme }
+    // DB에서 읽은 값이 알 수 없는 코드면 기본값으로 폴백 — 마이그레이션 직후
+    // 빈 컬럼이나 사용자가 외부에서 임의로 채워둔 값에 대해 안전.
+    const lyricsLanguage = isLyricsLanguage(row.lyricsLanguage)
+      ? row.lyricsLanguage
+      : DEFAULT_PREFS.lyricsLanguage
+    return { volume: row.volume, theme: row.theme, lyricsLanguage }
   },
 )
 
@@ -64,6 +84,7 @@ export const updateMyPreferences = createServerFn({ method: 'POST' })
     const next = {
       volume: data.volume ?? DEFAULT_PREFS.volume,
       theme: data.theme ?? DEFAULT_PREFS.theme,
+      lyricsLanguage: data.lyricsLanguage ?? DEFAULT_PREFS.lyricsLanguage,
     }
     await db
       .insert(userPreferences)
