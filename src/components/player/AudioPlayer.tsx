@@ -12,6 +12,7 @@ import { ProgressBar } from './ProgressBar'
 import { TimeDisplay } from './TimeDisplay'
 import { VolumeControl } from './VolumeControl'
 import { LanguageToggle } from './LanguageToggle'
+import { ExposeToggle } from './ExposeToggle'
 import { LyricsPanel } from '~/components/lyrics/LyricsPanel'
 
 type Props = {
@@ -37,6 +38,7 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
   const currentLineIndex = usePlayerStore((s) => s.currentLineIndex)
   const checkedLines = usePlayerStore((s) => s.checkedLines)
   const lineMaskStates = usePlayerStore((s) => s.lineMaskStates)
+  const globalLineMask = usePlayerStore((s) => s.globalLineMask)
   const lyricsLoading = usePlayerStore((s) => s.lyricsLoading)
   const lyricsLanguage = usePlayerStore((s) => s.lyricsLanguage)
 
@@ -44,6 +46,8 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
   // 없으면 LRC이거나 가사가 비어있는 상태 → 언어 토글 비활성.
   const isSamiLyrics =
     !!lyrics?.lines.some((l) => l.en !== undefined || l.ko !== undefined)
+  // 노출 토글은 LRC/SAMI 무관하게 가사가 있을 때만 의미가 있다.
+  const hasLyricLines = !!lyrics && lyrics.lines.length > 0
 
   const hasFile = !!fileName
   const disabled = !hasFile
@@ -85,6 +89,10 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
 
   const handleCycleLyricsLanguage = useCallback(() => {
     usePlayerStore.getState().cycleLyricsLanguage()
+  }, [])
+
+  const handleCycleGlobalLineMask = useCallback(() => {
+    usePlayerStore.getState().cycleGlobalLineMask()
   }, [])
 
   const handleLineClick = useCallback(
@@ -164,6 +172,7 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
         currentLineIndex={currentLineIndex}
         checkedLines={checkedLines}
         lineMaskStates={lineMaskStates}
+        globalLineMask={globalLineMask}
         language={lyricsLanguage}
         loading={lyricsLoading}
         onLineClick={handleLineClick}
@@ -196,6 +205,11 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
           onCycleRepeat={handleCycleRepeat}
         />
         <div className="flex items-center gap-1">
+          <ExposeToggle
+            globalLineMask={globalLineMask}
+            disabled={!hasLyricLines}
+            onCycle={handleCycleGlobalLineMask}
+          />
           <LanguageToggle
             language={lyricsLanguage}
             disabled={!isSamiLyrics}
