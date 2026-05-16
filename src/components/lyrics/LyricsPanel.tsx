@@ -2,13 +2,14 @@ import { useEffect, useRef, useCallback, createRef } from 'react'
 import { FileText, Loader2 } from 'lucide-react'
 import { LyricLine } from './LyricLine'
 import type { ParsedLyrics, LyricLine as LyricLineType } from '~/types'
-import type { LyricsLanguage } from '~/stores/player-store'
+import type { LineMaskState, LyricsLanguage } from '~/stores/player-store'
 
 interface LyricsPanelProps {
   lyrics: ParsedLyrics | null
   currentLineIndex: number
   checkedLines: Set<number>
-  lineMaskStates: Map<number, 1 | 2>
+  lineMaskStates: Map<number, LineMaskState>
+  globalLineMask: LineMaskState
   language: LyricsLanguage
   loading?: boolean
   onLineClick: (time: number) => void
@@ -32,6 +33,7 @@ export function LyricsPanel({
   currentLineIndex,
   checkedLines,
   lineMaskStates,
+  globalLineMask,
   language,
   loading = false,
   onLineClick,
@@ -108,7 +110,7 @@ export function LyricsPanel({
             text={pickLineText(line, language)}
             isActive={i === currentLineIndex}
             isChecked={checkedLines.has(i)}
-            maskState={lineMaskStates.get(i) ?? 0}
+            maskState={lineMaskStates.get(i) ?? globalLineMask}
             onClick={() => onLineClick(line.time)}
             onCheckToggle={() => onToggleCheck(i)}
             onMaskToggle={() => onMaskToggle(i)}
