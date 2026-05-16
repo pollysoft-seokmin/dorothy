@@ -11,6 +11,7 @@ import { PlaybackControls } from './PlaybackControls'
 import { ProgressBar } from './ProgressBar'
 import { TimeDisplay } from './TimeDisplay'
 import { VolumeControl } from './VolumeControl'
+import { LanguageToggle } from './LanguageToggle'
 import { LyricsPanel } from '~/components/lyrics/LyricsPanel'
 
 type Props = {
@@ -37,6 +38,12 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
   const checkedLines = usePlayerStore((s) => s.checkedLines)
   const lineMaskStates = usePlayerStore((s) => s.lineMaskStates)
   const lyricsLoading = usePlayerStore((s) => s.lyricsLoading)
+  const lyricsLanguage = usePlayerStore((s) => s.lyricsLanguage)
+
+  // SAMI 자막 여부 판정 — 한 라인이라도 en/ko 별도 필드를 가지면 SAMI 소스.
+  // 없으면 LRC이거나 가사가 비어있는 상태 → 언어 토글 비활성.
+  const isSamiLyrics =
+    !!lyrics?.lines.some((l) => l.en !== undefined || l.ko !== undefined)
 
   const hasFile = !!fileName
   const disabled = !hasFile
@@ -74,6 +81,10 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
 
   const handleMaskToggle = useCallback((index: number) => {
     usePlayerStore.getState().cycleLineMask(index)
+  }, [])
+
+  const handleCycleLyricsLanguage = useCallback(() => {
+    usePlayerStore.getState().cycleLyricsLanguage()
   }, [])
 
   const handleLineClick = useCallback(
@@ -153,6 +164,7 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
         currentLineIndex={currentLineIndex}
         checkedLines={checkedLines}
         lineMaskStates={lineMaskStates}
+        language={lyricsLanguage}
         loading={lyricsLoading}
         onLineClick={handleLineClick}
         onToggleCheck={handleToggleCheck}
@@ -183,12 +195,19 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
           onStop={stop}
           onCycleRepeat={handleCycleRepeat}
         />
-        <VolumeControl
-          volume={volume}
-          isMuted={isMuted}
-          onVolumeChange={handleVolumeChange}
-          onToggleMute={handleToggleMute}
-        />
+        <div className="flex items-center gap-1">
+          <LanguageToggle
+            language={lyricsLanguage}
+            disabled={!isSamiLyrics}
+            onCycle={handleCycleLyricsLanguage}
+          />
+          <VolumeControl
+            volume={volume}
+            isMuted={isMuted}
+            onVolumeChange={handleVolumeChange}
+            onToggleMute={handleToggleMute}
+          />
+        </div>
       </div>
     </div>
   )

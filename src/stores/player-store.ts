@@ -5,6 +5,11 @@ import type { MediaType, PlayStatus, TrackMetadata, ParsedLyrics } from '~/types
 export const REPEAT_CYCLE = [0, 2, 5] as const
 export type RepeatCount = (typeof REPEAT_CYCLE)[number]
 
+// 가사 표시 언어 토글. SAMI 자막에서만 의미를 가지며 사용자 환경설정으로
+// DB에 영구 저장된다(personalization). LRC 가사는 항상 text 그대로 표시.
+export const LYRICS_LANGUAGE_CYCLE = ['en-ko', 'en', 'ko'] as const
+export type LyricsLanguage = (typeof LYRICS_LANGUAGE_CYCLE)[number]
+
 export interface PlayerStore {
   // 재생 상태
   status: PlayStatus
@@ -32,6 +37,10 @@ export interface PlayerStore {
   // 토글 순환 0 → 1 → 2 → 0. 기본은 0(가림)이라 entry 없는 상태로 표현.
   lineMaskStates: Map<number, 1 | 2>
 
+  // 가사 표시 언어 — SAMI 자막에서만 적용. 사용자 환경설정으로 영구 저장되므로
+  // 트랙/가사 로드/reset에서는 초기화하지 않는다.
+  lyricsLanguage: LyricsLanguage
+
   // 액션
   setStatus: (status: PlayStatus) => void
   setCurrentTime: (time: number) => void
@@ -51,12 +60,19 @@ export interface PlayerStore {
   clearCheckedLines: () => void
   setRepeatCurrent: (current: number) => void
   cycleLineMask: (index: number) => void
+  cycleLyricsLanguage: () => void
+  setLyricsLanguage: (language: LyricsLanguage) => void
   reset: () => void
 }
 
 function nextRepeat(current: RepeatCount): RepeatCount {
   const i = REPEAT_CYCLE.indexOf(current)
   return REPEAT_CYCLE[(i + 1) % REPEAT_CYCLE.length]
+}
+
+function nextLyricsLanguage(current: LyricsLanguage): LyricsLanguage {
+  const i = LYRICS_LANGUAGE_CYCLE.indexOf(current)
+  return LYRICS_LANGUAGE_CYCLE[(i + 1) % LYRICS_LANGUAGE_CYCLE.length]
 }
 
 export const usePlayerStore = create<PlayerStore>((set) => ({
@@ -75,6 +91,7 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
   repeatCount: 0,
   repeatCurrent: 0,
   lineMaskStates: new Map<number, 1 | 2>(),
+  lyricsLanguage: 'en-ko',
 
   setStatus: (status) => set({ status }),
   setCurrentTime: (currentTime) => set({ currentTime }),
@@ -153,6 +170,9 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
       else next.set(index, nextRaw as 1 | 2)
       return { lineMaskStates: next }
     }),
+  cycleLyricsLanguage: () =>
+    set((s) => ({ lyricsLanguage: nextLyricsLanguage(s.lyricsLanguage) })),
+  setLyricsLanguage: (language) => set({ lyricsLanguage: language }),
   reset: () =>
     set({
       status: 'idle',

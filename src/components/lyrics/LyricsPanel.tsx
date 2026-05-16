@@ -1,13 +1,15 @@
 import { useEffect, useRef, useCallback, createRef } from 'react'
 import { FileText, Loader2 } from 'lucide-react'
 import { LyricLine } from './LyricLine'
-import type { ParsedLyrics } from '~/types'
+import type { ParsedLyrics, LyricLine as LyricLineType } from '~/types'
+import type { LyricsLanguage } from '~/stores/player-store'
 
 interface LyricsPanelProps {
   lyrics: ParsedLyrics | null
   currentLineIndex: number
   checkedLines: Set<number>
   lineMaskStates: Map<number, 1 | 2>
+  language: LyricsLanguage
   loading?: boolean
   onLineClick: (time: number) => void
   onToggleCheck: (index: number) => void
@@ -15,11 +17,22 @@ interface LyricsPanelProps {
   onAddLrc?: () => void
 }
 
+// SAMI 라인은 en/ko 별도 필드를 가지지만 LRC 라인은 text만 갖는다.
+// 단일 언어 모드에서 해당 언어가 없으면 빈 문자열을 반환해 라인 자체는
+// 유지(체크박스/마스크/index 안정성)하되 텍스트만 비운다.
+function pickLineText(line: LyricLineType, language: LyricsLanguage): string {
+  if (language === 'en-ko') return line.text
+  const isSami = line.en !== undefined || line.ko !== undefined
+  if (!isSami) return line.text
+  return (language === 'en' ? line.en : line.ko) ?? ''
+}
+
 export function LyricsPanel({
   lyrics,
   currentLineIndex,
   checkedLines,
   lineMaskStates,
+  language,
   loading = false,
   onLineClick,
   onToggleCheck,
@@ -92,7 +105,7 @@ export function LyricsPanel({
           <LyricLine
             key={`${line.time}-${i}`}
             ref={i === currentLineIndex ? activeRef : undefined}
-            text={line.text}
+            text={pickLineText(line, language)}
             isActive={i === currentLineIndex}
             isChecked={checkedLines.has(i)}
             maskState={lineMaskStates.get(i) ?? 0}

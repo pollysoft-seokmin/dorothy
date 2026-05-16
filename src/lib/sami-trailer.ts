@@ -249,7 +249,14 @@ function blocksToLyrics(blocks: SamiBlock[]): ParsedLyrics {
   for (const b of blocks) {
     const text = composeText(b.en, b.ko)
     if (!text) continue
-    lines.push({ time: b.start / 1000, text })
+    // en/ko를 별도 필드로 보존해 가사 패널의 언어 토글이
+    // 결합 텍스트를 다시 파싱하지 않고도 단일 언어 라인을 그릴 수 있게 한다.
+    lines.push({
+      time: b.start / 1000,
+      text,
+      en: b.en || undefined,
+      ko: b.ko || undefined,
+    })
   }
   // composeText preserves order; outer blocks list is already sorted.
   return { lines }

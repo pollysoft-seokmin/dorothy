@@ -28,7 +28,10 @@ export function usePreferencesSync() {
     let cancelled = false
     void getMyPreferences().then((prefs) => {
       if (cancelled) return
-      usePlayerStore.setState({ volume: prefs.volume })
+      usePlayerStore.setState({
+        volume: prefs.volume,
+        lyricsLanguage: prefs.lyricsLanguage,
+      })
       hydratedRef.current = true
     })
     return () => {
@@ -41,11 +44,16 @@ export function usePreferencesSync() {
     let timer: ReturnType<typeof setTimeout> | null = null
     const unsub = usePlayerStore.subscribe((s, prev) => {
       if (!hydratedRef.current) return
-      if (s.volume === prev.volume) return
+      const volumeChanged = s.volume !== prev.volume
+      const languageChanged = s.lyricsLanguage !== prev.lyricsLanguage
+      if (!volumeChanged && !languageChanged) return
       if (timer) clearTimeout(timer)
-      const volume = s.volume
+      const payload = {
+        volume: s.volume,
+        lyricsLanguage: s.lyricsLanguage,
+      }
       timer = setTimeout(() => {
-        void updateMyPreferences({ data: { volume } }).catch(() => {})
+        void updateMyPreferences({ data: payload }).catch(() => {})
       }, DEBOUNCE_MS)
     })
     return () => {
