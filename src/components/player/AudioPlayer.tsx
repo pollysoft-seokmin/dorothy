@@ -8,6 +8,7 @@ import { usePlaybackHistorySync } from '~/hooks/usePlaybackHistorySync'
 import { FileDropZone } from './FileDropZone'
 import { TrackInfo } from './TrackInfo'
 import { PlaybackControls } from './PlaybackControls'
+import { RepeatControl } from './RepeatControl'
 import { ProgressBar } from './ProgressBar'
 import { TimeDisplay } from './TimeDisplay'
 import { VolumeControl } from './VolumeControl'
@@ -21,7 +22,7 @@ type Props = {
 }
 
 export function AudioPlayer({ player, isLoggedIn }: Props) {
-  const { mediaRef, play, pause, stop, seek, loadFile } = player
+  const { mediaRef, play, pause, seek, loadFile } = player
   const { loadLrcFile } = useLyrics()
   const lrcInputRef = useRef<HTMLInputElement>(null)
 
@@ -192,19 +193,10 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
         <TimeDisplay currentTime={currentTime} duration={duration} />
       </div>
 
-      {/* 하단 컨트롤 - 모바일에서 sticky bottom */}
-      <div className="flex items-center justify-between sticky bottom-0 sm:static bg-background pb-2 sm:pb-0">
-        <PlaybackControls
-          status={status}
-          repeatCount={repeatCount}
-          hasCheckedLines={checkedLines.size > 0}
-          disabled={disabled}
-          onPlay={play}
-          onPause={pause}
-          onStop={stop}
-          onCycleRepeat={handleCycleRepeat}
-        />
-        <div className="flex items-center gap-1">
+      {/* 하단 컨트롤 - 모바일에서 sticky bottom. 3-col grid로 Play/Pause를 시각적
+          중앙에 고정하고 좌우 그룹의 폭 차이에 흔들리지 않게 한다. */}
+      <div className="grid grid-cols-3 items-center sticky bottom-0 sm:static bg-background pb-2 sm:pb-0">
+        <div className="justify-self-start flex items-center gap-1">
           <ExposeToggle
             globalLineMask={globalLineMask}
             disabled={!hasLyricLines}
@@ -215,6 +207,22 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
             disabled={!isSamiLyrics}
             onCycle={handleCycleLyricsLanguage}
           />
+          <RepeatControl
+            repeatCount={repeatCount}
+            hasCheckedLines={checkedLines.size > 0}
+            disabled={disabled}
+            onCycleRepeat={handleCycleRepeat}
+          />
+        </div>
+        <div className="justify-self-center">
+          <PlaybackControls
+            status={status}
+            disabled={disabled}
+            onPlay={play}
+            onPause={pause}
+          />
+        </div>
+        <div className="justify-self-end">
           <VolumeControl
             volume={volume}
             isMuted={isMuted}
