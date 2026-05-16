@@ -18,7 +18,7 @@ export function PlaybackControls({
   const isPlaying = status === 'playing'
 
   // Button 기본 스타일이 [&_svg]:size-4 로 자식 SVG를 강제하므로 `!`로 우선순위
-  // 끌어올린 size-15(3.75rem = 60px)를 별도 selector로 적용해 3배 크기 보장.
+  // 끌어올린 size-10(2.5rem = 40px)을 별도 selector로 적용. 원본 h-10 / h-5 의 2배.
   return (
     <Button
       variant="ghost"
@@ -26,7 +26,7 @@ export function PlaybackControls({
       disabled={disabled}
       onClick={isPlaying ? onPause : onPlay}
       aria-label={isPlaying ? '일시정지' : '재생'}
-      className="h-30 w-30 [&_svg]:!size-15"
+      className="h-20 w-20 [&_svg]:!size-10"
     >
       {isPlaying ? <Pause /> : <Play />}
     </Button>
