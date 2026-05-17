@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { AudioPlayer } from '~/components/player/AudioPlayer'
 import { MediaLibrary } from '~/components/library/MediaLibrary'
+import { MobileLibraryDrawer } from '~/components/library/MobileLibraryDrawer'
 import { useMediaPlayer } from '~/hooks/useMediaPlayer'
 import { useSession } from '~/lib/auth-client'
 
@@ -23,6 +24,7 @@ function Home() {
           <MediaLibrary userId={userId} onPlay={player.loadUrl} />
         </aside>
       )}
+      {userId && <MobileLibraryDrawer userId={userId} onPlay={player.loadUrl} />}
     </main>
   )
 }
