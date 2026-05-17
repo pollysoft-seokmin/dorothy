@@ -109,11 +109,21 @@ async function uploadFiles(
 
 // 가사 노출 전역 토글은 기본값이 0(전부 가림)이라 가사 텍스트가 '-'로
 // 마스킹된다. 본문 텍스트를 검증하려면 2(전체 노출)로 두 번 순환시켜야 한다.
+// 병렬 실행 부하에서 두 번의 클릭 사이에 상태 전이가 안 끝나 두 번째 클릭이
+// 첫 클릭과 같은 상태에 떨어지는 flake가 있어 aria-label로 각 단계를 명시
+// 대기.
 async function exposeAllLyrics(page: import("@playwright/test").Page) {
-  const toggle = page.getByRole("button", { name: /가사 노출/ });
-  await expect(toggle).toBeEnabled();
-  await toggle.click(); // 0 → 1
-  await toggle.click(); // 1 → 2 (전체 노출)
+  // 0 → 1
+  await page
+    .getByRole("button", { name: /가사 노출: 전부 가림/ })
+    .click();
+  // 1 → 2
+  await page
+    .getByRole("button", { name: /가사 노출: 첫 3글자만 노출/ })
+    .click();
+  await expect(
+    page.getByRole("button", { name: /가사 노출: 전체 노출/ }),
+  ).toBeVisible();
 }
 
 test.describe("Dorothy", () => {
