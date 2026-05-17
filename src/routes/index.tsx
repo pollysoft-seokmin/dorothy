@@ -33,12 +33,14 @@ function Home() {
   const isLgUp = useIsLgUp()
 
   return (
-    <main className="flex-1 min-h-0 flex sm:flex-initial sm:min-h-screen">
-      <div className="flex-1 flex items-stretch sm:items-start justify-center min-w-0">
+    <main className="flex-1 min-h-0 flex">
+      <div className="flex-1 flex items-stretch justify-center min-w-0">
         <AudioPlayer player={player} isLoggedIn={!!userId} />
       </div>
       {userId && isLgUp && (
-        <aside className="flex w-96 border-l flex-col h-screen sticky top-0">
+        // body가 더 이상 스크롤되지 않으므로 h-screen sticky top-0 불필요.
+        // flex stretch로 main 높이만큼 차지 + 내부 스크롤로 라이브러리 처리.
+        <aside className="flex w-96 border-l flex-col overflow-y-auto">
           <MediaLibrary userId={userId} onPlay={player.loadUrl} />
         </aside>
       )}

@@ -113,13 +113,12 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
   usePlaybackHistorySync()
 
   return (
-    // 모바일: h-full로 뷰포트(헤더 제외) 전체를 채워 컨트롤 바를 바닥에 고정.
-    // 데스크톱: h-auto로 컨텐츠 높이만큼만 차지 (기존 동작 유지).
-    <div className="mx-auto w-full max-w-2xl px-4 pt-6 pb-0 sm:py-10 h-full sm:h-auto flex flex-col gap-8">
-      {/* 스크롤 가능한 상단 영역 — 컨텐츠가 넘치면 여기서만 스크롤되고
-          페이지(body)는 스크롤되지 않는다. 데스크톱에선 flex-initial로
-          되돌려 자연스러운 흐름. */}
-      <div className="flex-1 min-h-0 overflow-y-auto sm:flex-initial sm:min-h-0 sm:overflow-visible flex flex-col gap-4">
+    // h-full로 사용 가능한 세로 공간 전부 차지 — 모바일/데스크톱 통일.
+    // 외곽 sm:py-10은 데스크톱에서 위/아래 breathing room 보존.
+    <div className="mx-auto w-full max-w-2xl px-4 pt-6 pb-0 sm:py-10 h-full flex flex-col gap-8">
+      {/* 스크롤 가능한 상단 영역 — 콘텐츠가 넘치면 여기서만 스크롤되고
+          페이지는 스크롤되지 않는다. */}
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-4">
         {/* 미디어 엘리먼트: 비디오는 표시, 오디오는 숨김 */}
         {mediaType === 'video' ? (
           <video
