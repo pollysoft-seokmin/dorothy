@@ -68,7 +68,7 @@ export function LyricsPanel({
   if (loading && !lyrics) {
     return (
       <div
-        className="flex flex-col items-center justify-center gap-3 h-48 sm:h-64 text-muted-foreground"
+        className="flex flex-col items-center justify-center gap-3 flex-1 min-h-0 sm:flex-initial sm:h-64 text-muted-foreground"
         role="status"
         aria-label="가사 불러오는 중"
       >
@@ -81,7 +81,7 @@ export function LyricsPanel({
   // LRC 미로드
   if (!lyrics) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 h-48 sm:h-64 text-muted-foreground">
+      <div className="flex flex-col items-center justify-center gap-3 flex-1 min-h-0 sm:flex-initial sm:h-64 text-muted-foreground">
         <FileText className="h-8 w-8" />
         <p className="text-sm">가사가 없습니다</p>
         {onAddLrc && (
@@ -100,7 +100,7 @@ export function LyricsPanel({
   return (
     <div
       ref={containerRef}
-      className="h-48 sm:h-64 overflow-y-auto overflow-x-hidden scrollbar-thin py-8"
+      className="flex-1 min-h-0 sm:flex-initial sm:h-64 overflow-y-auto overflow-x-hidden scrollbar-thin py-2"
     >
       <div className="flex flex-col items-center gap-0.5">
         {lyrics.lines.map((line, i) => (

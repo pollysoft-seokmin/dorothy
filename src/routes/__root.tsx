@@ -33,9 +33,13 @@ function RootDocument() {
       <head>
         <HeadContent />
       </head>
-      <body className="min-h-screen bg-background text-foreground antialiased">
+      <body className="h-dvh overflow-hidden sm:h-auto sm:overflow-visible sm:min-h-screen bg-background text-foreground antialiased flex flex-col">
         <AuthHeader />
-        <Outlet />
+        {/* 모바일: 본문 자체는 뷰포트에 고정되고 이 래퍼만 내부 스크롤을 가진다.
+            데스크톱: 일반 흐름으로 되돌려 페이지 스크롤이 원래대로 동작. */}
+        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col sm:flex-initial sm:min-h-0 sm:overflow-visible">
+          <Outlet />
+        </div>
         <Toaster richColors closeButton position="bottom-center" />
         <Scripts />
       </body>

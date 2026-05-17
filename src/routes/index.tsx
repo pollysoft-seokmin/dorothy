@@ -33,8 +33,8 @@ function Home() {
   const isLgUp = useIsLgUp()
 
   return (
-    <main className="min-h-screen flex">
-      <div className="flex-1 flex items-start justify-center min-w-0">
+    <main className="flex-1 min-h-0 flex sm:flex-initial sm:min-h-screen">
+      <div className="flex-1 flex items-stretch sm:items-start justify-center min-w-0">
         <AudioPlayer player={player} isLoggedIn={!!userId} />
       </div>
       {userId && isLgUp && (
