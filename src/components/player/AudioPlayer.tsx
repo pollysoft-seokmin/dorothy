@@ -11,7 +11,6 @@ import { PlaybackControls } from './PlaybackControls'
 import { RepeatControl } from './RepeatControl'
 import { ProgressBar } from './ProgressBar'
 import { TimeDisplay } from './TimeDisplay'
-import { VolumeControl } from './VolumeControl'
 import { LanguageToggle } from './LanguageToggle'
 import { ExposeToggle } from './ExposeToggle'
 import { LyricsPanel } from '~/components/lyrics/LyricsPanel'
@@ -29,8 +28,6 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
   const status = usePlayerStore((s) => s.status)
   const currentTime = usePlayerStore((s) => s.currentTime)
   const duration = usePlayerStore((s) => s.duration)
-  const volume = usePlayerStore((s) => s.volume)
-  const isMuted = usePlayerStore((s) => s.isMuted)
   const repeatCount = usePlayerStore((s) => s.repeatCount)
   const fileName = usePlayerStore((s) => s.fileName)
   const mediaType = usePlayerStore((s) => s.mediaType)
@@ -67,14 +64,6 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
     (time: number) => seek(time),
     [seek],
   )
-
-  const handleVolumeChange = useCallback((v: number) => {
-    usePlayerStore.getState().setVolume(v)
-  }, [])
-
-  const handleToggleMute = useCallback(() => {
-    usePlayerStore.getState().toggleMute()
-  }, [])
 
   const handleCycleRepeat = useCallback(() => {
     usePlayerStore.getState().cycleRepeat()
@@ -197,16 +186,6 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
           중앙에 고정하고 좌우 그룹의 폭 차이에 흔들리지 않게 한다. */}
       <div className="grid grid-cols-3 items-center sticky bottom-0 sm:static bg-background pb-2 sm:pb-0">
         <div className="justify-self-start flex items-center gap-1">
-          <ExposeToggle
-            globalLineMask={globalLineMask}
-            disabled={!hasLyricLines}
-            onCycle={handleCycleGlobalLineMask}
-          />
-          <LanguageToggle
-            language={lyricsLanguage}
-            disabled={!isSamiLyrics}
-            onCycle={handleCycleLyricsLanguage}
-          />
           <RepeatControl
             repeatCount={repeatCount}
             hasCheckedLines={checkedLines.size > 0}
@@ -222,12 +201,16 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
             onPause={pause}
           />
         </div>
-        <div className="justify-self-end">
-          <VolumeControl
-            volume={volume}
-            isMuted={isMuted}
-            onVolumeChange={handleVolumeChange}
-            onToggleMute={handleToggleMute}
+        <div className="justify-self-end flex items-center gap-1">
+          <ExposeToggle
+            globalLineMask={globalLineMask}
+            disabled={!hasLyricLines}
+            onCycle={handleCycleGlobalLineMask}
+          />
+          <LanguageToggle
+            language={lyricsLanguage}
+            disabled={!isSamiLyrics}
+            onCycle={handleCycleLyricsLanguage}
           />
         </div>
       </div>
