@@ -113,105 +113,117 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
   usePlaybackHistorySync()
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:py-10 flex flex-col gap-4">
-      {/* 미디어 엘리먼트: 비디오는 표시, 오디오는 숨김 */}
-      {mediaType === 'video' ? (
-        <video
-          ref={mediaRef as React.Ref<HTMLVideoElement>}
-          className="w-full aspect-video bg-black rounded-md"
-          preload="metadata"
-          playsInline
-        />
-      ) : (
-        <audio
-          ref={mediaRef as React.Ref<HTMLAudioElement>}
-          preload="metadata"
-        />
-      )}
+    // 모바일: h-full로 뷰포트(헤더 제외) 전체를 채워 컨트롤 바를 바닥에 고정.
+    // 데스크톱: h-auto로 컨텐츠 높이만큼만 차지 (기존 동작 유지).
+    <div className="mx-auto w-full max-w-2xl px-4 pt-6 pb-0 sm:py-10 h-full sm:h-auto flex flex-col gap-8">
+      {/* 스크롤 가능한 상단 영역 — 컨텐츠가 넘치면 여기서만 스크롤되고
+          페이지(body)는 스크롤되지 않는다. 데스크톱에선 flex-initial로
+          되돌려 자연스러운 흐름. */}
+      <div className="flex-1 min-h-0 overflow-y-auto sm:flex-initial sm:min-h-0 sm:overflow-visible flex flex-col gap-4">
+        {/* 미디어 엘리먼트: 비디오는 표시, 오디오는 숨김 */}
+        {mediaType === 'video' ? (
+          <video
+            ref={mediaRef as React.Ref<HTMLVideoElement>}
+            className="w-full aspect-video bg-black rounded-md"
+            preload="metadata"
+            playsInline
+          />
+        ) : (
+          <audio
+            ref={mediaRef as React.Ref<HTMLAudioElement>}
+            preload="metadata"
+          />
+        )}
 
-      {/* 숨겨진 LRC input — 비로그인 사용자만 */}
-      {!isLoggedIn && (
-        <input
-          ref={lrcInputRef}
-          type="file"
-          accept=".lrc"
-          className="hidden"
-          onChange={handleLrcInputChange}
-        />
-      )}
+        {/* 숨겨진 LRC input — 비로그인 사용자만 */}
+        {!isLoggedIn && (
+          <input
+            ref={lrcInputRef}
+            type="file"
+            accept=".lrc"
+            className="hidden"
+            onChange={handleLrcInputChange}
+          />
+        )}
 
-      {/* 파일 선택 — 비로그인 사용자만. 로그인 시에는 우측 라이브러리에서 처리 */}
-      {!isLoggedIn && (
-        <FileDropZone
-          onMediaLoad={handleMediaLoad}
-          onLrcLoad={handleLrcLoad}
+        {/* 파일 선택 — 비로그인 사용자만. 로그인 시에는 우측 라이브러리에서 처리 */}
+        {!isLoggedIn && (
+          <FileDropZone
+            onMediaLoad={handleMediaLoad}
+            onLrcLoad={handleLrcLoad}
+            fileName={fileName}
+          />
+        )}
+
+        {/* 곡 정보 */}
+        <TrackInfo
           fileName={fileName}
+          mediaType={mediaType}
+          metadata={metadata}
         />
-      )}
 
-      {/* 곡 정보 */}
-      <TrackInfo
-        fileName={fileName}
-        mediaType={mediaType}
-        metadata={metadata}
-      />
-
-      {/* 가사 패널 */}
-      <LyricsPanel
-        lyrics={lyrics}
-        currentLineIndex={currentLineIndex}
-        checkedLines={checkedLines}
-        lineMaskStates={lineMaskStates}
-        globalLineMask={globalLineMask}
-        language={lyricsLanguage}
-        loading={lyricsLoading}
-        onLineClick={handleLineClick}
-        onToggleCheck={handleToggleCheck}
-        onMaskToggle={handleMaskToggle}
-        onAddLrc={isLoggedIn ? undefined : handleAddLrc}
-      />
-
-      {/* Progress Bar */}
-      <div className="flex flex-col gap-1">
-        <ProgressBar
-          currentTime={currentTime}
-          duration={duration}
-          disabled={disabled}
-          onSeek={handleSeek}
+        {/* 가사 패널 */}
+        <LyricsPanel
+          lyrics={lyrics}
+          currentLineIndex={currentLineIndex}
+          checkedLines={checkedLines}
+          lineMaskStates={lineMaskStates}
+          globalLineMask={globalLineMask}
+          language={lyricsLanguage}
+          loading={lyricsLoading}
+          onLineClick={handleLineClick}
+          onToggleCheck={handleToggleCheck}
+          onMaskToggle={handleMaskToggle}
+          onAddLrc={isLoggedIn ? undefined : handleAddLrc}
         />
-        <TimeDisplay currentTime={currentTime} duration={duration} />
       </div>
 
-      {/* 하단 컨트롤 - 모바일에서 sticky bottom. 3-col grid로 Play/Pause를 시각적
-          중앙에 고정하고 좌우 그룹의 폭 차이에 흔들리지 않게 한다. */}
-      <div className="grid grid-cols-3 items-center sticky bottom-0 sm:static bg-background pb-2 sm:pb-0">
-        <div className="justify-self-start flex items-center gap-1">
-          <RepeatControl
-            repeatCount={repeatCount}
-            hasCheckedLines={checkedLines.size > 0}
+      {/* 하단 영역 - 진행 게이지 + 시간 + 컨트롤. 진행 게이지와 컨트롤은
+          시각적으로 한 덩어리이므로 gap 없음. iOS home indicator 영역을 피해
+          safe-area-inset-bottom 만큼 하단 패딩 (데스크톱은 외곽 py-10에서 처리). */}
+      <div className="bg-background pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:pb-0 flex flex-col">
+        {/* Progress Bar */}
+        <div className="flex flex-col gap-1">
+          <ProgressBar
+            currentTime={currentTime}
+            duration={duration}
             disabled={disabled}
-            onCycleRepeat={handleCycleRepeat}
+            onSeek={handleSeek}
           />
+          <TimeDisplay currentTime={currentTime} duration={duration} />
         </div>
-        <div className="justify-self-center">
-          <PlaybackControls
-            status={status}
-            disabled={disabled}
-            onPlay={play}
-            onPause={pause}
-          />
-        </div>
-        <div className="justify-self-end flex items-center gap-1">
-          <ExposeToggle
-            globalLineMask={globalLineMask}
-            disabled={!hasLyricLines}
-            onCycle={handleCycleGlobalLineMask}
-          />
-          <LanguageToggle
-            language={lyricsLanguage}
-            disabled={!isSamiLyrics}
-            onCycle={handleCycleLyricsLanguage}
-          />
+
+        {/* 컨트롤 — 3-col grid로 Play/Pause를 시각적 중앙에 고정하고
+            좌우 그룹의 폭 차이에 흔들리지 않게 한다. */}
+        <div className="grid grid-cols-3 items-center">
+          <div className="justify-self-start flex items-center gap-1">
+            <RepeatControl
+              repeatCount={repeatCount}
+              hasCheckedLines={checkedLines.size > 0}
+              disabled={disabled}
+              onCycleRepeat={handleCycleRepeat}
+            />
+          </div>
+          <div className="justify-self-center">
+            <PlaybackControls
+              status={status}
+              disabled={disabled}
+              onPlay={play}
+              onPause={pause}
+            />
+          </div>
+          <div className="justify-self-end flex items-center gap-1">
+            <ExposeToggle
+              globalLineMask={globalLineMask}
+              disabled={!hasLyricLines}
+              onCycle={handleCycleGlobalLineMask}
+            />
+            <LanguageToggle
+              language={lyricsLanguage}
+              disabled={!isSamiLyrics}
+              onCycle={handleCycleLyricsLanguage}
+            />
+          </div>
         </div>
       </div>
     </div>
