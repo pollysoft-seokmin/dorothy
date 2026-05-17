@@ -118,9 +118,13 @@ export const folder = pgTable(
   },
   (t) => [
     index('folder_user_parent_idx').on(t.userId, t.parentId),
-    unique('folder_user_parent_name_unique')
-      .on(t.userId, t.parentId, t.name)
-      .nullsNotDistinct(),
+    // 실제 DB의 제약은 `UNIQUE NULLS NOT DISTINCT` 로 설정돼 있어 root 폴더
+    // (parent_id IS NULL) 의 (user_id, name) 중복도 차단된다. 다만 drizzle-kit
+    // 0.31.10의 introspect 가 `NULLS NOT DISTINCT` 옵션을 읽지 못해, 여기에
+    // `.nullsNotDistinct()` 를 적으면 `pnpm db:push` 가 매번 제약 재생성을
+    // 시도하는 false-positive drift 를 만들었다. 표기만 제거해 diff 충돌을
+    // 막고, DB 측의 NULLS NOT DISTINCT 는 그대로 유지한다.
+    unique('folder_user_parent_name_unique').on(t.userId, t.parentId, t.name),
   ],
 )
 
