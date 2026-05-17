@@ -33,11 +33,12 @@ function RootDocument() {
       <head>
         <HeadContent />
       </head>
-      <body className="h-dvh overflow-hidden sm:h-auto sm:overflow-visible sm:min-h-screen bg-background text-foreground antialiased flex flex-col">
+      <body className="h-dvh overflow-hidden bg-background text-foreground antialiased flex flex-col">
         <AuthHeader />
-        {/* 모바일: 본문 자체는 뷰포트에 고정되고 이 래퍼만 내부 스크롤을 가진다.
-            데스크톱: 일반 흐름으로 되돌려 페이지 스크롤이 원래대로 동작. */}
-        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col sm:flex-initial sm:min-h-0 sm:overflow-visible">
+        {/* body는 뷰포트에 고정, 이 래퍼만 내부 스크롤. 모바일/데스크톱 통일된
+            앱 셸 레이아웃. 짧은 라우트(/login 등)는 내부 빈 공간만 생기고,
+            긴 라우트는 컨테이너만 스크롤되어 페이지 자체는 움직이지 않는다. */}
+        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
           <Outlet />
         </div>
         <Toaster richColors closeButton position="bottom-center" />
