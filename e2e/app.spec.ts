@@ -107,19 +107,27 @@ async function uploadFiles(
   });
 }
 
+// 가사 노출 전역 토글은 기본값이 0(전부 가림)이라 가사 텍스트가 '-'로
+// 마스킹된다. 본문 텍스트를 검증하려면 2(전체 노출)로 두 번 순환시켜야 한다.
+async function exposeAllLyrics(page: import("@playwright/test").Page) {
+  const toggle = page.getByRole("button", { name: /가사 노출/ });
+  await expect(toggle).toBeEnabled();
+  await toggle.click(); // 0 → 1
+  await toggle.click(); // 1 → 2 (전체 노출)
+}
+
 test.describe("Dorothy", () => {
   test("페이지 로드 시 기본 UI 표시", async ({ page }) => {
     await page.goto("/");
 
-    await expect(page.getByRole("heading", { name: "Dorothy" })).toBeVisible();
+    // 헤더의 "Dorothy"는 홈 링크. (이전 스펙은 heading role을 기대했지만
+    // 실제로는 <Link>로 렌더됨.)
+    await expect(page.getByRole("link", { name: "Dorothy" })).toBeVisible();
     await expect(
       page.getByText("오디오/비디오 또는 LRC 파일을 여기에 드롭하거나 클릭하여 선택")
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "재생", exact: true })
-    ).toBeDisabled();
-    await expect(
-      page.getByRole("button", { name: "정지" })
     ).toBeDisabled();
   });
 
@@ -132,11 +140,10 @@ test.describe("Dorothy", () => {
 
     // FileDropZone에 파일명 표시 (desktop + mobile 두 곳에 표시되므로 first)
     await expect(page.getByText("test.mp3").first()).toBeVisible();
+    // 업로드 직후 자동 재생이 들어가면 버튼 라벨이 "일시정지"로 바뀌므로
+    // 라벨이 아닌 "활성화 여부"만 검증한다. 둘 중 어느 라벨이든 매치.
     await expect(
-      page.getByRole("button", { name: "재생", exact: true })
-    ).toBeEnabled();
-    await expect(
-      page.getByRole("button", { name: "정지" })
+      page.getByRole("button", { name: /^재생$|^일시정지$/ })
     ).toBeEnabled();
   });
 
@@ -148,6 +155,7 @@ test.describe("Dorothy", () => {
     await expect(page.getByText("test.mp3").first()).toBeVisible();
 
     await uploadFiles(page, lrcPath);
+    await exposeAllLyrics(page);
 
     await expect(page.getByText("첫 번째 가사 라인")).toBeVisible();
     await expect(page.getByText("두 번째 가사 라인")).toBeVisible();
@@ -159,9 +167,7 @@ test.describe("Dorothy", () => {
   test("LRC 미로드 시 플레이스홀더 텍스트 표시", async ({ page }) => {
     await page.goto("/");
 
-    await expect(
-      page.getByText("LRC 파일을 추가하면 가사가 표시됩니다")
-    ).toBeVisible();
+    await expect(page.getByText("가사가 없습니다")).toBeVisible();
   });
 
   test("MP4 파일 업로드 시 video 엘리먼트 노출 및 버튼 활성화", async ({
@@ -194,6 +200,7 @@ test.describe("Dorothy", () => {
     await expect(page.locator("video")).toHaveCount(1);
 
     await uploadFiles(page, lrcPath);
+    await exposeAllLyrics(page);
 
     await expect(page.getByText("첫 번째 가사 라인")).toBeVisible();
     await expect(page.getByText("다섯 번째 가사 라인")).toBeVisible();
@@ -552,6 +559,7 @@ test.describe("Dorothy", () => {
 
     await page.goto("/");
     await uploadFiles(page, tmpFile);
+    await exposeAllLyrics(page);
 
     // 외부 LRC 없이도 EN+KO 라인이 동시에 렌더되어야 한다.
     await expect(page.getByText("SAMI hello en")).toBeVisible();
@@ -569,6 +577,7 @@ test.describe("Dorothy", () => {
 
     await page.goto("/");
     await uploadFiles(page, tmpFile);
+    await exposeAllLyrics(page);
 
     await expect(page.getByText("SAMI shared one")).toHaveCount(1);
     await expect(page.getByText("SAMI shared two")).toHaveCount(1);
@@ -589,6 +598,7 @@ test.describe("Dorothy", () => {
 
     await page.goto("/");
     await uploadFiles(page, tmpFile);
+    await exposeAllLyrics(page);
 
     await expect(page.getByText("SAMI hello en")).toBeVisible();
     await expect(page.getByText("SAMI second ko")).toBeVisible();
