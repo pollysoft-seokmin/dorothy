@@ -41,22 +41,6 @@ export function useKeyboardShortcuts(actions: ShortcutActions) {
           e.preventDefault()
           actions.seek(state.currentTime + 5)
           break
-
-        case 'ArrowUp':
-          e.preventDefault()
-          state.setVolume(Math.min(1, state.volume + 0.1))
-          break
-
-        case 'ArrowDown':
-          e.preventDefault()
-          state.setVolume(Math.max(0, state.volume - 0.1))
-          break
-
-        case 'm':
-        case 'M':
-          e.preventDefault()
-          state.toggleMute()
-          break
       }
     }
 

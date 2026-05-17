@@ -4,7 +4,6 @@ const VALID_LYRICS_LANGUAGES = ['en-ko', 'en', 'ko'] as const
 type LyricsLanguagePref = (typeof VALID_LYRICS_LANGUAGES)[number]
 
 const DEFAULT_PREFS = {
-  volume: 0.8,
   theme: 'system' as const,
   lyricsLanguage: 'en-ko' as LyricsLanguagePref,
 }
@@ -18,11 +17,10 @@ function isLyricsLanguage(v: unknown): v is LyricsLanguagePref {
 
 const isPrefsInput = (
   v: unknown,
-): v is { volume?: number; theme?: string; lyricsLanguage?: LyricsLanguagePref } => {
+): v is { theme?: string; lyricsLanguage?: LyricsLanguagePref } => {
   if (typeof v !== 'object' || v === null) return false
   const o = v as Record<string, unknown>
   return (
-    (o.volume === undefined || typeof o.volume === 'number') &&
     (o.theme === undefined || typeof o.theme === 'string') &&
     (o.lyricsLanguage === undefined || isLyricsLanguage(o.lyricsLanguage))
   )
@@ -68,7 +66,7 @@ export const getMyPreferences = createServerFn({ method: 'GET' }).handler(
     const lyricsLanguage = isLyricsLanguage(row.lyricsLanguage)
       ? row.lyricsLanguage
       : DEFAULT_PREFS.lyricsLanguage
-    return { volume: row.volume, theme: row.theme, lyricsLanguage }
+    return { theme: row.theme, lyricsLanguage }
   },
 )
 
@@ -82,7 +80,6 @@ export const updateMyPreferences = createServerFn({ method: 'POST' })
     const { db } = await import('./db/client')
     const { userPreferences } = await import('./db/schema')
     const next = {
-      volume: data.volume ?? DEFAULT_PREFS.volume,
       theme: data.theme ?? DEFAULT_PREFS.theme,
       lyricsLanguage: data.lyricsLanguage ?? DEFAULT_PREFS.lyricsLanguage,
     }

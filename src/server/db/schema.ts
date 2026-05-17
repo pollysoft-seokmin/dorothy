@@ -4,7 +4,6 @@ import {
   index,
   integer,
   pgTable,
-  real,
   text,
   timestamp,
   unique,
@@ -82,7 +81,6 @@ export const userPreferences = pgTable('user_preferences', {
   userId: text('user_id')
     .primaryKey()
     .references(() => user.id, { onDelete: 'cascade' }),
-  volume: real('volume').notNull().default(0.8),
   theme: text('theme').notNull().default('system'),
   lyricsLanguage: text('lyrics_language').notNull().default('en-ko'),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

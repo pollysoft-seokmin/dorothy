@@ -19,8 +19,6 @@ export interface PlayerStore {
   status: PlayStatus
   currentTime: number
   duration: number
-  volume: number
-  isMuted: boolean
 
   // 파일 정보
   fileName: string
@@ -55,8 +53,6 @@ export interface PlayerStore {
   setStatus: (status: PlayStatus) => void
   setCurrentTime: (time: number) => void
   setDuration: (duration: number) => void
-  setVolume: (volume: number) => void
-  toggleMute: () => void
   cycleRepeat: () => void
   loadTrack: (
     fileName: string,
@@ -90,8 +86,6 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
   status: 'idle',
   currentTime: 0,
   duration: 0,
-  volume: 0.8,
-  isMuted: false,
   fileName: '',
   mediaType: 'audio',
   metadata: null,
@@ -108,8 +102,6 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
   setStatus: (status) => set({ status }),
   setCurrentTime: (currentTime) => set({ currentTime }),
   setDuration: (duration) => set({ duration }),
-  setVolume: (volume) => set({ volume }),
-  toggleMute: () => set((s) => ({ isMuted: !s.isMuted })),
   cycleRepeat: () =>
     set((s) => {
       const next = nextRepeat(s.repeatCount)

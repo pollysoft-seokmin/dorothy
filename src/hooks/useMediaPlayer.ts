@@ -378,23 +378,6 @@ export function useMediaPlayer() {
     }
   }, [stopRafLoop, mediaType])
 
-  // Zustand volume/muted 동기화
-  useEffect(() => {
-    const unsub = store.subscribe((state, prev) => {
-      const media = mediaRef.current
-      if (!media) return
-      if (state.volume !== prev.volume) media.volume = state.volume
-      if (state.isMuted !== prev.isMuted) media.muted = state.isMuted
-    })
-    // 초기값 설정
-    const media = mediaRef.current
-    if (media) {
-      media.volume = store.getState().volume
-      media.muted = store.getState().isMuted
-    }
-    return unsub
-  }, [])
-
   // cleanup
   useEffect(() => {
     return () => {
