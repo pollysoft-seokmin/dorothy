@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import { MediaLibrary } from '~/components/library/MediaLibrary'
 import { useUiStore } from '~/stores/ui-store'
@@ -16,6 +16,16 @@ type Props = {
 export function MobileLibraryDrawer({ userId, onPlay }: Props) {
   const isOpen = useUiStore((s) => s.isMobileLibraryOpen)
   const close = useUiStore((s) => s.closeMobileLibrary)
+
+  // MediaLibrary는 한 번 마운트되면 다음 unmount까지 유지해 폴더 이동 같은
+  // 내부 상태(currentFolderId)를 닫았다 열어도 보존한다. 단, 데스크톱(≥lg)에서
+  // 드로어가 열릴 일은 없으니(트리거가 lg:hidden) 데스크톱에선 인스턴스가
+  // 끝까지 마운트되지 않는다 — 같은 페이지에 우측 aside MediaLibrary와 함께
+  // 마운트돼 동일 server fn을 병렬 호출하는 race를 피하기 위함이다.
+  const [hasOpened, setHasOpened] = useState(false)
+  useEffect(() => {
+    if (isOpen) setHasOpened(true)
+  }, [isOpen])
 
   // ESC로 닫기 + 열린 동안 body 스크롤 잠금. lg 이상에서는 드로어가 보이지
   // 않으므로 어차피 isOpen이 true여도 시각적 영향은 없지만, 스크롤 잠금까지
@@ -76,7 +86,7 @@ export function MobileLibraryDrawer({ userId, onPlay }: Props) {
           </button>
         </div>
         <div className="flex-1 min-h-0 flex flex-col">
-          <MediaLibrary userId={userId} onPlay={handlePlay} />
+          {hasOpened && <MediaLibrary userId={userId} onPlay={handlePlay} />}
         </div>
       </aside>
     </div>
