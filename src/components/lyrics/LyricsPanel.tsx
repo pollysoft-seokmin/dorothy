@@ -43,6 +43,7 @@ export function LyricsPanel({
 }: LyricsPanelProps) {
   const activeRef = useRef<HTMLButtonElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const prevLyricsRef = useRef<ParsedLyrics | null>(null)
 
   // 활성 라인이 변경되면 컨테이너 내부에서 중앙으로 스크롤.
   // scrollIntoView는 외부 스크롤(body)도 건드려 페이지가 가로로 밀리는
@@ -51,10 +52,22 @@ export function LyricsPanel({
   // 이미 충분히 중앙에 있으면 호출을 생략 — sub-pixel 차이 때문에 매번
   // smooth 애니메이션이 발동해 macOS overlay 스크롤바가 계속 노출되는
   // 부작용을 막는다.
+  //
+  // 새 가사가 로드되면(lyrics reference 변경) 활성 라인 스크롤보다 우선해
+  // 최상단으로 초기화. 새 미디어를 골라 LRC/SAMI가 갱신되었을 때 이전 곡의
+  // 스크롤 위치가 남는 것을 막는다.
   useEffect(() => {
-    const target = activeRef.current
     const container = containerRef.current
-    if (!target || !container) return
+    if (!container) return
+
+    if (prevLyricsRef.current !== lyrics) {
+      prevLyricsRef.current = lyrics
+      container.scrollTop = 0
+      return
+    }
+
+    const target = activeRef.current
+    if (!target) return
     const containerRect = container.getBoundingClientRect()
     const targetRect = target.getBoundingClientRect()
     const relativeTop = targetRect.top - containerRect.top + container.scrollTop
@@ -62,7 +75,7 @@ export function LyricsPanel({
       relativeTop - container.clientHeight / 2 + target.clientHeight / 2
     if (Math.abs(desiredTop - container.scrollTop) < 4) return
     container.scrollTo({ top: desiredTop, behavior: 'smooth' })
-  }, [currentLineIndex])
+  }, [lyrics, currentLineIndex])
 
   // 가사 로딩 중 — 추출/사이드카 fetch가 끝나기 전 빈 패널 대신 스피너 표시
   if (loading && !lyrics) {
