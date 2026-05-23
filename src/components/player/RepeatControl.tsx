@@ -32,10 +32,11 @@ export function RepeatControl({
         disabled={repeatDisabled}
         onClick={onCycleRepeat}
         aria-label={repeatLabel}
-        // Button 기본 [&_svg]:size-4(16px)를 !size-6(24px)로 끌어올린다.
+        // 아이콘은 Button 기본 [&_svg]:size-4(16px) 유지. 다크 배경에서 버튼
+        // 영역이 보이도록 hover 시 화이트 10% 둥근 하이라이트.
         // off 상태는 화이트로 다크 톤에 맞추고, on 상태는 Spotify 패턴대로 그린 인디케이터.
         className={cn(
-          'size-11 shrink-0 hover:bg-white/10 [&_svg]:!size-6',
+          'size-9 shrink-0 rounded-full hover:bg-white/10',
           isRepeating
             ? 'text-primary hover:text-primary'
             : 'text-foreground hover:text-foreground',
