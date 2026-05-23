@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dorothy × Spotify — Design Proposal</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    html, body { margin: 0; padding: 0; background: #0a0a0a; color: #fff; font-family: 'Manrope', system-ui, sans-serif; }
+    #root { width: 100vw; height: 100vh; }
+    * { box-sizing: border-box; }
+  </style>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script type="text/babel" src="components/design-canvas.jsx"></script>
+  <script type="text/babel" src="design/tokens.jsx"></script>
+  <script type="text/babel" src="design/icons.jsx"></script>
+  <script type="text/babel" src="design/ui.jsx"></script>
+  <script type="text/babel" src="design/now-playing.jsx"></script>
+  <script type="text/babel" src="design/now-playing-video.jsx"></script>
+  <script type="text/babel" src="design/empty-and-login.jsx"></script>
+  <script type="text/babel" src="design/desktop.jsx"></script>
+  <script type="text/babel" src="design/immersive.jsx"></script>
+  <script type="text/babel" src="design/rationale.jsx"></script>
+  <script type="text/babel" src="design/nav-variants.jsx"></script>
+  <script type="text/babel" src="design/account-popup.jsx"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+
+    function App() {
+      return (
+        <DesignCanvas
+          title="Dorothy — Spotify-style refresh"
+          subtitle="ko + en bilingual karaoke player · 다크 전용 · 그린 절제"
+        >
+          <DCSection
+            id="overview"
+            title="① Direction & tokens"
+            subtitle="제안 요약 + 디자인 시스템 토큰"
+          >
+            <DCArtboard id="rationale" label="Why · 6 pillars" width={720} height={900}>
+              <RationaleCard />
+            </DCArtboard>
+            <DCArtboard id="tokens" label="Design tokens" width={720} height={900}>
+              <TokenCard />
+            </DCArtboard>
+          </DCSection>
+
+          <DCSection
+            id="mobile"
+            title="② Mobile / compact"
+            subtitle="모바일 폭 (390 × 844) — 메인 사용 시나리오"
+          >
+            <DCArtboard id="audio-enko" label="Now Playing · 영+한" width={390} height={844}>
+              <NowPlayingAudio language="en-ko" />
+            </DCArtboard>
+            <DCArtboard id="audio-en" label="Now Playing · 영어만" width={390} height={844}>
+              <NowPlayingAudio language="en" />
+            </DCArtboard>
+            <DCArtboard id="video" label="Now Playing · 비디오" width={390} height={844}>
+              <NowPlayingVideo />
+            </DCArtboard>
+            <DCArtboard id="empty" label="비로그인 / Drop zone" width={390} height={844}>
+              <EmptyState />
+            </DCArtboard>
+            <DCArtboard id="login" label="로그인" width={390} height={844}>
+              <LoginScreen />
+            </DCArtboard>
+          </DCSection>
+
+          <DCSection
+            id="desktop"
+            title="③ Desktop"
+            subtitle="라이브러리 + 플레이어 동시 표시 (≥ 1024px)"
+          >
+            <DCArtboard id="desk-main" label="Desktop · 재생 + 라이브러리" width={1280} height={800}>
+              <DesktopLayout />
+            </DCArtboard>
+          </DCSection>
+
+          <DCSection
+            id="nav-options"
+            title="④ 모바일 상단 네비게이션 바 · 배경 구분"
+            subtitle="현재는 메인 화면과 같은 검정 배경 — 세 가지 서로 분리 제안"
+          >
+            <DCArtboard id="nav-solid" label="A · Solid panel" width={390} height={886}>
+              <NavVariantSolid />
+            </DCArtboard>
+            <DCArtboard id="nav-frost" label="B · Frosted glass" width={390} height={886}>
+              <NavVariantFrost />
+            </DCArtboard>
+            <DCArtboard id="nav-gradient" label="C · Album-art gradient" width={390} height={886}>
+              <NavVariantGradient />
+            </DCArtboard>
+          </DCSection>
+
+          <DCSection
+            id="account"
+            title="⑤ 모바일 계정 팝업"
+            subtitle="아바타 탭 → /account 라우팅 대신 팝업 모달로. 두 가지 변형."
+          >
+            <DCArtboard id="acc-sheet" label="A · Bottom sheet" width={390} height={844}>
+              <AccountSheet />
+            </DCArtboard>
+            <DCArtboard id="acc-modal" label="B · Centered card" width={390} height={844}>
+              <AccountModal />
+            </DCArtboard>
+          </DCSection>
+
+          <DCSection
+            id="extras"
+            title="⑥ Concept · 가사 몰입 모드"
+            subtitle="가사 패널을 탭하면 펼쳐지는 새 인터랙션 — 현재 구조에 add-on으로 얹기 가능"
+          >
+            <DCArtboard id="immersive" label="Immersive lyrics" width={390} height={844}>
+              <ImmersiveLyrics />
+            </DCArtboard>
+          </DCSection>
+        </DesignCanvas>
+      );
+    }
+
+    root.render(<App />);
+  </script>
+</body>
+</html>
