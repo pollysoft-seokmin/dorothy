@@ -613,4 +613,108 @@ test.describe("Dorothy", () => {
     await expect(page.getByText("SAMI hello en")).toBeVisible();
     await expect(page.getByText("SAMI second ko")).toBeVisible();
   });
+
+  // SAMI 언어 토글 — en-ko / en / ko 3단계 순환.
+  // 기본은 en-ko라 영문 + 한글 두 줄이 함께 보인다. 한 번 누르면 영문만,
+  // 두 번 더 누르면 한글만, 세 번이면 다시 en-ko. aria-label 의 상태 라벨로
+  // 단계를 확인하고, 각 단계에서 보이는 라인 텍스트로 효과를 검증.
+  test("SAMI 언어 토글 3단계 순환 — 영문/한글/둘 다", async ({ page }) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "dorothy-sami-lang-"));
+    const tmpFile = path.join(dir, "sami.mp3");
+    buildSamiTrailerMp3(mp3Path, tmpFile);
+
+    await page.goto("/");
+    await uploadFiles(page, tmpFile);
+    await exposeAllLyrics(page);
+
+    // 초기 en-ko: 영문/한글 모두 노출
+    await expect(
+      page.getByRole("button", { name: /가사 언어: 영어\/한글 모두/ }),
+    ).toBeVisible();
+    await expect(page.getByText("SAMI hello en")).toBeVisible();
+    await expect(page.getByText("SAMI hello ko")).toBeVisible();
+
+    // 1회: en-ko → en (영문만)
+    await page
+      .getByRole("button", { name: /가사 언어: 영어\/한글 모두/ })
+      .click();
+    await expect(
+      page.getByRole("button", { name: /가사 언어: 영어만/ }),
+    ).toBeVisible();
+    await expect(page.getByText("SAMI hello en")).toBeVisible();
+    await expect(page.getByText("SAMI hello ko")).toHaveCount(0);
+
+    // 2회: en → ko (한글만)
+    await page
+      .getByRole("button", { name: /가사 언어: 영어만/ })
+      .click();
+    await expect(
+      page.getByRole("button", { name: /가사 언어: 한글만/ }),
+    ).toBeVisible();
+    await expect(page.getByText("SAMI hello ko")).toBeVisible();
+    await expect(page.getByText("SAMI hello en")).toHaveCount(0);
+
+    // 3회: ko → en-ko (다시 둘 다)
+    await page
+      .getByRole("button", { name: /가사 언어: 한글만/ })
+      .click();
+    await expect(
+      page.getByRole("button", { name: /가사 언어: 영어\/한글 모두/ }),
+    ).toBeVisible();
+    await expect(page.getByText("SAMI hello en")).toBeVisible();
+    await expect(page.getByText("SAMI hello ko")).toBeVisible();
+  });
+
+  // 가사 노출 토글 — 0(전부 가림) / 1(첫 3글자) / 2(전체 노출) 3단계.
+  // maskText 규칙: 공백은 보존, 비공백 문자는 reveal 카운트만큼만 살리고 나머지는
+  // 단일 '-' 로 치환. "첫 번째 가사 라인"(공백 3개, 비공백 8개)을 기준으로
+  // 단계별 정확한 마스킹 문자열을 검증한다.
+  test("가사 노출 토글 3단계 마스킹 — 전부 가림/첫 3글자/전체 노출", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await uploadFiles(page, mp3Path);
+    await expect(page.getByText("test.mp3").first()).toBeVisible();
+    await uploadFiles(page, lrcPath);
+
+    // 토글 버튼이 활성화되어야 LRC가 로드됐다는 신호 (그 전엔 disabled).
+    await expect(
+      page.getByRole("button", { name: /가사 노출: 전부 가림/ }),
+    ).toBeEnabled();
+
+    // 0 (전부 가림): "첫 번째 가사 라인" → "- -- -- --"
+    await expect(page.getByText("- -- -- --").first()).toBeVisible();
+    await expect(page.getByText("첫 번째 가사 라인")).toHaveCount(0);
+
+    // 0 → 1 (첫 3글자): "첫 번째 가사 라인" → "첫 번째 -- --"
+    //   첫(reveal)+space+번(reveal)+째(reveal)+space+가(-)+사(-)+space+라(-)+인(-)
+    await page
+      .getByRole("button", { name: /가사 노출: 전부 가림/ })
+      .click();
+    await expect(
+      page.getByRole("button", { name: /가사 노출: 첫 3글자만 노출/ }),
+    ).toBeVisible();
+    await expect(page.getByText("첫 번째 -- --")).toBeVisible();
+    await expect(page.getByText("첫 번째 가사 라인")).toHaveCount(0);
+
+    // 1 → 2 (전체 노출): 원문 그대로
+    await page
+      .getByRole("button", { name: /가사 노출: 첫 3글자만 노출/ })
+      .click();
+    await expect(
+      page.getByRole("button", { name: /가사 노출: 전체 노출/ }),
+    ).toBeVisible();
+    await expect(page.getByText("첫 번째 가사 라인")).toBeVisible();
+    await expect(page.getByText("다섯 번째 가사 라인")).toBeVisible();
+
+    // 2 → 0 다시 가림: "- -- -- --" 다시 등장
+    await page
+      .getByRole("button", { name: /가사 노출: 전체 노출/ })
+      .click();
+    await expect(
+      page.getByRole("button", { name: /가사 노출: 전부 가림/ }),
+    ).toBeVisible();
+    await expect(page.getByText("첫 번째 가사 라인")).toHaveCount(0);
+    await expect(page.getByText("- -- -- --").first()).toBeVisible();
+  });
 });
