@@ -1,27 +1,15 @@
-import { Link, useRouter, useRouterState } from '@tanstack/react-router'
-import { LogIn, LogOut, Menu, UserRound } from 'lucide-react'
-import { toast } from 'sonner'
+import { Link, useRouterState } from '@tanstack/react-router'
+import { LogIn, Menu, UserRound } from 'lucide-react'
 import { Button } from '~/components/ui/button'
 import { DorothyMark } from '~/components/brand/DorothyMark'
-import { authClient, useSession } from '~/lib/auth-client'
+import { useSession } from '~/lib/auth-client'
 import { useUiStore } from '~/stores/ui-store'
 
 export function AuthHeader() {
   const { data, isPending } = useSession()
-  const router = useRouter()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const toggleMobileLibrary = useUiStore((s) => s.toggleMobileLibrary)
   const openAccountSheet = useUiStore((s) => s.openAccountSheet)
-
-  const handleSignOut = async () => {
-    const { error } = await authClient.signOut()
-    if (error) {
-      toast.error('로그아웃에 실패했습니다')
-      return
-    }
-    toast.success('로그아웃되었습니다')
-    router.invalidate()
-  }
 
   // 햄버거는 미디어 라이브러리 드로어를 가진 index 라우트 + 로그인 상태에서만
   // 의미가 있다. 다른 라우트에선 드로어가 마운트되지 않아 클릭해도 아무 일이
@@ -74,23 +62,18 @@ export function AuthHeader() {
               {initial}
             </button>
 
-            {/* 데스크톱: 종전 /account 풀페이지 + 인라인 로그아웃 유지. */}
-            <Link
-              to="/account"
-              className="hidden lg:inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
+            {/* 데스크톱: 이메일 버튼 → DesktopAccountModal. 로그아웃 버튼은
+                모달 내부 프로필 카드로 이동 (인라인 헤더에서 제거). /account
+                라우트는 직접 URL 접근용으로 유지. */}
+            <button
+              type="button"
+              onClick={openAccountSheet}
+              aria-label={`내 계정 (${data.user.email})`}
+              className="hidden lg:inline-flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground"
             >
               <UserRound className="size-4" />
               <span>{data.user.email}</span>
-            </Link>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleSignOut}
-              className="hidden lg:inline-flex"
-            >
-              <LogOut className="size-4" />
-              <span>로그아웃</span>
-            </Button>
+            </button>
           </>
         ) : (
           <Button asChild size="sm" variant="outline">

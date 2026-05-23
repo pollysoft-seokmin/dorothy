@@ -7,6 +7,7 @@ import {
 import { Toaster } from 'sonner'
 import { AuthHeader } from '~/components/auth/AuthHeader'
 import { MobileAccountSheet } from '~/components/account/MobileAccountSheet'
+import { DesktopAccountModal } from '~/components/account/DesktopAccountModal'
 import appCss from '~/styles/app.css?url'
 
 export const Route = createRootRoute({
@@ -52,8 +53,11 @@ function RootDocument() {
         <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
           <Outlet />
         </div>
-        {/* 모바일 계정 bottom sheet — 모든 라우트에서 헤더 아바타 탭으로 트리거. */}
+        {/* 계정 팝업 — 같은 isAccountSheetOpen 슬라이스로 모바일은 Bottom Sheet,
+            데스크톱은 중앙 모달이 뜬다. lg breakpoint로 두 컴포넌트가 자동 분기되어
+            한 시점에 하나만 보인다. */}
         <MobileAccountSheet />
+        <DesktopAccountModal />
         <Toaster richColors closeButton position="bottom-center" />
         <Scripts />
       </body>
