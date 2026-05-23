@@ -32,6 +32,7 @@
   <script type="text/babel" src="design/nav-variants.jsx"></script>
   <script type="text/babel" src="design/account-popup.jsx"></script>
   <script type="text/babel" src="design/account-desktop.jsx"></script>
+  <script type="text/babel" src="design/library-sheet.jsx"></script>
 </head>
 <body>
   <div id="root"></div>
@@ -122,8 +123,24 @@
           </DCSection>
 
           <DCSection
+            id="library-sheet"
+            title="⑦ 모바일 라이브러리 · Bottom Sheet 재설계"
+            subtitle="행버거 → 하단 시트로. 폴더 생성 / 업로드 / 네비게이션에 최적화."
+          >
+            <DCArtboard id="lib-default" label="기본 · 폴더 탐색 + 업로드 진행" width={390} height={844}>
+              <LibrarySheet />
+            </DCArtboard>
+            <DCArtboard id="lib-empty" label="빈 폴더 · 드롭 존" width={390} height={844}>
+              <LibrarySheetEmpty />
+            </DCArtboard>
+            <DCArtboard id="lib-creating" label="폴더 만드는 중" width={390} height={844}>
+              <LibrarySheetCreating />
+            </DCArtboard>
+          </DCSection>
+
+          <DCSection
             id="extras"
-            title="⑥ Concept · 가사 몰입 모드"
+            title="⑦ Concept · 가사 몰입 모드"
             subtitle="가사 패널을 탭하면 펼쳐지는 새 인터랙션 — 현재 구조에 add-on으로 얹기 가능"
           >
             <DCArtboard id="immersive" label="Immersive lyrics" width={390} height={844}>
