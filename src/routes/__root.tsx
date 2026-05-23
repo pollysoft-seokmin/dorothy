@@ -6,6 +6,7 @@ import {
 } from '@tanstack/react-router'
 import { Toaster } from 'sonner'
 import { AuthHeader } from '~/components/auth/AuthHeader'
+import { MobileAccountSheet } from '~/components/account/MobileAccountSheet'
 import appCss from '~/styles/app.css?url'
 
 export const Route = createRootRoute({
@@ -51,6 +52,8 @@ function RootDocument() {
         <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
           <Outlet />
         </div>
+        {/* 모바일 계정 bottom sheet — 모든 라우트에서 헤더 아바타 탭으로 트리거. */}
+        <MobileAccountSheet />
         <Toaster richColors closeButton position="bottom-center" />
         <Scripts />
       </body>
