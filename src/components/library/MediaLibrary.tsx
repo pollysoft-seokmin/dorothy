@@ -7,7 +7,18 @@ import { Button } from '~/components/ui/button'
 import { NowPlayingBars } from '~/components/library/NowPlayingBars'
 import { usePlayerStore } from '~/stores/player-store'
 import { extractSamiTrailerBytes } from '~/lib/sami-trailer'
-import { probeVideoPlayable, transcodeToMp4 } from '~/lib/transcode'
+import { transcodeToMp4 } from '~/lib/transcode'
+import {
+  basenameNoExt,
+  detectFileMediaType,
+  formatBytes,
+  needsVideoTranscode,
+  type AssetItem,
+  type FolderListItem,
+  type FolderRow,
+  type LibraryMediaType,
+  type PendingItem,
+} from '~/components/library/library-shared'
 import {
   createFolder,
   deleteAsset,
@@ -20,64 +31,6 @@ import {
   renameFolder,
 } from '~/server/storage'
 
-const ALWAYS_TRANSCODE_EXTS = new Set([
-  'mpg',
-  'mpeg',
-  'avi',
-  'mkv',
-  'flv',
-  'wmv',
-  '3gp',
-])
-
-function getExt(name: string): string {
-  return name.toLowerCase().split('.').pop() ?? ''
-}
-
-async function needsVideoTranscode(file: File): Promise<boolean> {
-  if (!file.type.startsWith('video/')) return false
-  if (ALWAYS_TRANSCODE_EXTS.has(getExt(file.name))) return true
-  return !(await probeVideoPlayable(file))
-}
-
-type FolderRow = {
-  id: string
-  parentId: string | null
-  name: string
-  createdAt: string | Date
-}
-
-type FolderListItem = { id: string; name: string; createdAt: string | Date }
-
-type AssetItem = {
-  id: string
-  name: string
-  mediaType: string
-  mimeType: string
-  sizeBytes: number
-  blobUrl: string
-  createdAt: string | Date
-}
-
-type LibraryMediaType = 'audio' | 'video' | 'lyrics'
-
-function detectFileMediaType(file: File): LibraryMediaType | null {
-  if (file.name.toLowerCase().endsWith('.lrc')) return 'lyrics'
-  if (file.type.startsWith('audio/')) return 'audio'
-  if (file.type.startsWith('video/')) return 'video'
-  return null
-}
-
-type PendingItem = {
-  key: string
-  name: string
-  mediaType: LibraryMediaType
-  phase: 'preparing' | 'transcoding' | 'uploading' | 'error'
-  progress: number
-  errorMessage?: string
-  folderId: string | null
-}
-
 type Props = {
   userId: string
   onPlay: (params: {
@@ -86,18 +39,6 @@ type Props = {
     mediaType: 'audio' | 'video'
     lrcUrl?: string
   }) => void
-}
-
-function basenameNoExt(name: string): string {
-  const lastDot = name.lastIndexOf('.')
-  return (lastDot > 0 ? name.slice(0, lastDot) : name).toLowerCase()
-}
-
-function formatBytes(n: number): string {
-  if (n < 1024) return `${n} B`
-  if (n < 1024 ** 2) return `${(n / 1024).toFixed(1)} KB`
-  if (n < 1024 ** 3) return `${(n / 1024 ** 2).toFixed(1)} MB`
-  return `${(n / 1024 ** 3).toFixed(2)} GB`
 }
 
 function RowActionsMenu({
