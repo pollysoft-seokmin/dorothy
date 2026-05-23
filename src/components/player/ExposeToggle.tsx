@@ -50,7 +50,7 @@ export function ExposeToggle({
       onClick={onCycle}
       disabled={disabled}
       aria-label={`가사 노출: ${LABEL_BY_MASK[globalLineMask]} (클릭하여 변경)`}
-      className="size-11 shrink-0 text-foreground hover:bg-white/10 hover:text-foreground"
+      className="size-11 shrink-0 bg-transparent text-primary hover:bg-transparent hover:text-primary-bright"
     >
       <span
         aria-hidden
