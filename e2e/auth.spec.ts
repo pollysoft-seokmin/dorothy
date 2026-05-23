@@ -34,9 +34,4 @@ test.describe('Auth UI', () => {
       page.getByRole('link', { name: /로그인/ }),
     ).toBeVisible()
   })
-
-  test('account redirects to login when signed out', async ({ page }) => {
-    await page.goto('/account')
-    await expect(page).toHaveURL(/\/login$/)
-  })
 })

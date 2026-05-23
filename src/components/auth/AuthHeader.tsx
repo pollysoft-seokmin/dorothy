@@ -33,9 +33,8 @@ export function AuthHeader() {
   // 일어나지 않으므로 아예 숨긴다.
   const showMobileTrigger = pathname === '/' && !!data?.user
 
-  // 계정 팝업은 /account 풀페이지 이동을 대체. 모바일은 Bottom Sheet, 데스크톱은
-  // 중앙 모달이 같은 isAccountSheetOpen 슬라이스로 떠 가사/플레이어 컨텍스트를
-  // 유지한다. /account 라우트 자체는 직접 URL 접근용으로 보존.
+  // 계정은 같은 isAccountSheetOpen 슬라이스로 모바일=Bottom Sheet, 데스크톱=
+  // 중앙 모달로 표시. 풀페이지 /account 라우트는 더 이상 존재하지 않는다 (#75).
   const initial = data?.user?.email?.[0]?.toUpperCase() ?? '?'
 
   return (
@@ -74,9 +73,9 @@ export function AuthHeader() {
               <AccountAvatar initial={initial} />
             </button>
 
-            {/* 데스크톱: 이메일 텍스트 + 아바타 → 중앙 모달 트리거.
-                gap 14px(=gap-3.5), 이메일 13px text-muted-foreground.
-                인라인 로그아웃은 모달 내부 프로필 카드로 흡수. */}
+            {/* 데스크톱: 이메일 텍스트 + 아바타 → 중앙 모달 트리거 (모바일과
+                같은 슬라이스, 다른 chrome). 인라인 로그아웃은 모달 내부 프로필
+                카드로 흡수. */}
             <button
               type="button"
               onClick={openAccountSheet}

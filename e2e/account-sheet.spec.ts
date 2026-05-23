@@ -82,18 +82,16 @@ test.describe('Mobile account bottom sheet (#63)', () => {
   })
 })
 
-test.describe('Desktop /account 경로 (회귀 가드)', () => {
-  // 데스크톱 폭에선 시트가 lg:hidden 으로 마운트되지 않고, 헤더의 /account
-  // 링크가 그대로 동작해야 한다. 트리거(아바타 버튼)도 lg:hidden 이라 안보임.
+test.describe('Desktop 계정 트리거 (회귀 가드)', () => {
+  // 데스크톱 폭에선 모바일 Bottom Sheet 트리거가 lg:hidden 으로 숨고, 데스크톱
+  // 전용 이메일+아바타 button (hidden lg:inline-flex) 이 보여야 한다.
+  // 풀페이지 /account 라우트는 #75 에서 제거됨 — 헤더는 Link 가 아닌 button.
   test.use({ viewport: { width: 1280, height: 800 } })
 
-  test('데스크톱에선 모바일 아바타 트리거가 숨김', async ({ page }) => {
+  test('데스크톱에선 이메일 텍스트가 헤더에 노출된다', async ({ page }) => {
     const { email } = await signUpAndLand(page)
-    // 모바일 트리거는 보이면 안 됨
-    await expect(
-      page.getByRole('button', { name: `내 계정 (${email})` }),
-    ).toBeHidden()
-    // 데스크톱 /account 링크는 보여야 함
-    await expect(page.getByRole('link', { name: new RegExp(email) })).toBeVisible()
+    // 헤더 데스크톱 button 안의 <span>{email}</span> 만 이 텍스트를 렌더한다
+    // (모바일 button 은 아바타만 보여줌). 보이면 데스크톱 분기가 활성.
+    await expect(page.getByText(email, { exact: true })).toBeVisible()
   })
 })
