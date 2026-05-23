@@ -32,7 +32,14 @@ export function RepeatControl({
         disabled={repeatDisabled}
         onClick={onCycleRepeat}
         aria-label={repeatLabel}
-        className={cn(isRepeating ? 'text-primary' : 'text-muted-foreground')}
+        // Button 기본 [&_svg]:size-4(16px)를 !size-6(24px)로 끌어올린다.
+        // off 상태는 화이트로 다크 톤에 맞추고, on 상태는 Spotify 패턴대로 그린 인디케이터.
+        className={cn(
+          'size-11 shrink-0 hover:bg-white/10 [&_svg]:!size-6',
+          isRepeating
+            ? 'text-primary hover:text-primary'
+            : 'text-foreground hover:text-foreground',
+        )}
       >
         {isRepeating ? <Repeat /> : <RepeatOff />}
       </Button>
