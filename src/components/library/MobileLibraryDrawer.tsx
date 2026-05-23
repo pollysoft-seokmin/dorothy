@@ -71,7 +71,7 @@ export function MobileLibraryDrawer({ userId, onPlay }: Props) {
         role="dialog"
         aria-modal="true"
         aria-label="미디어 라이브러리"
-        className={`absolute left-0 top-0 h-full w-[85vw] max-w-sm bg-background border-r shadow-xl flex flex-col transition-transform duration-200 ease-out ${
+        className={`absolute left-0 top-0 h-full w-[85vw] max-w-sm bg-card border-r shadow-xl flex flex-col transition-transform duration-200 ease-out ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >

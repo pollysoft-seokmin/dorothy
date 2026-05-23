@@ -4,6 +4,8 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { FileText, Film, Folder, MoreHorizontal, Music } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '~/components/ui/button'
+import { NowPlayingBars } from '~/components/library/NowPlayingBars'
+import { usePlayerStore } from '~/stores/player-store'
 import { extractSamiTrailerBytes } from '~/lib/sami-trailer'
 import { probeVideoPlayable, transcodeToMp4 } from '~/lib/transcode'
 import {
@@ -161,6 +163,12 @@ export function MediaLibrary({ userId, onPlay }: Props) {
   const [dragActive, setDragActive] = useState(false)
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // 현재 재생 중인 트랙 정보 — asset row의 active/playing 시각 강조를 위해 구독.
+  // 비교는 파일명(=asset.name) 기준. useMediaPlayer.loadUrl이 params.name을
+  // 그대로 store.fileName에 넣으므로 동일성이 보장된다.
+  const playingFileName = usePlayerStore((s) => s.fileName)
+  const playStatus = usePlayerStore((s) => s.status)
 
   const refreshTree = useCallback(async () => {
     const rows = await getFolderTree()
@@ -663,17 +671,34 @@ export function MediaLibrary({ userId, onPlay }: Props) {
             })}
             {assets.map((a) => {
               const isEditing = editing?.kind === 'asset' && editing.id === a.id
+              // 현재 재생/일시정지 대상 row — 그린 틴트 + (재생 중일 때) 막대 그래프.
+              // lyrics 행은 직접 재생되지 않으므로 active 처리 제외.
+              const isActive =
+                a.mediaType !== 'lyrics' && a.name === playingFileName
+              const isPlaying = isActive && playStatus === 'playing'
               return (
                 <li
                   key={a.id}
-                  className="group flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted"
+                  className={`group flex items-center gap-2 px-2 py-1.5 rounded transition-colors ${
+                    isActive
+                      ? 'bg-primary/15 text-primary-bright'
+                      : 'hover:bg-muted'
+                  }`}
                 >
-                  {a.mediaType === 'video' ? (
-                    <Film className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  {isPlaying ? (
+                    <NowPlayingBars playing size={14} />
+                  ) : a.mediaType === 'video' ? (
+                    <Film
+                      className={`size-4 shrink-0 ${isActive ? 'text-primary-bright' : 'text-muted-foreground'}`}
+                      aria-hidden
+                    />
                   ) : a.mediaType === 'lyrics' ? (
                     <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                   ) : (
-                    <Music className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                    <Music
+                      className={`size-4 shrink-0 ${isActive ? 'text-primary-bright' : 'text-muted-foreground'}`}
+                      aria-hidden
+                    />
                   )}
                   {isEditing ? (
                     <>

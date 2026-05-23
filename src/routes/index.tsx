@@ -40,7 +40,9 @@ function Home() {
       {userId && isLgUp && (
         // body가 더 이상 스크롤되지 않으므로 h-screen sticky top-0 불필요.
         // flex stretch로 main 높이만큼 차지 + 내부 스크롤로 라이브러리 처리.
-        <aside className="flex w-96 border-l flex-col overflow-y-auto">
+        // bg-card(#121212)로 본문 영역(#000)과 톤을 분리해 Spotify의 nested
+        // grays 패턴을 만든다.
+        <aside className="flex w-96 border-l flex-col overflow-y-auto bg-card">
           <MediaLibrary userId={userId} onPlay={player.loadUrl} />
         </aside>
       )}

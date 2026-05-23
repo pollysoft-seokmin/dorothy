@@ -2,6 +2,7 @@ import { Link, useRouter, useRouterState } from '@tanstack/react-router'
 import { LogIn, LogOut, Menu, UserRound } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '~/components/ui/button'
+import { DorothyMark } from '~/components/brand/DorothyMark'
 import { authClient, useSession } from '~/lib/auth-client'
 import { useUiStore } from '~/stores/ui-store'
 
@@ -39,8 +40,12 @@ export function AuthHeader() {
             <Menu className="size-5" />
           </button>
         )}
-        <Link to="/" className="text-lg font-semibold tracking-tight">
-          Dorothy
+        <Link
+          to="/"
+          className="flex items-center gap-2 text-lg font-extrabold tracking-tight -tracking-[0.02em]"
+        >
+          <DorothyMark size={22} />
+          <span>Dorothy</span>
         </Link>
       </div>
       <div className="flex items-center gap-2 text-sm">

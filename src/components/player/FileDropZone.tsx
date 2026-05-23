@@ -1,6 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
 import { Upload, Music } from 'lucide-react'
-import { Button } from '~/components/ui/button'
 import { cn } from '~/lib/utils'
 import { toast } from 'sonner'
 
@@ -70,13 +69,13 @@ export function FileDropZone({ onMediaLoad, onLrcLoad, fileName }: FileDropZoneP
 
   return (
     <div className="w-full">
-      {/* 데스크톱: Drag & Drop 영역 */}
+      {/* 데스크톱: Drag & Drop 영역 — 점선 박스 + 그린-소프트 원형 Upload 아이콘 */}
       <div
         className={cn(
-          'hidden sm:flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 transition-colors cursor-pointer',
+          'hidden sm:flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-8 transition-colors cursor-pointer',
           isDragging
             ? 'border-primary bg-primary/5'
-            : 'border-muted-foreground/25 hover:border-muted-foreground/50',
+            : 'border-white/15 bg-white/[0.025] hover:border-white/30',
         )}
         onDragOver={(e) => {
           e.preventDefault()
@@ -90,9 +89,14 @@ export function FileDropZone({ onMediaLoad, onLrcLoad, fileName }: FileDropZoneP
         onDrop={handleDrop}
         onClick={() => inputRef.current?.click()}
       >
-        <Upload className="h-8 w-8 text-muted-foreground" />
+        <div className="grid size-14 place-items-center rounded-full bg-primary-soft text-primary-bright">
+          <Upload className="size-6" />
+        </div>
         <p className="text-sm text-muted-foreground">
           오디오/비디오 또는 LRC 파일을 여기에 드롭하거나 클릭하여 선택
+        </p>
+        <p className="text-[11px] text-text-dim font-mono">
+          mp3 · mp4 · webm · mov · mpg · lrc
         </p>
         {fileName && (
           <div className="flex items-center gap-1.5 text-xs text-foreground mt-1">
@@ -102,16 +106,24 @@ export function FileDropZone({ onMediaLoad, onLrcLoad, fileName }: FileDropZoneP
         )}
       </div>
 
-      {/* 모바일: 큰 파일 선택 버튼 */}
+      {/* 모바일: Spotify-style 그린 pill CTA */}
       <div className="sm:hidden flex flex-col gap-2">
-        <Button
-          variant="outline"
-          className="w-full h-14 text-base gap-2"
+        <button
+          type="button"
           onClick={() => inputRef.current?.click()}
+          className={cn(
+            'flex h-13 w-full items-center justify-center gap-2 rounded-full',
+            'bg-primary-bright text-primary-foreground',
+            'text-base font-extrabold tracking-tight',
+            'shadow-[0_4px_14px_rgba(29,215,96,0.35)]',
+            'transition-transform duration-150 ease-out',
+            'hover:scale-[1.02] active:scale-[0.98]',
+          )}
+          style={{ height: 52 }}
         >
-          <Music className="h-5 w-5" />
+          <Music className="size-5" />
           파일 선택하기
-        </Button>
+        </button>
         {fileName && (
           <p className="text-xs text-muted-foreground truncate text-center">
             {fileName}

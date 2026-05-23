@@ -1,6 +1,6 @@
-import { useEffect, useRef, useCallback, createRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { FileText, Loader2 } from 'lucide-react'
-import { LyricLine } from './LyricLine'
+import { LyricLine, type LyricPosition } from './LyricLine'
 import type { ParsedLyrics, LyricLine as LyricLineType } from '~/types'
 import type { LineMaskState, LyricsLanguage } from '~/stores/player-store'
 
@@ -18,14 +18,23 @@ interface LyricsPanelProps {
   onAddLrc?: () => void
 }
 
-// SAMI 라인은 en/ko 별도 필드를 가지지만 LRC 라인은 text만 갖는다.
+// SAMI 라인은 en/ko 별도 필드를 갖고 LRC 라인은 text만 갖는다.
 // 단일 언어 모드에서 해당 언어가 없으면 빈 문자열을 반환해 라인 자체는
 // 유지(체크박스/마스크/index 안정성)하되 텍스트만 비운다.
-function pickLineText(line: LyricLineType, language: LyricsLanguage): string {
-  if (language === 'en-ko') return line.text
+// en-ko 모드 + SAMI 라인은 영문(primary) + 한글(secondary)로 stack 렌더.
+function pickLineTexts(
+  line: LyricLineType,
+  language: LyricsLanguage,
+): { primary: string; secondary?: string } {
   const isSami = line.en !== undefined || line.ko !== undefined
-  if (!isSami) return line.text
-  return (language === 'en' ? line.en : line.ko) ?? ''
+  if (!isSami) {
+    // LRC는 항상 text 그대로. 언어 토글이 비활성이므로 language는 무시.
+    return { primary: line.text }
+  }
+  if (language === 'en') return { primary: line.en ?? '' }
+  if (language === 'ko') return { primary: line.ko ?? '' }
+  // en-ko: 영문 헤드라인 + 한글 보조
+  return { primary: line.en ?? '', secondary: line.ko ?? '' }
 }
 
 export function LyricsPanel({
@@ -113,22 +122,32 @@ export function LyricsPanel({
   return (
     <div
       ref={containerRef}
-      className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-thin py-2"
+      className="lyrics-fade-mask flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-thin py-4"
     >
-      <div className="flex flex-col items-center gap-0.5">
-        {lyrics.lines.map((line, i) => (
-          <LyricLine
-            key={`${line.time}-${i}`}
-            ref={i === currentLineIndex ? activeRef : undefined}
-            text={pickLineText(line, language)}
-            isActive={i === currentLineIndex}
-            isChecked={checkedLines.has(i)}
-            maskState={lineMaskStates.get(i) ?? globalLineMask}
-            onClick={() => onLineClick(line.time)}
-            onCheckToggle={() => onToggleCheck(i)}
-            onMaskToggle={() => onMaskToggle(i)}
-          />
-        ))}
+      <div className="flex flex-col gap-1">
+        {lyrics.lines.map((line, i) => {
+          const { primary, secondary } = pickLineTexts(line, language)
+          const position: LyricPosition =
+            i === currentLineIndex
+              ? 'active'
+              : i < currentLineIndex
+                ? 'past'
+                : 'future'
+          return (
+            <LyricLine
+              key={`${line.time}-${i}`}
+              ref={i === currentLineIndex ? activeRef : undefined}
+              primary={primary}
+              secondary={secondary}
+              position={position}
+              isChecked={checkedLines.has(i)}
+              maskState={lineMaskStates.get(i) ?? globalLineMask}
+              onClick={() => onLineClick(line.time)}
+              onCheckToggle={() => onToggleCheck(i)}
+              onMaskToggle={() => onMaskToggle(i)}
+            />
+          )
+        })}
       </div>
     </div>
   )
