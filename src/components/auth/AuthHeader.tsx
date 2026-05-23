@@ -1,9 +1,26 @@
 import { Link, useRouterState } from '@tanstack/react-router'
-import { LogIn, Menu, UserRound } from 'lucide-react'
+import { LogIn, Menu } from 'lucide-react'
 import { Button } from '~/components/ui/button'
 import { DorothyMark } from '~/components/brand/DorothyMark'
 import { useSession } from '~/lib/auth-client'
 import { useUiStore } from '~/stores/ui-store'
+
+// 데스크톱·모바일 공통 30x30 그린 그라데이션 원형 아바타 + 이니셜.
+// 디자인 명세: width/height 30, font 12px, weight 700, color #000,
+// linear-gradient(135deg, #1DB954 0%, #0E7C39 100%).
+function AccountAvatar({ initial }: { initial: string }) {
+  return (
+    <span
+      aria-hidden
+      className="grid size-[30px] shrink-0 place-items-center rounded-full text-xs font-bold text-background"
+      style={{
+        background: 'linear-gradient(135deg, #1DB954 0%, #0E7C39 100%)',
+      }}
+    >
+      {initial}
+    </span>
+  )
+}
 
 export function AuthHeader() {
   const { data, isPending } = useSession()
@@ -16,9 +33,9 @@ export function AuthHeader() {
   // 일어나지 않으므로 아예 숨긴다.
   const showMobileTrigger = pathname === '/' && !!data?.user
 
-  // 모바일 계정 시트는 /account를 대체. 풀페이지 이동 대신 bottom sheet로 띄워
-  // 가사/플레이어 컨텍스트를 유지한다. /account 라우트 자체는 데스크톱용으로
-  // 보존(직접 URL 입력 + 큰 화면 모두 자연스러움).
+  // 계정 팝업은 /account 풀페이지 이동을 대체. 모바일은 Bottom Sheet, 데스크톱은
+  // 중앙 모달이 같은 isAccountSheetOpen 슬라이스로 떠 가사/플레이어 컨텍스트를
+  // 유지한다. /account 라우트 자체는 직접 URL 접근용으로 보존.
   const initial = data?.user?.email?.[0]?.toUpperCase() ?? '?'
 
   return (
@@ -47,32 +64,29 @@ export function AuthHeader() {
           <span className="text-muted-foreground">…</span>
         ) : data?.user ? (
           <>
-            {/* 모바일: 그린 그라데이션 아바타 → bottom sheet 트리거.
-                lg:hidden 으로 데스크톱에서는 숨김. */}
+            {/* 모바일: 그린 그라데이션 아바타만 → bottom sheet 트리거. */}
             <button
               type="button"
               onClick={openAccountSheet}
               aria-label={`내 계정 (${data.user.email})`}
-              className="lg:hidden grid size-8 cursor-pointer place-items-center rounded-full text-xs font-extrabold text-background"
-              style={{
-                background:
-                  'linear-gradient(135deg, #1DB954 0%, #0E7C39 100%)',
-              }}
+              className="lg:hidden cursor-pointer rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
-              {initial}
+              <AccountAvatar initial={initial} />
             </button>
 
-            {/* 데스크톱: 이메일 버튼 → DesktopAccountModal. 로그아웃 버튼은
-                모달 내부 프로필 카드로 이동 (인라인 헤더에서 제거). /account
-                라우트는 직접 URL 접근용으로 유지. */}
+            {/* 데스크톱: 이메일 텍스트 + 아바타 → 중앙 모달 트리거.
+                gap 14px(=gap-3.5), 이메일 13px text-muted-foreground.
+                인라인 로그아웃은 모달 내부 프로필 카드로 흡수. */}
             <button
               type="button"
               onClick={openAccountSheet}
               aria-label={`내 계정 (${data.user.email})`}
-              className="hidden lg:inline-flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground"
+              className="hidden lg:inline-flex items-center gap-3.5 cursor-pointer rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
-              <UserRound className="size-4" />
-              <span>{data.user.email}</span>
+              <span className="text-[13px] text-muted-foreground transition-colors hover:text-foreground">
+                {data.user.email}
+              </span>
+              <AccountAvatar initial={initial} />
             </button>
           </>
         ) : (
