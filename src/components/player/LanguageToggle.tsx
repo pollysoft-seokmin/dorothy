@@ -1,9 +1,6 @@
 import { Button } from '~/components/ui/button'
-import { cn } from '~/lib/utils'
+import { MaskedIcon, type MaskedIconName } from './MaskedIcon'
 import type { LyricsLanguage } from '~/stores/player-store'
-import enKoIcon from '~/assets/icons/language-en-ko.svg'
-import enIcon from '~/assets/icons/language-en.svg'
-import koIcon from '~/assets/icons/language-ko.svg'
 
 interface LanguageToggleProps {
   language: LyricsLanguage
@@ -11,32 +8,16 @@ interface LanguageToggleProps {
   onCycle: () => void
 }
 
-const ICON_BY_LANGUAGE: Record<LyricsLanguage, string> = {
-  'en-ko': enKoIcon,
-  en: enIcon,
-  ko: koIcon,
+const ICON_BY_LANGUAGE: Record<LyricsLanguage, MaskedIconName> = {
+  'en-ko': 'language-en-ko',
+  en: 'language-en',
+  ko: 'language-ko',
 }
 
 const LABEL_BY_LANGUAGE: Record<LyricsLanguage, string> = {
   'en-ko': '영어/한글 모두',
   en: '영어만',
   ko: '한글만',
-}
-
-// 원본 SVG에 fill="#000000"이 박혀 있어 다크 배경에서 묻힌다. 색은 CSS에서
-// 통제하기 위해 SVG를 mask-image로 깔고 background로 currentColor를 입힌다.
-// 이렇게 하면 부모의 text-foreground / disabled opacity가 자연스럽게 흐른다.
-function maskStyle(icon: string): React.CSSProperties {
-  return {
-    WebkitMaskImage: `url(${icon})`,
-    maskImage: `url(${icon})`,
-    WebkitMaskRepeat: 'no-repeat',
-    maskRepeat: 'no-repeat',
-    WebkitMaskPosition: 'center',
-    maskPosition: 'center',
-    WebkitMaskSize: 'contain',
-    maskSize: 'contain',
-  }
 }
 
 export function LanguageToggle({
@@ -51,13 +32,12 @@ export function LanguageToggle({
       onClick={onCycle}
       disabled={disabled}
       aria-label={`가사 언어: ${LABEL_BY_LANGUAGE[language]} (클릭하여 변경)`}
-      className="size-11 shrink-0 bg-transparent text-primary hover:bg-transparent hover:text-primary-bright"
+      // 배경 항상 투명, 아이콘은 primary(그린). hover에서는 primary-bright로 살짝 밝아진다.
+      // Button 기본 [&_svg]:size-4(16px) 제약을 [&_svg]:!size-6(24px)로 끌어올려
+      // inline SVG가 부모 span을 가득 채우게 한다.
+      className="size-11 shrink-0 bg-transparent text-primary hover:bg-transparent hover:text-primary-bright [&_svg]:!size-6"
     >
-      <span
-        aria-hidden
-        className={cn('size-6 shrink-0 bg-current')}
-        style={maskStyle(ICON_BY_LANGUAGE[language])}
-      />
+      <MaskedIcon name={ICON_BY_LANGUAGE[language]} className="flex shrink-0" />
     </Button>
   )
 }
