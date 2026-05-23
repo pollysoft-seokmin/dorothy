@@ -32,12 +32,13 @@ export function LanguageToggle({
       onClick={onCycle}
       disabled={disabled}
       aria-label={`가사 언어: ${LABEL_BY_LANGUAGE[language]} (클릭하여 변경)`}
-      // 배경 항상 투명, 아이콘은 primary(그린). hover에서는 primary-bright로 살짝 밝아진다.
-      // Button 기본 [&_svg]:size-4(16px) 제약을 [&_svg]:!size-6(24px)로 끌어올려
-      // inline SVG가 부모 span을 가득 채우게 한다.
-      className="size-11 shrink-0 bg-transparent text-primary hover:bg-transparent hover:text-primary-bright [&_svg]:!size-6"
+      // 아이콘 16x16 (Button 기본 [&_svg]:size-4 유지). 평시에는 배경 투명 +
+      // primary(그린) 아이콘이고, hover 시 화이트 10% 둥근 하이라이트로 버튼
+      // 영역을 인지시킨다 (다크 배경에서 아이콘만 떠 있으면 클릭 가능성을
+      // 알기 어려운 회귀 보완). 아이콘 자체는 primary-bright 로 살짝 밝아짐.
+      className="size-9 shrink-0 rounded-full bg-transparent text-primary hover:bg-white/10 hover:text-primary-bright"
     >
-      <MaskedIcon name={ICON_BY_LANGUAGE[language]} className="flex shrink-0" />
+      <MaskedIcon name={ICON_BY_LANGUAGE[language]} className="flex size-4 shrink-0" />
     </Button>
   )
 }
