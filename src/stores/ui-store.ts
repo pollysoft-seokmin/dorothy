@@ -9,8 +9,9 @@ interface UiStore {
   closeMobileLibrary: () => void
   toggleMobileLibrary: () => void
 
-  // 모바일 계정 bottom sheet — 헤더 우측 아바타 탭으로 열린다. 데스크톱은
-  // 기존 /account 라우트를 유지하므로 lg 미만 폭에서만 의미를 갖는다.
+  // 계정 정보(프로필 + 스토리지 + 최근 재생) 열림 상태 — 같은 슬라이스로
+  // 모바일=Bottom Sheet, 데스크톱=중앙 모달이 분기된다. 슬라이스명은 모바일이
+  // 먼저 만들어진 역사를 반영해 isAccountSheet 그대로 유지.
   isAccountSheetOpen: boolean
   openAccountSheet: () => void
   closeAccountSheet: () => void
