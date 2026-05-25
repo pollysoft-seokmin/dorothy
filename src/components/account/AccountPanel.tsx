@@ -5,7 +5,6 @@ import { toast } from 'sonner'
 import { authClient, useSession } from '~/lib/auth-client'
 import { usePlayerStore } from '~/stores/player-store'
 import { useUiStore } from '~/stores/ui-store'
-import { NowPlayingBars } from '~/components/library/NowPlayingBars'
 import {
   getRecentPlaybacks,
   resolveRecentPlayback,
@@ -45,7 +44,6 @@ export function AccountPanel({ active, onClose }: AccountPanelProps) {
   const { data } = useSession()
   const router = useRouter()
   const playingFileName = usePlayerStore((s) => s.fileName)
-  const playStatus = usePlayerStore((s) => s.status)
 
   const setPlayRequest = useUiStore((s) => s.setPlayRequest)
 
@@ -215,8 +213,9 @@ export function AccountPanel({ active, onClose }: AccountPanelProps) {
         ) : (
           <ul>
             {history.map((row) => {
-              const isPlaying =
-                row.fileName === playingFileName && playStatus === 'playing'
+              // 강조 정책: 현재 화면(player)에 로딩된 파일과 fileName 이 같으면
+              // 초록. 재생/일시정지 상태는 보지 않는다.
+              const isLoaded = row.fileName === playingFileName
               const isVideo = /\.(mp4|webm|mov|mpg|mpeg|m4v|avi|mkv)$/i.test(
                 row.fileName,
               )
@@ -231,16 +230,18 @@ export function AccountPanel({ active, onClose }: AccountPanelProps) {
                     className="flex w-full items-center gap-3 rounded-md py-2.5 text-left hover:bg-white/5 disabled:opacity-60 cursor-pointer"
                   >
                     <div className="grid size-10 shrink-0 place-items-center rounded bg-accent">
-                      {isPlaying ? (
-                        <NowPlayingBars playing size={16} />
-                      ) : (
-                        <Icon className="size-4.5 text-muted-foreground" />
-                      )}
+                      <Icon
+                        className={`size-4.5 ${
+                          isLoaded
+                            ? 'text-primary-bright'
+                            : 'text-muted-foreground'
+                        }`}
+                      />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div
                         className={`truncate text-sm font-bold tracking-[-0.01em] ${
-                          isPlaying ? 'text-primary-bright' : 'text-foreground'
+                          isLoaded ? 'text-primary-bright' : 'text-foreground'
                         }`}
                         title={row.title ?? row.fileName}
                       >
