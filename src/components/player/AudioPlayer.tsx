@@ -178,9 +178,11 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
       </div>
 
       {/* 하단 영역 - 진행 게이지 + 시간 + 컨트롤. 진행 게이지와 컨트롤은
-          시각적으로 한 덩어리이므로 gap 없음. iOS home indicator 영역을 피해
-          safe-area-inset-bottom 만큼 하단 패딩 (데스크톱은 외곽 py-10에서 처리). */}
-      <div className="bg-background pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:pb-0 flex flex-col">
+          시각적으로 한 덩어리이므로 gap 없음. iOS home indicator 가 있는 기기는
+          safe-area-inset 으로, 그 외 모바일 viewport(안드로이드 등)는 최소 24px
+          여백을 둬 화면 하단에 컨트롤이 붙지 않게 한다. 데스크톱은 외곽 py-10
+          (40px) 에서 처리하므로 sm:pb-0. */}
+      <div className="bg-background pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pb-0 flex flex-col">
         {/* Progress Bar */}
         <div className="flex flex-col gap-1">
           <ProgressBar
