@@ -40,9 +40,13 @@ function maskText(text: string, state: 0 | 1 | 2): string {
     .join('\n')
 }
 
-// Spotify의 가사 라인 패턴 — 활성은 24px / Manrope 800 white, 다음 라인은 19px
-// 0.85 opacity, 지난 라인은 0.5 opacity로 감쇠. SAMI 이중언어는 영문 헤드라인
-// + 한글 보조 라인(textMute → textDim)으로 위계 분리.
+// 가사 라인 — 활성/지난/다음/보조 본문 모두 18px(text-lg) 한 가지 사이즈.
+// 위계는 weight/color/opacity 로만 분리: 활성은 extrabold + foreground +
+// opacity-100, 다음은 bold + muted-foreground + opacity-85, 지난은 bold +
+// text-dim + opacity-50. SAMI 이중언어는 영문 헤드라인 + 한글 보조 라인
+// (muted-foreground → text-dim) 으로 추가 위계.
+// 본문이 비어 있어도(단일 언어 모드 + 결측 라인) 라인 row 가 접히지 않게
+// primary div 에 min-h-6 (24px) 을 둬 스크롤 점프를 막는다.
 export const LyricLine = forwardRef<HTMLButtonElement, LyricLineProps>(
   (
     {
@@ -104,12 +108,12 @@ export const LyricLine = forwardRef<HTMLButtonElement, LyricLineProps>(
         >
           <div
             className={cn(
-              'whitespace-pre-line break-words leading-tight transition-all duration-300',
+              'min-h-6 whitespace-pre-line break-words text-lg leading-tight tracking-[-0.02em] transition-all duration-300',
               isActive
-                ? 'text-2xl font-extrabold tracking-[-0.02em] text-foreground'
+                ? 'font-extrabold text-foreground'
                 : isPast
-                  ? 'text-lg font-bold tracking-[-0.02em] text-text-dim'
-                  : 'text-lg font-bold tracking-[-0.02em] text-muted-foreground',
+                  ? 'font-bold text-text-dim'
+                  : 'font-bold text-muted-foreground',
             )}
           >
             {primaryDisplay}
@@ -117,10 +121,8 @@ export const LyricLine = forwardRef<HTMLButtonElement, LyricLineProps>(
           {secondaryDisplay !== undefined && (
             <div
               className={cn(
-                'mt-0.5 whitespace-pre-line break-words leading-snug font-semibold transition-all duration-300',
-                isActive
-                  ? 'text-base text-muted-foreground'
-                  : 'text-sm text-text-dim',
+                'mt-0.5 min-h-6 whitespace-pre-line break-words text-lg leading-snug font-semibold transition-all duration-300',
+                isActive ? 'text-muted-foreground' : 'text-text-dim',
               )}
             >
               {secondaryDisplay}
