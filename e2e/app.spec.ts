@@ -134,7 +134,7 @@ test.describe("Dorothy", () => {
     // 실제로는 <Link>로 렌더됨.)
     await expect(page.getByRole("link", { name: "Dorothy" })).toBeVisible();
     await expect(
-      page.getByText("오디오/비디오 또는 LRC 파일을 여기에 드롭하거나 클릭하여 선택")
+      page.getByText("오디오/비디오 파일을 여기에 드롭하거나 클릭하여 선택")
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "재생", exact: true })

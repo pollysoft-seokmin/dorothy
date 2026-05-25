@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { FileText, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { LyricLine, type LyricPosition } from './LyricLine'
 import type { ParsedLyrics, LyricLine as LyricLineType } from '~/types'
 import type { LineMaskState, LyricsLanguage } from '~/stores/player-store'
@@ -15,7 +15,6 @@ interface LyricsPanelProps {
   onLineClick: (time: number) => void
   onToggleCheck: (index: number) => void
   onMaskToggle: (index: number) => void
-  onAddLrc?: () => void
 }
 
 // SAMI 라인은 en/ko 별도 필드를 갖고 LRC 라인은 text만 갖는다.
@@ -62,7 +61,6 @@ export function LyricsPanel({
   onLineClick,
   onToggleCheck,
   onMaskToggle,
-  onAddLrc,
 }: LyricsPanelProps) {
   const activeRef = useRef<HTMLButtonElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -114,24 +112,8 @@ export function LyricsPanel({
     )
   }
 
-  // LRC 미로드
-  if (!lyrics) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-3 flex-1 min-h-0 text-muted-foreground">
-        <FileText className="h-8 w-8" />
-        <p className="text-sm">가사가 없습니다</p>
-        {onAddLrc && (
-          <button
-            type="button"
-            onClick={onAddLrc}
-            className="text-xs text-primary hover:underline cursor-pointer"
-          >
-            LRC 파일 추가
-          </button>
-        )}
-      </div>
-    )
-  }
+  // 가사 없음 — 안내 UI 를 띄우지 않고 빈자리만 둔다 (#94).
+  if (!lyrics) return null
 
   return (
     <div
