@@ -200,8 +200,15 @@ export const getRecentPlaybacks = createServerFn({ method: 'GET' }).handler(
     const { db } = await import('./db/client')
     const { playbackHistory } = await import('./db/schema')
     const { desc, eq } = await import('drizzle-orm')
+
+    // 같은 파일을 여러 번 재생/로드해도 최근 기록 하나만 보여준다 (#90).
+    // Postgres DISTINCT ON 으로 fileName 별로 lastPlayedAt 가장 큰 행을 뽑고,
+    // ORDER BY 의 leftmost 컬럼은 fileName 이어야 한다는 제약 때문에 정렬은
+    // 알파벳순으로 나온다. UI 노출 순서(최근순) 는 JS 측에서 재정렬한 뒤 상위
+    // 20개로 자른다 — 사용자의 총 unique 파일 수가 보통 수십~수백 수준이라
+    // 별도 LIMIT subquery 없이도 비용이 크지 않다.
     const rows = await db
-      .select({
+      .selectDistinctOn([playbackHistory.fileName], {
         id: playbackHistory.id,
         title: playbackHistory.title,
         artist: playbackHistory.artist,
@@ -212,8 +219,10 @@ export const getRecentPlaybacks = createServerFn({ method: 'GET' }).handler(
       })
       .from(playbackHistory)
       .where(eq(playbackHistory.userId, user.id))
-      .orderBy(desc(playbackHistory.lastPlayedAt))
-      .limit(20)
+      .orderBy(playbackHistory.fileName, desc(playbackHistory.lastPlayedAt))
+
     return rows
+      .sort((a, b) => b.lastPlayedAt.getTime() - a.lastPlayedAt.getTime())
+      .slice(0, 20)
   },
 )
