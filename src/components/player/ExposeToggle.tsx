@@ -34,7 +34,7 @@ export function ExposeToggle({
       aria-label={`가사 노출: ${LABEL_BY_MASK[globalLineMask]} (클릭하여 변경)`}
       // 평시 투명 + primary, hover 시 화이트 10% 둥근 하이라이트로 다크 배경에서
       // 버튼임을 명확히 인지시킨다.
-      className="size-10 shrink-0 rounded-full bg-transparent text-primary hover:bg-white/10 hover:text-primary-bright"
+      className="size-10 shrink-0 rounded-full bg-transparent text-primary hover:bg-white/10 hover:text-primary-bright [&_svg]:size-6"
     >
       <MaskedIcon name={ICON_BY_MASK[globalLineMask]} className="flex size-6 shrink-0" />
     </Button>
