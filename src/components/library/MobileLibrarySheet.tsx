@@ -356,8 +356,12 @@ export function MobileLibrarySheet({ userId, onPlay }: Props) {
         role="dialog"
         aria-modal="true"
         aria-label="내 미디어"
-        className={`absolute bottom-0 left-0 right-0 flex h-[88vh] max-h-[760px] flex-col rounded-t-[20px] bg-card text-foreground shadow-[0_-20px_50px_rgba(0,0,0,0.6)] transition-transform duration-250 ease-out ${
-          isOpen ? 'translate-y-0' : 'translate-y-full'
+        // 닫힘 상태(translate-y-full)에서도 box-shadow 가 위로 새어 모바일
+        // 뷰포트 하단에 그라데이션처럼 누수되는 회귀(#88) 회피 — 열렸을 때만 켠다.
+        className={`absolute bottom-0 left-0 right-0 flex h-[88vh] max-h-[760px] flex-col rounded-t-[20px] bg-card text-foreground transition-transform duration-250 ease-out ${
+          isOpen
+            ? 'translate-y-0 shadow-[0_-20px_50px_rgba(0,0,0,0.6)]'
+            : 'translate-y-full'
         }`}
       >
         {/* Drag handle */}
