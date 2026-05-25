@@ -119,6 +119,14 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
           />
         )}
 
+        {/* 로그인 + 곡 미선택 — 라이브러리에서 선택하라는 행동 유도 (#96).
+            본문이 통째로 비는 빈 상태를 채우기 위해 flex-1 + 가운데 정렬. */}
+        {isLoggedIn && !fileName && (
+          <p className="flex-1 grid place-items-center px-6 text-center text-sm text-muted-foreground">
+            내 미디어에서 재생할 오디오/비디오를 선택하세요.
+          </p>
+        )}
+
         {/* 곡 정보 */}
         <TrackInfo
           fileName={fileName}
