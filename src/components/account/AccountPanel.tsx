@@ -217,7 +217,6 @@ export function AccountPanel({ active, onClose }: AccountPanelProps) {
             {history.map((row) => {
               const isPlaying =
                 row.fileName === playingFileName && playStatus === 'playing'
-              const isActive = row.fileName === playingFileName
               const isVideo = /\.(mp4|webm|mov|mpg|mpeg|m4v|avi|mkv)$/i.test(
                 row.fileName,
               )
@@ -235,19 +234,13 @@ export function AccountPanel({ active, onClose }: AccountPanelProps) {
                       {isPlaying ? (
                         <NowPlayingBars playing size={16} />
                       ) : (
-                        <Icon
-                          className={`size-4.5 ${
-                            isActive
-                              ? 'text-primary-bright'
-                              : 'text-muted-foreground'
-                          }`}
-                        />
+                        <Icon className="size-4.5 text-muted-foreground" />
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div
                         className={`truncate text-sm font-bold tracking-[-0.01em] ${
-                          isActive ? 'text-primary-bright' : 'text-foreground'
+                          isPlaying ? 'text-primary-bright' : 'text-foreground'
                         }`}
                         title={row.title ?? row.fileName}
                       >
