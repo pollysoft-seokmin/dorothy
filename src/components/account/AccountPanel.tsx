@@ -4,8 +4,12 @@ import { LogOut, Music, Film } from 'lucide-react'
 import { toast } from 'sonner'
 import { authClient, useSession } from '~/lib/auth-client'
 import { usePlayerStore } from '~/stores/player-store'
+import { useUiStore } from '~/stores/ui-store'
 import { NowPlayingBars } from '~/components/library/NowPlayingBars'
-import { getRecentPlaybacks } from '~/server/personalization'
+import {
+  getRecentPlaybacks,
+  resolveRecentPlayback,
+} from '~/server/personalization'
 import { getStorageUsage } from '~/server/storage'
 
 type Playback = Awaited<ReturnType<typeof getRecentPlaybacks>>[number]
@@ -43,12 +47,38 @@ export function AccountPanel({ active, onClose }: AccountPanelProps) {
   const playingFileName = usePlayerStore((s) => s.fileName)
   const playStatus = usePlayerStore((s) => s.status)
 
+  const setPlayRequest = useUiStore((s) => s.setPlayRequest)
+
   const [usage, setUsage] = useState<{ used: number; quota: number } | null>(
     null,
   )
   const [history, setHistory] = useState<Playback[] | null>(null)
   const [historyError, setHistoryError] = useState<string | null>(null)
   const [signingOut, setSigningOut] = useState(false)
+  // 중복 클릭 방지 — 해석/네비 진행 중인 row id 를 표시. 잠금 후 onClose 까지 짧지만
+  // 사용자가 다중 탭을 한 경우 또 다른 fetch 를 쏘지 않게 한다.
+  const [resolvingId, setResolvingId] = useState<string | null>(null)
+
+  const handlePlayHistory = async (row: Playback) => {
+    if (resolvingId) return
+    setResolvingId(row.id)
+    try {
+      const payload = await resolveRecentPlayback({
+        data: { fileName: row.fileName },
+      })
+      setPlayRequest(payload)
+      onClose()
+    } catch (e) {
+      // 404 → Response 객체로 던지므로 status 분기로 안내 문구를 갈음.
+      if (e instanceof Response && e.status === 404) {
+        toast.error('더 이상 라이브러리에 없는 파일입니다')
+      } else {
+        toast.error('재생 정보를 가져오지 못했습니다')
+      }
+    } finally {
+      setResolvingId(null)
+    }
+  }
 
   // 패널이 활성(보이는) 상태일 때만 fetch — 닫힌 채로 불필요한 호출을 막는다.
   // 사용자/세션이 바뀌어도 다시 활성화될 때 최신 데이터를 가져온다.
@@ -192,38 +222,46 @@ export function AccountPanel({ active, onClose }: AccountPanelProps) {
                 row.fileName,
               )
               const Icon = isVideo ? Film : Music
+              const isResolving = resolvingId === row.id
               return (
-                <li key={row.id} className="flex items-center gap-3 py-2.5">
-                  <div className="grid size-10 shrink-0 place-items-center rounded bg-accent">
-                    {isPlaying ? (
-                      <NowPlayingBars playing size={16} />
-                    ) : (
-                      <Icon
-                        className={`size-4.5 ${
-                          isActive
-                            ? 'text-primary-bright'
-                            : 'text-muted-foreground'
+                <li key={row.id}>
+                  <button
+                    type="button"
+                    onClick={() => handlePlayHistory(row)}
+                    disabled={isResolving}
+                    className="flex w-full items-center gap-3 rounded-md py-2.5 text-left hover:bg-white/5 disabled:opacity-60 cursor-pointer"
+                  >
+                    <div className="grid size-10 shrink-0 place-items-center rounded bg-accent">
+                      {isPlaying ? (
+                        <NowPlayingBars playing size={16} />
+                      ) : (
+                        <Icon
+                          className={`size-4.5 ${
+                            isActive
+                              ? 'text-primary-bright'
+                              : 'text-muted-foreground'
+                          }`}
+                        />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div
+                        className={`truncate text-sm font-bold tracking-[-0.01em] ${
+                          isActive ? 'text-primary-bright' : 'text-foreground'
                         }`}
-                      />
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div
-                      className={`truncate text-sm font-bold tracking-[-0.01em] ${
-                        isActive ? 'text-primary-bright' : 'text-foreground'
-                      }`}
-                      title={row.title ?? row.fileName}
-                    >
-                      {row.title ?? row.fileName}
+                        title={row.title ?? row.fileName}
+                      >
+                        {row.title ?? row.fileName}
+                      </div>
+                      <div className="truncate text-xs text-muted-foreground">
+                        {row.artist ?? '—'}
+                        {' · '}
+                        <span className="text-text-dim">
+                          {formatRelativeTime(row.lastPlayedAt)}
+                        </span>
+                      </div>
                     </div>
-                    <div className="truncate text-xs text-muted-foreground">
-                      {row.artist ?? '—'}
-                      {' · '}
-                      <span className="text-text-dim">
-                        {formatRelativeTime(row.lastPlayedAt)}
-                      </span>
-                    </div>
-                  </div>
+                  </button>
                 </li>
               )
             })}
