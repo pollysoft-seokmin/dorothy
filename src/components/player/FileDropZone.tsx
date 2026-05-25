@@ -22,11 +22,10 @@ const MEDIA_EXTS = new Set([
 
 interface FileDropZoneProps {
   onMediaLoad: (file: File) => void
-  onLrcLoad: (file: File) => void
   fileName: string
 }
 
-export function FileDropZone({ onMediaLoad, onLrcLoad, fileName }: FileDropZoneProps) {
+export function FileDropZone({ onMediaLoad, fileName }: FileDropZoneProps) {
   const [isDragging, setIsDragging] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -36,14 +35,12 @@ export function FileDropZone({ onMediaLoad, onLrcLoad, fileName }: FileDropZoneP
         const ext = file.name.toLowerCase().split('.').pop() ?? ''
         if (MEDIA_EXTS.has(ext)) {
           onMediaLoad(file)
-        } else if (ext === 'lrc') {
-          onLrcLoad(file)
         } else {
-          toast.error('지원하지 않는 파일 형식입니다 (오디오/비디오/LRC)')
+          toast.error('지원하지 않는 파일 형식입니다 (오디오/비디오)')
         }
       }
     },
-    [onMediaLoad, onLrcLoad],
+    [onMediaLoad],
   )
 
   const handleDrop = useCallback(
@@ -93,10 +90,10 @@ export function FileDropZone({ onMediaLoad, onLrcLoad, fileName }: FileDropZoneP
           <Upload className="size-6" />
         </div>
         <p className="text-sm text-muted-foreground">
-          오디오/비디오 또는 LRC 파일을 여기에 드롭하거나 클릭하여 선택
+          오디오/비디오 파일을 여기에 드롭하거나 클릭하여 선택
         </p>
         <p className="text-[11px] text-text-dim font-mono">
-          mp3 · mp4 · webm · mov · mpg · lrc
+          mp3 · mp4 · webm · mov · mpg
         </p>
         {fileName && (
           <div className="flex items-center gap-1.5 text-xs text-foreground mt-1">
@@ -134,7 +131,7 @@ export function FileDropZone({ onMediaLoad, onLrcLoad, fileName }: FileDropZoneP
       <input
         ref={inputRef}
         type="file"
-        accept=".mp3,.mp4,.webm,.mov,.mpg,.mpeg,.m4v,.avi,.mkv,.flv,.wmv,.3gp,.lrc"
+        accept=".mp3,.mp4,.webm,.mov,.mpg,.mpeg,.m4v,.avi,.mkv,.flv,.wmv,.3gp"
         multiple
         className="hidden"
         onChange={handleChange}

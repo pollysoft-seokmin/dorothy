@@ -1,7 +1,6 @@
-import { useCallback, useRef } from 'react'
+import { useCallback } from 'react'
 import { usePlayerStore } from '~/stores/player-store'
 import type { useMediaPlayer } from '~/hooks/useMediaPlayer'
-import { useLyrics } from '~/hooks/useLyrics'
 import { useKeyboardShortcuts } from '~/hooks/useKeyboardShortcuts'
 import { usePreferencesSync } from '~/hooks/usePreferencesSync'
 import { usePlaybackHistorySync } from '~/hooks/usePlaybackHistorySync'
@@ -22,8 +21,6 @@ type Props = {
 
 export function AudioPlayer({ player, isLoggedIn }: Props) {
   const { mediaRef, play, pause, seek, loadFile } = player
-  const { loadLrcFile } = useLyrics()
-  const lrcInputRef = useRef<HTMLInputElement>(null)
 
   const status = usePlayerStore((s) => s.status)
   const currentTime = usePlayerStore((s) => s.currentTime)
@@ -53,11 +50,6 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
   const handleMediaLoad = useCallback(
     (file: File) => loadFile(file),
     [loadFile],
-  )
-
-  const handleLrcLoad = useCallback(
-    (file: File) => loadLrcFile(file),
-    [loadLrcFile],
   )
 
   const handleSeek = useCallback(
@@ -93,21 +85,6 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
     [seek, play, status],
   )
 
-  const handleAddLrc = useCallback(() => {
-    lrcInputRef.current?.click()
-  }, [])
-
-  const handleLrcInputChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0]
-      if (file) {
-        loadLrcFile(file)
-        e.target.value = ''
-      }
-    },
-    [loadLrcFile],
-  )
-
   useKeyboardShortcuts({ play, pause, seek })
   usePreferencesSync()
   usePlaybackHistorySync()
@@ -134,22 +111,10 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
           />
         )}
 
-        {/* 숨겨진 LRC input — 비로그인 사용자만 */}
-        {!isLoggedIn && (
-          <input
-            ref={lrcInputRef}
-            type="file"
-            accept=".lrc"
-            className="hidden"
-            onChange={handleLrcInputChange}
-          />
-        )}
-
         {/* 파일 선택 — 비로그인 사용자만. 로그인 시에는 우측 라이브러리에서 처리 */}
         {!isLoggedIn && (
           <FileDropZone
             onMediaLoad={handleMediaLoad}
-            onLrcLoad={handleLrcLoad}
             fileName={fileName}
           />
         )}
@@ -173,7 +138,6 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
           onLineClick={handleLineClick}
           onToggleCheck={handleToggleCheck}
           onMaskToggle={handleMaskToggle}
-          onAddLrc={isLoggedIn ? undefined : handleAddLrc}
         />
       </div>
 
