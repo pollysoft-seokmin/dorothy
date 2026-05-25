@@ -7,6 +7,7 @@ import {
   user as userTable,
   verification as verificationTable,
 } from './db/schema'
+import { getGoogleOAuthConfig } from './oauth'
 
 const trustedOriginsRaw = process.env.BETTER_AUTH_TRUSTED_ORIGINS ?? ''
 const trustedOrigins = trustedOriginsRaw
@@ -14,8 +15,7 @@ const trustedOrigins = trustedOriginsRaw
   .map((o) => o.trim())
   .filter(Boolean)
 
-const googleClientId = process.env.GOOGLE_CLIENT_ID
-const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET
+const googleOAuthConfig = getGoogleOAuthConfig()
 
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL,
@@ -36,11 +36,11 @@ export const auth = betterAuth({
     minPasswordLength: 8,
   },
   socialProviders:
-    googleClientId && googleClientSecret
+    googleOAuthConfig
       ? {
           google: {
-            clientId: googleClientId,
-            clientSecret: googleClientSecret,
+            clientId: googleOAuthConfig.clientId,
+            clientSecret: googleOAuthConfig.clientSecret,
           },
         }
       : undefined,
