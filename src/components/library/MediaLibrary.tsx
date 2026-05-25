@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { upload } from '@vercel/blob/client'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
-import { FileText, Film, Folder, MoreHorizontal, Music } from 'lucide-react'
+import { Library, MoreHorizontal, Search } from 'lucide-react'
 import { toast } from 'sonner'
-import { Button } from '~/components/ui/button'
-import { NowPlayingBars } from '~/components/library/NowPlayingBars'
 import { usePlayerStore } from '~/stores/player-store'
 import { extractSamiTrailerBytes } from '~/lib/sami-trailer'
 import { transcodeToMp4 } from '~/lib/transcode'
@@ -19,6 +17,15 @@ import {
   type LibraryMediaType,
   type PendingItem,
 } from '~/components/library/library-shared'
+import {
+  ActionBar,
+  AssetRow as AssetRowAtom,
+  BreadcrumbChips,
+  FolderRow as FolderRowAtom,
+  PendingRow,
+  SectionLabel,
+  StorageGauge,
+} from '~/components/library/library-atoms'
 import {
   createFolder,
   deleteAsset,
@@ -41,6 +48,53 @@ type Props = {
   }) => void
 }
 
+type Usage = Awaited<ReturnType<typeof getStorageUsage>>
+
+// Inline rename row — 이름 편집 중인 폴더/파일 자리에 들어가는 컨트롤.
+// 디자인 v2 의 row 외관과 유사하게 작은 input + 저장/취소.
+function RenameRow({
+  initialName,
+  onSubmit,
+  onCancel,
+  submitting,
+}: {
+  initialName: string
+  onSubmit: (name: string) => void
+  onCancel: () => void
+  submitting: boolean
+}) {
+  const [v, setV] = useState(initialName)
+  return (
+    <div className="flex items-center gap-2 px-2 py-2">
+      <input
+        autoFocus
+        value={v}
+        onChange={(e) => setV(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') onSubmit(v.trim())
+          if (e.key === 'Escape') onCancel()
+        }}
+        className="h-9 flex-1 rounded-md border border-primary-bright bg-accent px-3 text-[13px] font-semibold text-foreground placeholder:text-text-dim focus:outline-none"
+      />
+      <button
+        type="button"
+        onClick={() => onSubmit(v.trim())}
+        disabled={submitting || !v.trim()}
+        className="h-9 cursor-pointer rounded-md bg-primary-bright px-3 text-[12px] font-extrabold text-background disabled:opacity-50"
+      >
+        저장
+      </button>
+      <button
+        type="button"
+        onClick={onCancel}
+        className="text-xs text-text-dim hover:text-foreground cursor-pointer"
+      >
+        취소
+      </button>
+    </div>
+  )
+}
+
 function RowActionsMenu({
   onRename,
   onDelete,
@@ -54,27 +108,27 @@ function RowActionsMenu({
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
         <button
-          className="shrink-0 opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 px-1.5 py-0.5 rounded text-muted-foreground hover:bg-muted-foreground/15 hover:text-foreground"
+          className="grid size-6 shrink-0 cursor-pointer place-items-center rounded-full text-text-dim opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 hover:text-foreground"
           aria-label={ariaLabel}
           onClick={(e) => e.stopPropagation()}
         >
-          <MoreHorizontal className="size-4" />
+          <MoreHorizontal className="size-3.5" />
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content
           align="end"
           sideOffset={4}
-          className="z-50 min-w-[8rem] bg-popover border rounded-md shadow-md py-1"
+          className="z-50 min-w-[8rem] rounded-md border bg-popover py-1 shadow-md"
         >
           <DropdownMenu.Item
-            className="px-3 py-1.5 text-sm cursor-pointer outline-none data-[highlighted]:bg-accent"
+            className="cursor-pointer px-3 py-1.5 text-sm outline-none data-[highlighted]:bg-accent"
             onSelect={onRename}
           >
             이름변경
           </DropdownMenu.Item>
           <DropdownMenu.Item
-            className="px-3 py-1.5 text-sm cursor-pointer outline-none text-destructive data-[highlighted]:bg-accent"
+            className="cursor-pointer px-3 py-1.5 text-sm text-destructive outline-none data-[highlighted]:bg-accent"
             onSelect={onDelete}
           >
             삭제
@@ -90,7 +144,11 @@ export function MediaLibrary({ userId, onPlay }: Props) {
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null)
   const [folders, setFolders] = useState<FolderListItem[]>([])
   const [assets, setAssets] = useState<AssetItem[]>([])
-  const [usage, setUsage] = useState({ used: 0, quota: 1 })
+  const [usage, setUsage] = useState<Usage>({
+    used: 0,
+    quota: 1,
+    byType: { audio: 0, video: 0, lyrics: 0 },
+  })
   const [loading, setLoading] = useState(false)
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
@@ -105,9 +163,6 @@ export function MediaLibrary({ userId, onPlay }: Props) {
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // 현재 재생 중인 트랙 정보 — asset row의 active/playing 시각 강조를 위해 구독.
-  // 비교는 파일명(=asset.name) 기준. useMediaPlayer.loadUrl이 params.name을
-  // 그대로 store.fileName에 넣으므로 동일성이 보장된다.
   const playingFileName = usePlayerStore((s) => s.fileName)
   const playStatus = usePlayerStore((s) => s.status)
 
@@ -143,14 +198,16 @@ export function MediaLibrary({ userId, onPlay }: Props) {
 
   const breadcrumb = useMemo(() => {
     const map = new Map(tree.map((f) => [f.id, f]))
-    const path: FolderRow[] = []
+    const path: { id: string | null; name: string }[] = [{ id: null, name: '홈' }]
     let cur: FolderRow | undefined = currentFolderId
       ? map.get(currentFolderId)
       : undefined
+    const chain: FolderRow[] = []
     while (cur) {
-      path.unshift(cur)
+      chain.unshift(cur)
       cur = cur.parentId ? map.get(cur.parentId) : undefined
     }
+    for (const f of chain) path.push({ id: f.id, name: f.name })
     return path
   }, [tree, currentFolderId])
 
@@ -165,48 +222,49 @@ export function MediaLibrary({ userId, onPlay }: Props) {
       await refreshTree()
       await refreshContents(currentFolderId)
     } catch (e) {
-      const msg = e instanceof Error ? e.message : '폴더 생성 실패'
-      toast.error(msg)
+      toast.error(e instanceof Error ? e.message : '폴더 생성 실패')
     } finally {
       setSubmittingFolder(false)
     }
   }, [newName, currentFolderId, refreshTree, refreshContents, submittingFolder])
 
-  const handleSubmitRename = useCallback(async () => {
-    if (!editing || submittingRename) return
-    const trimmed = editing.name.trim()
-    if (!trimmed) return
-    setSubmittingRename(true)
-    try {
-      if (editing.kind === 'folder') {
-        await renameFolder({ data: { id: editing.id, name: trimmed } })
-        await refreshTree()
-      } else {
-        await renameAsset({ data: { id: editing.id, name: trimmed } })
+  const handleSubmitRename = useCallback(
+    async (trimmed: string) => {
+      if (!editing || submittingRename || !trimmed) return
+      setSubmittingRename(true)
+      try {
+        if (editing.kind === 'folder') {
+          await renameFolder({ data: { id: editing.id, name: trimmed } })
+          await refreshTree()
+        } else {
+          await renameAsset({ data: { id: editing.id, name: trimmed } })
+        }
+        setEditing(null)
+        await refreshContents(currentFolderId)
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : '이름 변경 실패')
+      } finally {
+        setSubmittingRename(false)
       }
-      setEditing(null)
-      await refreshContents(currentFolderId)
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : '이름 변경 실패'
-      toast.error(msg)
-    } finally {
-      setSubmittingRename(false)
-    }
-  }, [editing, submittingRename, currentFolderId, refreshTree, refreshContents])
+    },
+    [editing, submittingRename, currentFolderId, refreshTree, refreshContents],
+  )
 
   const handleDeleteFolder = useCallback(
     async (id: string, name: string) => {
-      if (!confirm(`"${name}" 폴더를 삭제할까요?\n안의 모든 하위 폴더와 파일이 함께 삭제됩니다.`)) {
+      if (
+        !confirm(
+          `"${name}" 폴더를 삭제할까요?\n안의 모든 하위 폴더와 파일이 함께 삭제됩니다.`,
+        )
+      )
         return
-      }
       try {
         await deleteFolder({ data: { id } })
         await refreshTree()
         await refreshContents(currentFolderId)
         await refreshUsage()
       } catch (e) {
-        const msg = e instanceof Error ? e.message : '폴더 삭제 실패'
-        toast.error(msg)
+        toast.error(e instanceof Error ? e.message : '폴더 삭제 실패')
       }
     },
     [currentFolderId, refreshTree, refreshContents, refreshUsage],
@@ -220,8 +278,7 @@ export function MediaLibrary({ userId, onPlay }: Props) {
         await refreshContents(currentFolderId)
         await refreshUsage()
       } catch (e) {
-        const msg = e instanceof Error ? e.message : '파일 삭제 실패'
-        toast.error(msg)
+        toast.error(e instanceof Error ? e.message : '파일 삭제 실패')
       }
     },
     [currentFolderId, refreshContents, refreshUsage],
@@ -273,14 +330,11 @@ export function MediaLibrary({ userId, onPlay }: Props) {
       for (const job of jobs) {
         let toUpload: File = job.file
         let finalName = job.file.name
-        // .lrc는 Vercel Blob이 text/* 계열을 거부할 수 있어 octet-stream으로
-        // 강제. 서버 detectMediaType은 확장자 우선이라 영향 없음.
         let finalMime =
           job.mediaType === 'lyrics'
             ? 'application/octet-stream'
             : job.file.type
 
-        // Phase 1: 변환 필요 여부 판단 + (필요하면) 트랜스코딩
         if (job.mediaType === 'video') {
           let need = false
           try {
@@ -289,21 +343,14 @@ export function MediaLibrary({ userId, onPlay }: Props) {
             need = false
           }
           if (need) {
-            // ffmpeg는 mp4 box 밖의 데이터를 보존하지 않으므로, Polly SAMI
-            // trailer가 붙은 원본은 변환 시 trailer가 사라진다. 변환 전에
-            // raw 바이트를 떼어 두었다가 변환 산출물 끝에 다시 이어붙인다.
-            // trailer 없는 일반 mp4는 null이라 그대로 통과.
             const trailerBytes = await extractSamiTrailerBytes(job.file).catch(
               () => null,
             )
             setItem(job.key, { phase: 'transcoding', progress: 0 })
             try {
-              const transcoded = await transcodeToMp4(
-                job.file,
-                ({ ratio }) => {
-                  setItem(job.key, { progress: ratio * 100 })
-                },
-              )
+              const transcoded = await transcodeToMp4(job.file, ({ ratio }) => {
+                setItem(job.key, { progress: ratio * 100 })
+              })
               if (trailerBytes) {
                 toUpload = new File(
                   [transcoded, trailerBytes],
@@ -318,18 +365,13 @@ export function MediaLibrary({ userId, onPlay }: Props) {
               setItem(job.key, { name: finalName })
             } catch (e) {
               const msg = e instanceof Error ? e.message : '변환 실패'
-              setItem(job.key, {
-                phase: 'error',
-                errorMessage: msg,
-                progress: 0,
-              })
+              setItem(job.key, { phase: 'error', errorMessage: msg, progress: 0 })
               toast.error(`${job.file.name}: 변환 실패`)
               continue
             }
           }
         }
 
-        // Phase 2: 업로드
         setItem(job.key, { phase: 'uploading', progress: 0 })
         try {
           const pathname = `users/${userId}/${finalName}`
@@ -355,7 +397,6 @@ export function MediaLibrary({ userId, onPlay }: Props) {
               folderId: targetFolderId,
             },
           })
-          // 성공 — pending에서 제거. refreshContents가 곧 실제 row를 채움.
           setPending((prev) => prev.filter((p) => p.key !== job.key))
           await refreshContents(targetFolderId)
           await refreshUsage()
@@ -382,22 +423,33 @@ export function MediaLibrary({ userId, onPlay }: Props) {
     [startUpload, currentFolderId],
   )
 
+  const handlePlay = useCallback(
+    (asset: AssetItem) => {
+      const stem = basenameNoExt(asset.name)
+      const sibling = assets.find(
+        (s) => s.mediaType === 'lyrics' && basenameNoExt(s.name) === stem,
+      )
+      onPlay({
+        url: asset.blobUrl,
+        name: asset.name,
+        mediaType: asset.mediaType === 'video' ? 'video' : 'audio',
+        lrcUrl: sibling?.blobUrl,
+      })
+    },
+    [assets, onPlay],
+  )
+
+  // ── Drag & drop on the whole pane ─────────────────────────
   const onPaneDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     if (!Array.from(e.dataTransfer.types).includes('Files')) return
     e.preventDefault()
     setDragActive(true)
   }, [])
-
-  const onPaneDragLeave = useCallback(
-    (e: React.DragEvent<HTMLDivElement>) => {
-      // 자식으로 이동하는 경우는 무시 (relatedTarget이 pane 내부)
-      if (e.currentTarget.contains(e.relatedTarget as Node | null)) return
-      setDragActive(false)
-      setDragOverFolderId(null)
-    },
-    [],
-  )
-
+  const onPaneDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return
+    setDragActive(false)
+    setDragOverFolderId(null)
+  }, [])
   const onPaneDrop = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault()
@@ -409,12 +461,21 @@ export function MediaLibrary({ userId, onPlay }: Props) {
     [startUpload, currentFolderId],
   )
 
-  const usageRatio = Math.min(1, usage.used / usage.quota)
   const pendingHere = pending.filter((p) => p.folderId === currentFolderId)
+  const isInitialEmpty =
+    loading &&
+    folders.length === 0 &&
+    assets.length === 0 &&
+    pendingHere.length === 0
+  const isEmpty =
+    !loading &&
+    folders.length === 0 &&
+    assets.length === 0 &&
+    pendingHere.length === 0
 
   return (
     <div
-      className={`relative flex flex-col h-full overflow-hidden transition-colors ${
+      className={`relative flex h-full flex-col overflow-hidden text-foreground transition-colors ${
         dragActive ? 'bg-primary/5 ring-2 ring-primary ring-inset' : ''
       }`}
       onDragOver={onPaneDragOver}
@@ -422,359 +483,215 @@ export function MediaLibrary({ userId, onPlay }: Props) {
       onDragLeave={onPaneDragLeave}
       onDrop={onPaneDrop}
     >
-      <header className="px-4 py-3 border-b">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-sm font-semibold">내 미디어</h2>
-          <span className="text-xs text-muted-foreground">
-            {formatBytes(usage.used)} / {formatBytes(usage.quota)}
-          </span>
+      {/* Header — Library 아이콘 + 제목 + Search placeholder */}
+      <div className="flex items-center justify-between px-[18px] pt-[18px]">
+        <div className="flex items-center gap-2.5">
+          <Library className="size-[17px]" />
+          <h2 className="text-base font-extrabold tracking-[-0.02em]">
+            내 미디어
+          </h2>
         </div>
-        <div className="h-1 bg-muted rounded-full overflow-hidden">
-          <div
-            className={`h-full rounded-full ${
-              usageRatio > 0.9 ? 'bg-destructive' : 'bg-primary'
-            }`}
-            style={{ width: `${usageRatio * 100}%` }}
-          />
-        </div>
-      </header>
-
-      <nav className="px-4 py-2 border-b flex items-center gap-1 text-sm overflow-x-auto">
         <button
-          className={`hover:underline ${currentFolderId === null ? 'font-semibold' : ''}`}
-          onClick={() => setCurrentFolderId(null)}
+          type="button"
+          aria-label="검색 (준비 중)"
+          disabled
+          className="grid size-7 cursor-not-allowed place-items-center rounded-md text-muted-foreground opacity-50"
         >
-          홈
+          <Search className="size-[15px]" />
         </button>
-        {breadcrumb.map((f) => (
-          <span key={f.id} className="flex items-center gap-1">
-            <span className="text-muted-foreground">/</span>
-            <button
-              className={`hover:underline ${
-                currentFolderId === f.id ? 'font-semibold' : ''
-              }`}
-              onClick={() => setCurrentFolderId(f.id)}
-            >
-              {f.name}
-            </button>
-          </span>
-        ))}
-      </nav>
-
-      <div className="px-4 py-2 border-b flex items-center gap-2">
-        {creating ? (
-          <>
-            <input
-              autoFocus
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleCreateFolder()
-                if (e.key === 'Escape') {
-                  setCreating(false)
-                  setNewName('')
-                }
-              }}
-              placeholder="폴더 이름"
-              className="flex-1 px-2 py-1 text-sm border rounded"
-            />
-            <Button size="sm" onClick={handleCreateFolder} disabled={submittingFolder}>
-              만들기
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                setCreating(false)
-                setNewName('')
-              }}
-            >
-              취소
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button size="sm" variant="outline" onClick={() => setCreating(true)}>
-              + 폴더
-            </Button>
-            <Button size="sm" onClick={() => fileInputRef.current?.click()}>
-              ↑ 업로드
-            </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="audio/*,video/*,.lrc"
-              multiple
-              hidden
-              onChange={onFileInputChange}
-            />
-          </>
-        )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-2">
-        {loading &&
-        folders.length === 0 &&
-        assets.length === 0 &&
-        pendingHere.length === 0 ? (
-          <div className="text-sm text-muted-foreground p-4 text-center">
-            불러오는 중...
+      {/* StorageGauge — 모바일과 동일 atom */}
+      <div className="px-[18px] pb-3 pt-3.5">
+        <StorageGauge used={usage.used} quota={usage.quota} byType={usage.byType} />
+      </div>
+
+      {/* Breadcrumb */}
+      <div className="border-b border-border px-3.5 pb-1.5">
+        <BreadcrumbChips
+          crumbs={breadcrumb}
+          onSelect={setCurrentFolderId}
+          density="compact"
+        />
+      </div>
+
+      {/* Scrollable list */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-2.5 pb-2">
+        {isInitialEmpty ? (
+          <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+            불러오는 중…
           </div>
-        ) : folders.length === 0 &&
-          assets.length === 0 &&
-          pendingHere.length === 0 ? (
-          <div className="text-sm text-muted-foreground p-4 text-center">
+        ) : isEmpty ? (
+          <div className="px-4 py-6 text-center text-sm text-muted-foreground">
             비어 있습니다. 우측 상단 "+ 폴더" 또는 "↑ 업로드"로 시작하거나, 이
             영역에 파일을 드래그&드롭하세요.
           </div>
         ) : (
-          <ul className="flex flex-col gap-1">
-            {folders.map((f) => {
-              const isEditing = editing?.kind === 'folder' && editing.id === f.id
-              const isDropTarget = dragOverFolderId === f.id
-              return (
-                <li
-                  key={f.id}
-                  className={`group flex items-center gap-2 px-2 py-1.5 rounded transition-colors ${
-                    isDropTarget
-                      ? 'bg-primary/15 ring-1 ring-primary'
-                      : 'hover:bg-muted'
-                  }`}
-                  onDragOver={(e) => {
-                    if (!Array.from(e.dataTransfer.types).includes('Files')) return
-                    e.preventDefault()
-                    e.stopPropagation()
-                    setDragActive(true)
-                    setDragOverFolderId(f.id)
-                  }}
-                  onDragLeave={(e) => {
-                    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return
-                    setDragOverFolderId((cur) => (cur === f.id ? null : cur))
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    setDragActive(false)
-                    setDragOverFolderId(null)
-                    const files = Array.from(e.dataTransfer.files)
-                    if (files.length > 0) startUpload(files, f.id)
-                  }}
-                >
-                  <Folder className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                  {isEditing ? (
-                    <>
-                      <input
-                        autoFocus
-                        value={editing.name}
-                        onChange={(e) =>
-                          setEditing({ ...editing, name: e.target.value })
-                        }
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleSubmitRename()
-                          if (e.key === 'Escape') setEditing(null)
-                        }}
-                        className="flex-1 px-2 py-0.5 text-sm border rounded"
-                      />
-                      <button
-                        className="text-xs hover:underline"
-                        onClick={handleSubmitRename}
-                        disabled={submittingRename}
-                      >
-                        저장
-                      </button>
-                      <button
-                        className="text-xs text-muted-foreground hover:underline"
-                        onClick={() => setEditing(null)}
-                      >
-                        취소
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        className="flex-1 text-left text-sm truncate"
-                        onClick={() => setCurrentFolderId(f.id)}
-                        title={f.name}
-                      >
-                        {f.name}
-                      </button>
-                      <RowActionsMenu
-                        ariaLabel={`${f.name} 폴더 작업 메뉴`}
-                        onRename={() =>
-                          setEditing({ kind: 'folder', id: f.id, name: f.name })
-                        }
-                        onDelete={() => handleDeleteFolder(f.id, f.name)}
-                      />
-                    </>
-                  )}
-                </li>
-              )
-            })}
-            {assets.map((a) => {
-              const isEditing = editing?.kind === 'asset' && editing.id === a.id
-              // 현재 재생/일시정지 대상 row — 그린 틴트 + (재생 중일 때) 막대 그래프.
-              // lyrics 행은 직접 재생되지 않으므로 active 처리 제외.
-              const isActive =
-                a.mediaType !== 'lyrics' && a.name === playingFileName
-              const isPlaying = isActive && playStatus === 'playing'
-              return (
-                <li
-                  key={a.id}
-                  className={`group flex items-center gap-2 px-2 py-1.5 rounded transition-colors ${
-                    isActive
-                      ? 'bg-primary/15 text-primary-bright'
-                      : 'hover:bg-muted'
-                  }`}
-                >
-                  {isPlaying ? (
-                    <NowPlayingBars playing size={14} />
-                  ) : a.mediaType === 'video' ? (
-                    <Film
-                      className={`size-4 shrink-0 ${isActive ? 'text-primary-bright' : 'text-muted-foreground'}`}
-                      aria-hidden
-                    />
-                  ) : a.mediaType === 'lyrics' ? (
-                    <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                  ) : (
-                    <Music
-                      className={`size-4 shrink-0 ${isActive ? 'text-primary-bright' : 'text-muted-foreground'}`}
-                      aria-hidden
-                    />
-                  )}
-                  {isEditing ? (
-                    <>
-                      <input
-                        autoFocus
-                        value={editing.name}
-                        onChange={(e) =>
-                          setEditing({ ...editing, name: e.target.value })
-                        }
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleSubmitRename()
-                          if (e.key === 'Escape') setEditing(null)
-                        }}
-                        className="flex-1 px-2 py-0.5 text-sm border rounded min-w-0"
-                      />
-                      <button
-                        className="text-xs hover:underline"
-                        onClick={handleSubmitRename}
-                        disabled={submittingRename}
-                      >
-                        저장
-                      </button>
-                      <button
-                        className="text-xs text-muted-foreground hover:underline"
-                        onClick={() => setEditing(null)}
-                      >
-                        취소
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      {a.mediaType === 'lyrics' ? (
-                        <span
-                          className="flex-1 text-left text-sm truncate min-w-0"
-                          title={a.name}
-                        >
-                          {a.name}
-                        </span>
-                      ) : (
-                        <button
-                          className="flex-1 text-left text-sm truncate min-w-0"
-                          onClick={() => {
-                            const stem = basenameNoExt(a.name)
-                            const sibling = assets.find(
-                              (s) =>
-                                s.mediaType === 'lyrics' &&
-                                basenameNoExt(s.name) === stem,
-                            )
-                            onPlay({
-                              url: a.blobUrl,
-                              name: a.name,
-                              mediaType: a.mediaType === 'video' ? 'video' : 'audio',
-                              lrcUrl: sibling?.blobUrl,
-                            })
-                          }}
-                          title={a.name}
-                        >
-                          {a.name}
-                        </button>
-                      )}
-                      <span className="text-xs text-muted-foreground shrink-0">
-                        {formatBytes(a.sizeBytes)}
-                      </span>
-                      <RowActionsMenu
-                        ariaLabel={`${a.name} 작업 메뉴`}
-                        onRename={() =>
-                          setEditing({ kind: 'asset', id: a.id, name: a.name })
-                        }
-                        onDelete={() => handleDeleteAsset(a.id, a.name)}
-                      />
-                    </>
-                  )}
-                </li>
-              )
-            })}
-            {pendingHere.map((p) => {
-              const phaseLabel =
-                p.phase === 'preparing'
-                  ? '준비 중'
-                  : p.phase === 'transcoding'
-                    ? '변환 중'
-                    : p.phase === 'uploading'
-                      ? '업로드 중'
-                      : '실패'
-              const showPercent =
-                p.phase === 'transcoding' || p.phase === 'uploading'
-              const isError = p.phase === 'error'
-              const Icon =
-                p.mediaType === 'video'
-                  ? Film
-                  : p.mediaType === 'lyrics'
-                    ? FileText
-                    : Music
-              return (
-                <li
-                  key={p.key}
-                  className={`relative flex items-center gap-2 px-2 py-1.5 rounded overflow-hidden ${
-                    isError ? 'text-destructive' : 'text-muted-foreground/60'
-                  }`}
-                  title={p.errorMessage}
-                >
-                  <Icon
-                    className={`size-4 shrink-0 ${
-                      !isError && p.phase !== 'uploading'
-                        ? 'animate-pulse'
-                        : ''
-                    }`}
-                    aria-hidden
+          <>
+            {pendingHere.length > 0 && (
+              <>
+                <SectionLabel density="compact" right={`${pendingHere.length}개`}>
+                  업로드 중
+                </SectionLabel>
+                {pendingHere.map((p) => (
+                  <PendingRow
+                    key={p.key}
+                    row={p}
+                    density="compact"
+                    onDismiss={() => dismissPending(p.key)}
                   />
-                  <span className="flex-1 text-sm truncate">{p.name}</span>
-                  <span className="text-xs shrink-0 tabular-nums">
-                    {phaseLabel}
-                    {showPercent ? ` · ${Math.round(p.progress)}%` : ''}
-                  </span>
-                  {isError && (
-                    <button
-                      className="text-xs hover:underline shrink-0"
-                      onClick={() => dismissPending(p.key)}
+                ))}
+              </>
+            )}
+
+            {folders.length > 0 && (
+              <>
+                <SectionLabel density="compact" right={`${folders.length}`}>
+                  폴더
+                </SectionLabel>
+                {folders.map((f) => {
+                  const isEditing = editing?.kind === 'folder' && editing.id === f.id
+                  const isDropTarget = dragOverFolderId === f.id
+                  if (isEditing) {
+                    return (
+                      <RenameRow
+                        key={f.id}
+                        initialName={f.name}
+                        onSubmit={(name) => handleSubmitRename(name)}
+                        onCancel={() => setEditing(null)}
+                        submitting={submittingRename}
+                      />
+                    )
+                  }
+                  return (
+                    <div
+                      key={f.id}
+                      className={
+                        isDropTarget
+                          ? 'rounded-md ring-1 ring-primary'
+                          : undefined
+                      }
+                      onDragOver={(e) => {
+                        if (!Array.from(e.dataTransfer.types).includes('Files'))
+                          return
+                        e.preventDefault()
+                        e.stopPropagation()
+                        setDragActive(true)
+                        setDragOverFolderId(f.id)
+                      }}
+                      onDragLeave={(e) => {
+                        if (e.currentTarget.contains(e.relatedTarget as Node | null))
+                          return
+                        setDragOverFolderId((cur) => (cur === f.id ? null : cur))
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        setDragActive(false)
+                        setDragOverFolderId(null)
+                        const files = Array.from(e.dataTransfer.files)
+                        if (files.length > 0) startUpload(files, f.id)
+                      }}
                     >
-                      닫기
-                    </button>
-                  )}
-                  {!isError && (
-                    <span
-                      className="absolute left-0 bottom-0 h-0.5 bg-primary/70 transition-[width] duration-150"
-                      style={{ width: `${p.progress}%` }}
-                      aria-hidden
+                      <FolderRowAtom
+                        name={f.name}
+                        density="compact"
+                        onClick={() => setCurrentFolderId(f.id)}
+                        actions={
+                          <RowActionsMenu
+                            ariaLabel={`${f.name} 폴더 작업 메뉴`}
+                            onRename={() =>
+                              setEditing({ kind: 'folder', id: f.id, name: f.name })
+                            }
+                            onDelete={() => handleDeleteFolder(f.id, f.name)}
+                          />
+                        }
+                      />
+                    </div>
+                  )
+                })}
+              </>
+            )}
+
+            {assets.length > 0 && (
+              <>
+                <SectionLabel density="compact" right={`${assets.length}`}>
+                  파일
+                </SectionLabel>
+                {assets.map((a) => {
+                  const isEditing = editing?.kind === 'asset' && editing.id === a.id
+                  if (isEditing) {
+                    return (
+                      <RenameRow
+                        key={a.id}
+                        initialName={a.name}
+                        onSubmit={(name) => handleSubmitRename(name)}
+                        onCancel={() => setEditing(null)}
+                        submitting={submittingRename}
+                      />
+                    )
+                  }
+                  const isPlaying =
+                    a.mediaType !== 'lyrics' &&
+                    a.name === playingFileName &&
+                    playStatus === 'playing'
+                  const isActive =
+                    a.mediaType !== 'lyrics' && a.name === playingFileName
+                  return (
+                    <AssetRowAtom
+                      key={a.id}
+                      asset={a}
+                      active={isActive}
+                      playing={isPlaying}
+                      density="compact"
+                      onClick={() => {
+                        if (a.mediaType === 'lyrics') return
+                        handlePlay(a)
+                      }}
+                      actions={
+                        <RowActionsMenu
+                          ariaLabel={`${a.name} 작업 메뉴`}
+                          onRename={() =>
+                            setEditing({ kind: 'asset', id: a.id, name: a.name })
+                          }
+                          onDelete={() => handleDeleteAsset(a.id, a.name)}
+                        />
+                      }
                     />
-                  )}
-                </li>
-              )
-            })}
-          </ul>
+                  )
+                })}
+              </>
+            )}
+          </>
         )}
       </div>
+
+      {/* Sticky bottom action bar — 모바일과 동일 atom (density="compact") */}
+      <div className="border-t border-border bg-card px-[18px] py-3">
+        <ActionBar
+          creating={creating}
+          newName={newName}
+          setNewName={setNewName}
+          onStartCreate={() => setCreating(true)}
+          onCancelCreate={() => {
+            setCreating(false)
+            setNewName('')
+          }}
+          onSubmitCreate={handleCreateFolder}
+          onPickFiles={() => fileInputRef.current?.click()}
+          submittingFolder={submittingFolder}
+          density="compact"
+        />
+      </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="audio/*,video/*,.lrc,.mpg,.mpeg,.avi,.mkv,.flv,.wmv,.3gp"
+        multiple
+        hidden
+        onChange={onFileInputChange}
+      />
     </div>
   )
 }

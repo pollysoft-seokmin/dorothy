@@ -94,11 +94,38 @@ async function sumUsedBytes(userId: string): Promise<number> {
   return Number(row?.total ?? 0)
 }
 
+// 타입별(음악/영상/가사) 합산 — StorageGauge 의 세그먼트 분할용. 빈 결과는
+// 모든 타입이 0인 객체로 반환해 호출처에서 분기 없이 비례 계산이 가능하게 한다.
+async function sumUsedBytesByType(
+  userId: string,
+): Promise<{ audio: number; video: number; lyrics: number }> {
+  const { db } = await import('./db/client')
+  const { mediaAsset } = await import('./db/schema')
+  const { eq, sql } = await import('drizzle-orm')
+  const rows = await db
+    .select({
+      mediaType: mediaAsset.mediaType,
+      total: sql<number>`coalesce(sum(${mediaAsset.sizeBytes}), 0)::bigint`,
+    })
+    .from(mediaAsset)
+    .where(eq(mediaAsset.userId, userId))
+    .groupBy(mediaAsset.mediaType)
+  const out = { audio: 0, video: 0, lyrics: 0 }
+  for (const r of rows) {
+    const key = r.mediaType as keyof typeof out
+    if (key in out) out[key] = Number(r.total ?? 0)
+  }
+  return out
+}
+
 export const getStorageUsage = createServerFn({ method: 'GET' }).handler(
   async () => {
     const user = await requireUser()
-    const used = await sumUsedBytes(user.id)
-    return { used, quota: QUOTA_BYTES }
+    const [used, byType] = await Promise.all([
+      sumUsedBytes(user.id),
+      sumUsedBytesByType(user.id),
+    ])
+    return { used, quota: QUOTA_BYTES, byType }
   },
 )
 

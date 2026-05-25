@@ -33,6 +33,7 @@
   <script type="text/babel" src="design/account-popup.jsx"></script>
   <script type="text/babel" src="design/account-desktop.jsx"></script>
   <script type="text/babel" src="design/library-sheet.jsx"></script>
+  <script type="text/babel" src="design/library-desktop.jsx"></script>
 </head>
 <body>
   <div id="root"></div>
@@ -85,8 +86,11 @@
             title="③ Desktop"
             subtitle="라이브러리 + 플레이어 동시 표시 (≥ 1024px)"
           >
-            <DCArtboard id="desk-main" label="Desktop · 재생 + 라이브러리" width={1280} height={800}>
+            <DCArtboard id="desk-main" label="Desktop · 재생 + 라이브러리 (v1)" width={1280} height={800}>
               <DesktopLayout />
+            </DCArtboard>
+            <DCArtboard id="desk-main-v2" label="Desktop · 재설계된 라이브러리 (v2)" width={1280} height={800}>
+              <DesktopLayoutV2 />
             </DCArtboard>
             <DCArtboard id="desk-account" label="Desktop · 계정 팝업" width={1280} height={800}>
               <AccountDesktopModal />

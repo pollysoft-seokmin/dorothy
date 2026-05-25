@@ -295,7 +295,68 @@ function Sheet({ children, height = 760 }) {
   );
 }
 
-// — Sheet header (drag handle + title + storage badge + close) —
+// — Storage gauge — segmented linear bar with type breakdown —
+// pct 인자는 0..1. segments는 합이 used pct가 되도록 음악/영상/가사 분할 표시.
+function StorageGauge({ used = '312 MB', total = '2.0 GB', pct = 0.15, dim = false }) {
+  // breakdown of used portion: 음악 9% / 영상 5% / 가사 1% (합 15%)
+  const segments = [
+    { label: '음악', pct: 0.09, color: S.greenBright },
+    { label: '영상', pct: 0.05, color: '#A28DFF' },
+    { label: '가사', pct: 0.01, color: '#FFB75D' },
+  ];
+  return (
+    <div style={{ width: '100%' }}>
+      {/* numbers row */}
+      <div style={{
+        display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+        marginBottom: 6,
+      }}>
+        <div style={{
+          fontSize: 10, fontWeight: 800, color: S.textDim,
+          letterSpacing: '0.18em', textTransform: 'uppercase',
+        }}>스토리지</div>
+        <div style={{ fontFamily: 'ui-monospace, SF Mono, monospace', fontSize: 11, fontWeight: 600 }}>
+          <span style={{ color: S.text }}>{used}</span>
+          <span style={{ color: S.textDim }}> / {total}</span>
+          <span style={{ color: S.textMute, marginLeft: 8 }}>{Math.round(pct * 100)}%</span>
+        </div>
+      </div>
+
+      {/* gauge bar */}
+      <div style={{
+        position: 'relative', height: 6, borderRadius: 3,
+        background: S.surfaceHi2, overflow: 'hidden',
+        display: 'flex',
+      }}>
+        {segments.map((seg, i) => (
+          <div
+            key={i}
+            style={{
+              width: `${seg.pct * 100}%`,
+              height: '100%',
+              background: seg.color,
+              borderRight: i < segments.length - 1 ? '1px solid rgba(0,0,0,0.35)' : 'none',
+            }}
+          />
+        ))}
+      </div>
+
+      {/* legend */}
+      <div style={{ display: 'flex', gap: 14, marginTop: 6 }}>
+        {segments.map((seg, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: seg.color }} />
+            <span style={{ fontSize: 10, color: S.textMute, fontWeight: 600 }}>
+              {seg.label} <span style={{ color: S.textDim, fontFamily: 'ui-monospace, monospace' }}>{Math.round(seg.pct * 100)}%</span>
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// — Sheet header (drag handle + title + close + storage gauge) —
 function SheetHeader() {
   return (
     <>
@@ -303,38 +364,28 @@ function SheetHeader() {
         <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.25)' }} />
       </div>
       <div style={{
-        padding: '10px 20px 4px',
+        padding: '10px 20px 0',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
         <div style={{ fontSize: 19, fontWeight: 800, letterSpacing: '-0.02em' }}>내 미디어</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {/* Storage as compact badge */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            padding: '6px 10px 6px 8px', borderRadius: 999,
-            background: S.surfaceHi,
-          }}>
-            <div style={{
-              width: 22, height: 22, borderRadius: '50%',
-              background: `conic-gradient(${S.greenBright} 0% 15%, ${S.surfaceHi2} 15% 100%)`,
-            }} />
-            <span style={{ fontSize: 11, fontWeight: 700, color: S.textMute, fontFamily: 'ui-monospace, monospace' }}>
-              312 MB <span style={{ color: S.textDim }}>/ 2.0 GB</span>
-            </span>
-          </div>
-          <button style={{
-            width: 32, height: 32, borderRadius: '50%',
-            background: 'rgba(255,255,255,0.08)', border: 'none',
-            color: S.text, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Ico.X size={18} />
-          </button>
-        </div>
+        <button style={{
+          width: 32, height: 32, borderRadius: '50%',
+          background: 'rgba(255,255,255,0.08)', border: 'none',
+          color: S.text, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <Ico.X size={18} />
+        </button>
+      </div>
+      {/* Storage gauge below title — clearer & roomier than a header badge */}
+      <div style={{ padding: '12px 20px 14px' }}>
+        <StorageGauge />
       </div>
     </>
   );
 }
+
+window.StorageGauge = StorageGauge;
 
 // ─────────────────────────────────────────────────────────────
 // Variant 1 — Default (browsing a folder with content)

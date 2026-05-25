@@ -252,3 +252,52 @@ _[tool: done]_
 - 파일 타입을 컬러로 즉시 구분 → 카라오케 워크플로(오디오+lrc 쌍) 매칭 빠름
 
 기존 좌측 슬라이드 드로어(`MobileLibraryDrawer.tsx`)는 통째로 교체 — `useUiStore`의 `isMobileLibraryOpen` 트리거만 그대로 두고 내용물만 갈아끼우면 됩니다.
+
+## User
+
+7. 모바일 라이브러리에서 현재 스토리지 용량을 표시하는 것을 파이 차트가 아닌 게이지 형태로 표시되게 다시 디자인해줘, 그리고 데스크탑 라이브러리 디자인도 모바일 버전과 동일한 디자인 컨셉으로 동작하도록 제안해줘
+
+## Assistant
+
+_[tool: read_file]_
+
+_[tool: read_file]_
+
+_[tool: str_replace_edit]_
+
+Now the desktop library sidebar redesigned with the same vocabulary.
+
+_[tool: write_file]_
+
+_[tool: str_replace_edit]_
+
+_[tool: done]_
+
+_[tool: fork_verifier_agent]_
+
+완료. 두 가지 변경:
+
+**① 모바일 라이브러리 — Storage Gauge로 교체** (⑥ 섹션)
+- 도넛 → **세그먼트 게이지 바**로 변경
+- 단순 progress bar가 아니라 음악(그린) / 영상(보라) / 가사(앰버)로 분할 표시 → 어떤 타입이 용량을 점유하는지 한눈에
+- 상단: 라벨 + `312 MB / 2.0 GB · 15%` 모노스페이스 숫자
+- 하단: 6px 도트 범례
+
+**② 데스크톱 라이브러리 — 모바일 컨셉으로 통일** (③ 섹션, "v2" 아트보드 추가)
+사이드바를 모바일 시트와 같은 어휘로 재구성:
+- 동일한 **StorageGauge** 컴포넌트 재사용 (모바일/데스크톱 1:1 공유 가능)
+- **타입 컬러 타일** (음악·영상·가사·폴더) 같은 색 코딩
+- **Breadcrumb pill chips** + **section labels** (대문자 caps) 같은 위계
+- **하단 sticky 액션 바**: outline `+ 폴더` + 그린 `↑ 업로드` — 모바일과 정확히 동일한 비율/스타일
+- 업로드 진행은 row 인라인 트랙으로
+
+기존 v1과 v2가 캔버스에 나란히 있어 비교 가능합니다. 코드 측면에서는 모바일 `LibrarySheet`와 데스크톱 `DesktopLibrarySidebar`가 같은 atom(`StorageGauge`, `TypeTile`, `FolderRow`, `AssetRow`, `BreadcrumbChips`, `SectionLabel`, `ActionBar`)을 공유하도록 묶으면 한 번 수정에 양쪽이 따라옵니다.
+
+## User
+
+Verifier agent check completed
+
+## Assistant
+
+검증 통과. 결정 기다리겠습니다.
+
