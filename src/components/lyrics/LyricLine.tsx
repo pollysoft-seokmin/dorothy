@@ -40,7 +40,7 @@ function maskText(text: string, state: 0 | 1 | 2): string {
     .join('\n')
 }
 
-// 가사 라인 — 활성/지난/다음/보조 본문 모두 17px(text-[17px]) 한 가지 사이즈.
+// 가사 라인 — 활성/지난/다음/보조 본문 모두 14px(text-[14px]) 한 가지 사이즈.
 // 위계는 weight/color/opacity 로만 분리: 활성은 extrabold + foreground +
 // opacity-100, 다음은 bold + muted-foreground + opacity-85, 지난은 bold +
 // text-dim + opacity-50. SAMI 이중언어는 영문 헤드라인 + 한글 보조 라인
@@ -109,7 +109,7 @@ export const LyricLine = forwardRef<HTMLButtonElement, LyricLineProps>(
         >
           <div
             className={cn(
-              'min-h-6 whitespace-pre-line break-words text-[17px] leading-tight tracking-[-0.02em] transition-all duration-300',
+              'min-h-6 whitespace-pre-line break-words text-[14px] leading-tight tracking-[-0.02em] transition-all duration-300',
               isActive
                 ? 'font-extrabold text-foreground'
                 : isPast
@@ -122,7 +122,7 @@ export const LyricLine = forwardRef<HTMLButtonElement, LyricLineProps>(
           {secondaryDisplay !== undefined && (
             <div
               className={cn(
-                'mt-0.5 min-h-6 whitespace-pre-line break-words text-[17px] leading-snug font-semibold transition-all duration-300',
+                'mt-0.5 min-h-6 whitespace-pre-line break-words text-[14px] leading-snug font-semibold transition-all duration-300',
                 isActive ? 'text-muted-foreground' : 'text-text-dim',
               )}
             >
