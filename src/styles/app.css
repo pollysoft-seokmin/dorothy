@@ -77,23 +77,3 @@
   }
 }
 
-@layer utilities {
-  /* 가사 패널 위/아래에 fade-mask — 활성 라인이 무대 위 스포트라이트처럼
-     떠오르도록 보조. 12% / 88% 지점에서 100% 불투명 → 양 끝은 transparent. */
-  .lyrics-fade-mask {
-    -webkit-mask-image: linear-gradient(
-      to bottom,
-      transparent 0%,
-      #000 12%,
-      #000 88%,
-      transparent 100%
-    );
-    mask-image: linear-gradient(
-      to bottom,
-      transparent 0%,
-      #000 12%,
-      #000 88%,
-      transparent 100%
-    );
-  }
-}

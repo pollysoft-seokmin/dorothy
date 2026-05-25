@@ -136,7 +136,7 @@ export function LyricsPanel({
   return (
     <div
       ref={containerRef}
-      className="lyrics-fade-mask flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-thin py-4"
+      className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-thin py-4"
     >
       <div className="flex flex-col gap-1">
         {lyrics.lines.map((line, i) => {
