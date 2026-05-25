@@ -22,6 +22,15 @@ interface LyricsPanelProps {
 // 단일 언어 모드에서 해당 언어가 없으면 빈 문자열을 반환해 라인 자체는
 // 유지(체크박스/마스크/index 안정성)하되 텍스트만 비운다.
 // en-ko 모드 + SAMI 라인은 영문(primary) + 한글(secondary)로 stack 렌더.
+//
+// 다국어 동일 본문 케이스: 일부 SAMI 자막은 EN/KO 섹션에 같은 문자열(보통
+// 한국어 번역)을 복제해 둔다. 이때 en-ko 모드에서 두 줄이 그대로 표시되면
+// 중복 처음이라 한 줄로 축약 — 데이터 레이어의 en/ko 두 필드는 그대로 두어
+// 단일 언어 모드(en / ko)에서는 라인이 비지 않게 한다. (#65)
+function normalizeWhitespace(s: string): string {
+  return s.replace(/\s+/g, ' ').trim()
+}
+
 function pickLineTexts(
   line: LyricLineType,
   language: LyricsLanguage,
@@ -33,8 +42,13 @@ function pickLineTexts(
   }
   if (language === 'en') return { primary: line.en ?? '' }
   if (language === 'ko') return { primary: line.ko ?? '' }
-  // en-ko: 영문 헤드라인 + 한글 보조
-  return { primary: line.en ?? '', secondary: line.ko ?? '' }
+  // en-ko: 영문 헤드라인 + 한글 보조 — 단, 두 본문이 동일하면 한 줄로 축약.
+  const en = line.en ?? ''
+  const ko = line.ko ?? ''
+  if (en && ko && normalizeWhitespace(en) === normalizeWhitespace(ko)) {
+    return { primary: ko }
+  }
+  return { primary: en, secondary: ko }
 }
 
 export function LyricsPanel({
