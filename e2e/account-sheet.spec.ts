@@ -90,8 +90,11 @@ test.describe('Desktop 계정 트리거 (회귀 가드)', () => {
 
   test('데스크톱에선 이메일 텍스트가 헤더에 노출된다', async ({ page }) => {
     const { email } = await signUpAndLand(page)
-    // 헤더 데스크톱 button 안의 <span>{email}</span> 만 이 텍스트를 렌더한다
-    // (모바일 button 은 아바타만 보여줌). 보이면 데스크톱 분기가 활성.
-    await expect(page.getByText(email, { exact: true })).toBeVisible()
+    // 모바일 시트와 데스크톱 모달도 같은 AccountPanel 콘텐츠를 DOM 에 마운트해
+    // 두므로 getByText 만으로는 매칭이 3곳(헤더 button + 모달 + 시트)으로 퍼진다.
+    // <header> 스코프로 한정해 헤더 데스크톱 button 의 이메일 노출만 검증.
+    await expect(
+      page.locator('header').getByText(email, { exact: true }),
+    ).toBeVisible()
   })
 })
