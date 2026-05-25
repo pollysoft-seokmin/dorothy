@@ -40,11 +40,12 @@ function maskText(text: string, state: 0 | 1 | 2): string {
     .join('\n')
 }
 
-// 가사 라인 — 활성/지난/다음/보조 본문 모두 18px(text-lg) 한 가지 사이즈.
+// 가사 라인 — 활성/지난/다음/보조 본문 모두 17px(text-[17px]) 한 가지 사이즈.
 // 위계는 weight/color/opacity 로만 분리: 활성은 extrabold + foreground +
 // opacity-100, 다음은 bold + muted-foreground + opacity-85, 지난은 bold +
 // text-dim + opacity-50. SAMI 이중언어는 영문 헤드라인 + 한글 보조 라인
 // (muted-foreground → text-dim) 으로 추가 위계.
+// row 컨테이너에 py-1 (위/아래 4px) 호흡 여백.
 // 본문이 비어 있어도(단일 언어 모드 + 결측 라인) 라인 row 가 접히지 않게
 // primary div 에 min-h-6 (24px) 을 둬 스크롤 점프를 막는다.
 export const LyricLine = forwardRef<HTMLButtonElement, LyricLineProps>(
@@ -67,7 +68,7 @@ export const LyricLine = forwardRef<HTMLButtonElement, LyricLineProps>(
     const secondaryDisplay = secondary ? maskText(secondary, maskState) : undefined
 
     return (
-      <div className="flex w-full items-start gap-3 px-2">
+      <div className="flex w-full items-start gap-3 px-2 py-1">
         {/* 체크박스 — 체크 시 그린 채움, 비체크 시 외곽선 + 투명 체크. 키보드
             트래버스는 부모(가사 영역) 단에서 처리하므로 tabIndex=-1. */}
         <button
@@ -108,7 +109,7 @@ export const LyricLine = forwardRef<HTMLButtonElement, LyricLineProps>(
         >
           <div
             className={cn(
-              'min-h-6 whitespace-pre-line break-words text-lg leading-tight tracking-[-0.02em] transition-all duration-300',
+              'min-h-6 whitespace-pre-line break-words text-[17px] leading-tight tracking-[-0.02em] transition-all duration-300',
               isActive
                 ? 'font-extrabold text-foreground'
                 : isPast
@@ -121,7 +122,7 @@ export const LyricLine = forwardRef<HTMLButtonElement, LyricLineProps>(
           {secondaryDisplay !== undefined && (
             <div
               className={cn(
-                'mt-0.5 min-h-6 whitespace-pre-line break-words text-lg leading-snug font-semibold transition-all duration-300',
+                'mt-0.5 min-h-6 whitespace-pre-line break-words text-[17px] leading-snug font-semibold transition-all duration-300',
                 isActive ? 'text-muted-foreground' : 'text-text-dim',
               )}
             >
