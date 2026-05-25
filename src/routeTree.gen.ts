@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiBlobUploadRouteImport } from './routes/api/blob/upload'
 import { Route as ApiBlobRangeRouteImport } from './routes/api/blob/range'
+import { Route as ApiAuthProvidersRouteImport } from './routes/api/auth/providers'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const SignupRoute = SignupRouteImport.update({
@@ -41,6 +42,11 @@ const ApiBlobRangeRoute = ApiBlobRangeRouteImport.update({
   path: '/api/blob/range',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthProvidersRoute = ApiAuthProvidersRouteImport.update({
+  id: '/api/auth/providers',
+  path: '/api/auth/providers',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -52,6 +58,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/auth/providers': typeof ApiAuthProvidersRoute
   '/api/blob/range': typeof ApiBlobRangeRoute
   '/api/blob/upload': typeof ApiBlobUploadRoute
 }
@@ -60,6 +67,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/auth/providers': typeof ApiAuthProvidersRoute
   '/api/blob/range': typeof ApiBlobRangeRoute
   '/api/blob/upload': typeof ApiBlobUploadRoute
 }
@@ -69,6 +77,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/auth/providers': typeof ApiAuthProvidersRoute
   '/api/blob/range': typeof ApiBlobRangeRoute
   '/api/blob/upload': typeof ApiBlobUploadRoute
 }
@@ -79,6 +88,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/api/auth/$'
+    | '/api/auth/providers'
     | '/api/blob/range'
     | '/api/blob/upload'
   fileRoutesByTo: FileRoutesByTo
@@ -87,6 +97,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/api/auth/$'
+    | '/api/auth/providers'
     | '/api/blob/range'
     | '/api/blob/upload'
   id:
@@ -95,6 +106,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/api/auth/$'
+    | '/api/auth/providers'
     | '/api/blob/range'
     | '/api/blob/upload'
   fileRoutesById: FileRoutesById
@@ -104,6 +116,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   SignupRoute: typeof SignupRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiAuthProvidersRoute: typeof ApiAuthProvidersRoute
   ApiBlobRangeRoute: typeof ApiBlobRangeRoute
   ApiBlobUploadRoute: typeof ApiBlobUploadRoute
 }
@@ -145,6 +158,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiBlobRangeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth/providers': {
+      id: '/api/auth/providers'
+      path: '/api/auth/providers'
+      fullPath: '/api/auth/providers'
+      preLoaderRoute: typeof ApiAuthProvidersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -160,6 +180,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   SignupRoute: SignupRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiAuthProvidersRoute: ApiAuthProvidersRoute,
   ApiBlobRangeRoute: ApiBlobRangeRoute,
   ApiBlobUploadRoute: ApiBlobUploadRoute,
 }
