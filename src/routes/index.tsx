@@ -5,6 +5,7 @@ import { MediaLibrary } from '~/components/library/MediaLibrary'
 import { MobileLibrarySheet } from '~/components/library/MobileLibrarySheet'
 import { useMediaPlayer } from '~/hooks/useMediaPlayer'
 import { useSession } from '~/lib/auth-client'
+import { useUiStore } from '~/stores/ui-store'
 
 export const Route = createFileRoute('/')({
   component: Home,
@@ -31,6 +32,16 @@ function Home() {
   const { data: session } = useSession()
   const userId = session?.user?.id ?? null
   const isLgUp = useIsLgUp()
+
+  // AccountPanel(__root.tsx 트리)에서 최근 재생 항목을 누르면 ui-store 에
+  // playRequest 를 채워 둔다. 여기서 잡아 player 에 위임하고 즉시 clear (#90).
+  const playRequest = useUiStore((s) => s.playRequest)
+  const clearPlayRequest = useUiStore((s) => s.clearPlayRequest)
+  useEffect(() => {
+    if (!playRequest) return
+    player.loadUrl(playRequest)
+    clearPlayRequest()
+  }, [playRequest, player, clearPlayRequest])
 
   return (
     <main className="flex-1 min-h-0 flex">

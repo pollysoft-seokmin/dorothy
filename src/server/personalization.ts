@@ -40,6 +40,19 @@ const isHistoryInput = (
   return typeof o.fileName === 'string' && o.fileName.length > 0
 }
 
+const isResolveInput = (v: unknown): v is { fileName: string } => {
+  if (typeof v !== 'object' || v === null) return false
+  const o = v as Record<string, unknown>
+  return typeof o.fileName === 'string' && o.fileName.length > 0
+}
+
+// 파일명에서 확장자 제거 — sibling LRC 조회 시 stem 비교용. 서버 측은 client
+// helper(library-shared)에 의존하지 않도록 인라인.
+function basenameNoExt(name: string): string {
+  const dot = name.lastIndexOf('.')
+  return dot <= 0 ? name : name.slice(0, dot)
+}
+
 async function requireUser() {
   const { getCurrentSession } = await import('./session')
   const session = await getCurrentSession()
@@ -113,6 +126,72 @@ export const appendPlaybackHistory = createServerFn({ method: 'POST' })
       durationSeconds: data.durationSeconds ?? null,
     })
     return { id }
+  })
+
+// 최근 재생 행에서 파일명을 받아 현재 라이브러리의 자산으로 해석해 재생 정보를
+// 반환한다. playback_history 는 mediaAssetId 를 들고 있지 않으므로, 동일 유저의
+// mediaAsset 중 같은 이름의 가장 최근 행을 매핑한다 — 라이브러리 UI 의 재생
+// 흐름과 동일한 { url, name, mediaType, lrcUrl? } 페이로드를 만든다.
+// 매칭 실패 시 Response 404 — UI 가 토스트로 안내하고 이력은 유지한다.
+export const resolveRecentPlayback = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => {
+    if (!isResolveInput(data)) throw new Error('Invalid resolve payload')
+    return data
+  })
+  .handler(async ({ data }) => {
+    const user = await requireUser()
+    const { db } = await import('./db/client')
+    const { mediaAsset } = await import('./db/schema')
+    const { and, desc, eq, inArray, isNull } = await import('drizzle-orm')
+
+    const [asset] = await db
+      .select({
+        id: mediaAsset.id,
+        name: mediaAsset.name,
+        mediaType: mediaAsset.mediaType,
+        blobUrl: mediaAsset.blobUrl,
+        folderId: mediaAsset.folderId,
+      })
+      .from(mediaAsset)
+      .where(
+        and(
+          eq(mediaAsset.userId, user.id),
+          eq(mediaAsset.name, data.fileName),
+          inArray(mediaAsset.mediaType, ['audio', 'video']),
+        ),
+      )
+      .orderBy(desc(mediaAsset.createdAt))
+      .limit(1)
+
+    if (!asset) {
+      throw new Response('Asset not found', { status: 404 })
+    }
+
+    // sibling LRC — 라이브러리 UI 와 동일하게 같은 폴더 내 동일 stem 의 lyrics
+    // 자산을 짝지어 LRC 가사를 함께 로드시킨다. folderId null(root) 도 동일 처리.
+    const stem = basenameNoExt(asset.name)
+    const folderClause =
+      asset.folderId === null
+        ? isNull(mediaAsset.folderId)
+        : eq(mediaAsset.folderId, asset.folderId)
+    const siblings = await db
+      .select({ name: mediaAsset.name, blobUrl: mediaAsset.blobUrl })
+      .from(mediaAsset)
+      .where(
+        and(
+          eq(mediaAsset.userId, user.id),
+          eq(mediaAsset.mediaType, 'lyrics'),
+          folderClause,
+        ),
+      )
+    const sibling = siblings.find((s) => basenameNoExt(s.name) === stem)
+
+    return {
+      url: asset.blobUrl,
+      name: asset.name,
+      mediaType: asset.mediaType === 'video' ? ('video' as const) : ('audio' as const),
+      lrcUrl: sibling?.blobUrl,
+    }
   })
 
 export const getRecentPlaybacks = createServerFn({ method: 'GET' }).handler(
