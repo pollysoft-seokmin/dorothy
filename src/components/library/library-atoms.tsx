@@ -320,15 +320,14 @@ export function LibraryEmptyDropZone({ onPickFiles }: { onPickFiles: () => void 
         </div>
         <div>
           <div className="text-[15px] font-extrabold tracking-[-0.02em] text-foreground">
-            오프라인 모드 미디어 추가
+            미디어 추가
           </div>
           <p className="mt-1.5 max-w-[300px] text-[13px] leading-relaxed text-muted-foreground">
-            오프라인 모드에서 사용하는 오디오·비디오 파일을 여기에 드롭하거나,
-            클릭하여 선택하세요.
+            오디오·비디오 파일을 여기에 드롭하거나, 클릭하여 선택하세요.
           </p>
         </div>
         <div className="mt-1 flex flex-wrap justify-center gap-1.5">
-          {['mp3', 'mp4', 'webm', 'mov', 'lrc', 'smi'].map((ext) => (
+          {['mp3', 'mp4', 'mpg'].map((ext) => (
             <span
               key={ext}
               className="rounded-full bg-secondary px-2 py-[3px] font-mono text-[10px] font-bold text-muted-foreground"
