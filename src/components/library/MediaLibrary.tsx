@@ -24,6 +24,7 @@ import {
   FavoritesEmpty,
   FolderRow as FolderRowAtom,
   LibraryActionsMenu,
+  LibraryEmptyDropZone,
   LibraryTabs,
   PendingRow,
   RecentPlaybackList,
@@ -566,10 +567,9 @@ export function MediaLibrary({ userId, onPlay }: Props) {
             불러오는 중…
           </div>
         ) : isEmpty ? (
-          <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-            비어 있습니다. 브레드크럼 우측 "…" 메뉴의 폴더 추가/파일 업로드로
-            시작하거나, 이 영역에 파일을 드래그&드롭하세요.
-          </div>
+          <LibraryEmptyDropZone
+            onPickFiles={() => fileInputRef.current?.click()}
+          />
         ) : (
           <>
             {pendingHere.length > 0 && (

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { upload } from '@vercel/blob/client'
-import { FileText, Upload, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { toast } from 'sonner'
 import { usePlayerStore } from '~/stores/player-store'
 import { useUiStore } from '~/stores/ui-store'
@@ -449,7 +449,14 @@ export function MobileLibrarySheet({ userId, onPlay }: Props) {
           }`}
         >
           {isEmpty ? (
-            <EmptyDropZone onPickFiles={() => fileInputRef.current?.click()} />
+            <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                비어 있습니다.
+                <br />
+                화면 위쪽 "…" 메뉴의 '파일 업로드'를 사용하여 학습할 컨텐츠를
+                업로드 하세요.
+              </p>
+            </div>
           ) : (
             <>
               {pendingHere.length > 0 && (
@@ -534,54 +541,3 @@ export function MobileLibrarySheet({ userId, onPlay }: Props) {
   )
 }
 
-// ─────────────────────────────────────────────────────────
-// Empty state (folder is empty) — 디자인 v2 와 동일 유지
-// ─────────────────────────────────────────────────────────
-
-function EmptyDropZone({ onPickFiles }: { onPickFiles: () => void }) {
-  return (
-    <div className="flex h-full flex-col py-3">
-      <button
-        type="button"
-        onClick={onPickFiles}
-        className="flex flex-1 cursor-pointer flex-col items-center justify-center gap-3.5 rounded-2xl border-2 border-dashed border-white/15 bg-white/[0.025] px-8 text-center"
-      >
-        <div className="grid size-16 place-items-center rounded-full bg-primary-soft text-primary-bright">
-          <Upload className="size-7" />
-        </div>
-        <div>
-          <div className="text-[17px] font-extrabold tracking-[-0.02em] text-foreground">
-            이 폴더는 비어 있어요
-          </div>
-          <p className="mt-1.5 max-w-[280px] text-[13px] leading-relaxed text-muted-foreground">
-            여기를 눌러 파일을 선택하거나, 이 영역에 드래그해서 추가하세요.
-          </p>
-        </div>
-        <div className="mt-1 flex flex-wrap justify-center gap-1.5">
-          {['mp3', 'mp4', 'webm', 'mov', 'lrc', 'smi'].map((ext) => (
-            <span
-              key={ext}
-              className="rounded-full bg-secondary px-2 py-[3px] font-mono text-[10px] font-bold text-muted-foreground"
-            >
-              {ext}
-            </span>
-          ))}
-        </div>
-      </button>
-
-      <div className="mt-3.5 flex items-center gap-3 rounded-xl bg-secondary p-3">
-        <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary-soft text-primary-bright">
-          <FileText className="size-4" />
-        </div>
-        <div className="flex-1">
-          <div className="text-xs font-bold text-foreground">
-            같은 이름의 .lrc / .smi 자막을 함께 올려보세요
-          </div>
-          <div className="mt-0.5 text-[11px] text-muted-foreground">
-            재생 시 자동으로 매칭돼 카라오케 가사가 표시됩니다.
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
