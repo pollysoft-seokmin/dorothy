@@ -21,6 +21,11 @@ interface UiStore {
   isAccountSheetOpen: boolean
   openAccountSheet: () => void
   closeAccountSheet: () => void
+
+  // 비로그인 상태에서 상단 "+" 버튼이 미디어 파일 선택을 요청하는 일회성 신호.
+  // FileDropZone(player 트리)이 nonce 변화를 감지해 파일 선택창을 연다 (#105).
+  mediaPickNonce: number
+  requestMediaPick: () => void
 }
 
 export const useUiStore = create<UiStore>((set) => ({
@@ -37,4 +42,7 @@ export const useUiStore = create<UiStore>((set) => ({
   isAccountSheetOpen: false,
   openAccountSheet: () => set({ isAccountSheetOpen: true }),
   closeAccountSheet: () => set({ isAccountSheetOpen: false }),
+
+  mediaPickNonce: 0,
+  requestMediaPick: () => set((s) => ({ mediaPickNonce: s.mediaPickNonce + 1 })),
 }))
