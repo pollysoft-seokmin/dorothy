@@ -20,6 +20,11 @@ interface UiStore {
   closeMobileLibrary: () => void
   toggleMobileLibrary: () => void
 
+  // 데스크톱 "내 미디어" 패널 표시 여부. 모바일 드로어와 달리 기본 열림 상태로,
+  // 타이틀의 Library 토글 버튼으로 보였다/숨겼다 한다 (#100).
+  isDesktopLibraryOpen: boolean
+  toggleDesktopLibrary: () => void
+
   // 계정 정보(프로필 + 스토리지 + 최근 재생) 열림 상태 — 같은 슬라이스로
   // 모바일=Bottom Sheet, 데스크톱=중앙 모달이 분기된다. 슬라이스명은 모바일이
   // 먼저 만들어진 역사를 반영해 isAccountSheet 그대로 유지.
@@ -38,6 +43,10 @@ export const useUiStore = create<UiStore>((set) => ({
   closeMobileLibrary: () => set({ isMobileLibraryOpen: false }),
   toggleMobileLibrary: () =>
     set((s) => ({ isMobileLibraryOpen: !s.isMobileLibraryOpen })),
+
+  isDesktopLibraryOpen: true,
+  toggleDesktopLibrary: () =>
+    set((s) => ({ isDesktopLibraryOpen: !s.isDesktopLibraryOpen })),
 
   isAccountSheetOpen: false,
   openAccountSheet: () => set({ isAccountSheetOpen: true }),

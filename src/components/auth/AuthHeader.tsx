@@ -1,5 +1,5 @@
 import { Link, useRouterState } from '@tanstack/react-router'
-import { LogIn, Menu } from 'lucide-react'
+import { Library, LogIn, Menu } from 'lucide-react'
 import { Button } from '~/components/ui/button'
 import { DorothyMark } from '~/components/brand/DorothyMark'
 import { useSession } from '~/lib/auth-client'
@@ -26,12 +26,14 @@ export function AuthHeader() {
   const { data, isPending } = useSession()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const toggleMobileLibrary = useUiStore((s) => s.toggleMobileLibrary)
+  const toggleDesktopLibrary = useUiStore((s) => s.toggleDesktopLibrary)
   const openAccountSheet = useUiStore((s) => s.openAccountSheet)
 
-  // 햄버거는 미디어 라이브러리 드로어를 가진 index 라우트 + 로그인 상태에서만
-  // 의미가 있다. 다른 라우트에선 드로어가 마운트되지 않아 클릭해도 아무 일이
-  // 일어나지 않으므로 아예 숨긴다.
-  const showMobileTrigger = pathname === '/' && !!data?.user
+  // 라이브러리 토글은 미디어 라이브러리를 가진 index 라우트 + 로그인 상태에서만
+  // 의미가 있다. 다른 라우트에선 라이브러리가 마운트되지 않아 클릭해도 아무 일이
+  // 일어나지 않으므로 아예 숨긴다. 모바일(햄버거 드로어)/데스크톱(좌측 패널)
+  // 양쪽에 같은 조건을 적용한다.
+  const showLibraryTrigger = pathname === '/' && !!data?.user
 
   // 계정은 같은 isAccountSheetOpen 슬라이스로 모바일=Bottom Sheet, 데스크톱=
   // 중앙 모달로 표시. 풀페이지 /account 라우트는 더 이상 존재하지 않는다 (#75).
@@ -40,15 +42,27 @@ export function AuthHeader() {
   return (
     <header className="flex items-center justify-between px-4 py-3 sm:px-6">
       <div className="flex items-center gap-2">
-        {showMobileTrigger && (
-          <button
-            type="button"
-            onClick={toggleMobileLibrary}
-            className="lg:hidden -ml-1 p-1.5 rounded text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="미디어 라이브러리 열기"
-          >
-            <Menu className="size-5" />
-          </button>
+        {showLibraryTrigger && (
+          <>
+            {/* 모바일: 햄버거 → bottom sheet 드로어 토글. */}
+            <button
+              type="button"
+              onClick={toggleMobileLibrary}
+              className="lg:hidden -ml-1 p-1.5 rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="미디어 라이브러리 열기"
+            >
+              <Menu className="size-5" />
+            </button>
+            {/* 데스크톱: Library 아이콘 → 좌측 "내 미디어" 패널 표시/숨김 토글 (#100). */}
+            <button
+              type="button"
+              onClick={toggleDesktopLibrary}
+              className="hidden lg:inline-flex -ml-1 p-1.5 rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="내 미디어 패널 토글"
+            >
+              <Library className="size-5" />
+            </button>
+          </>
         )}
         <Link
           to="/"
