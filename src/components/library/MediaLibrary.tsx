@@ -18,11 +18,12 @@ import {
   type PendingItem,
 } from '~/components/library/library-shared'
 import {
-  ActionBar,
   AssetRow as AssetRowAtom,
   BreadcrumbChips,
+  CreateFolderDialog,
   FavoritesEmpty,
   FolderRow as FolderRowAtom,
+  LibraryActionsMenu,
   LibraryTabs,
   PendingRow,
   RecentPlaybackList,
@@ -155,8 +156,7 @@ export function MediaLibrary({ userId, onPlay }: Props) {
     byType: { audio: 0, video: 0, lyrics: 0 },
   })
   const [loading, setLoading] = useState(false)
-  const [creating, setCreating] = useState(false)
-  const [newName, setNewName] = useState('')
+  const [folderDialogOpen, setFolderDialogOpen] = useState(false)
   const [submittingFolder, setSubmittingFolder] = useState(false)
   const [editing, setEditing] = useState<
     | { kind: 'folder' | 'asset'; id: string; name: string }
@@ -225,22 +225,24 @@ export function MediaLibrary({ userId, onPlay }: Props) {
     return path
   }, [tree, currentFolderId])
 
-  const handleCreateFolder = useCallback(async () => {
-    const name = newName.trim()
-    if (!name || submittingFolder) return
-    setSubmittingFolder(true)
-    try {
-      await createFolder({ data: { name, parentId: currentFolderId } })
-      setNewName('')
-      setCreating(false)
-      await refreshTree()
-      await refreshContents(currentFolderId)
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : '폴더 생성 실패')
-    } finally {
-      setSubmittingFolder(false)
-    }
-  }, [newName, currentFolderId, refreshTree, refreshContents, submittingFolder])
+  const handleCreateFolder = useCallback(
+    async (name: string) => {
+      const trimmed = name.trim()
+      if (!trimmed || submittingFolder) return
+      setSubmittingFolder(true)
+      try {
+        await createFolder({ data: { name: trimmed, parentId: currentFolderId } })
+        setFolderDialogOpen(false)
+        await refreshTree()
+        await refreshContents(currentFolderId)
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : '폴더 생성 실패')
+      } finally {
+        setSubmittingFolder(false)
+      }
+    },
+    [currentFolderId, refreshTree, refreshContents, submittingFolder],
+  )
 
   const handleSubmitRename = useCallback(
     async (trimmed: string) => {
@@ -541,12 +543,19 @@ export function MediaLibrary({ userId, onPlay }: Props) {
 
       {tab === 'folders' && (
         <>
-          {/* Breadcrumb — 위/아래 16px 여백은 BreadcrumbChips(py-4)가 담당 */}
-          <div className="border-b border-border px-3.5">
-            <BreadcrumbChips
-              crumbs={breadcrumb}
-              onSelect={setCurrentFolderId}
-              density="compact"
+          {/* Breadcrumb — 위/아래 16px 여백은 BreadcrumbChips(py-4)가 담당.
+              우측 "..." 메뉴로 폴더 추가 / 파일 업로드 (#105). */}
+          <div className="flex items-center gap-1 border-b border-border px-3.5">
+            <div className="min-w-0 flex-1">
+              <BreadcrumbChips
+                crumbs={breadcrumb}
+                onSelect={setCurrentFolderId}
+                density="compact"
+              />
+            </div>
+            <LibraryActionsMenu
+              onCreateFolder={() => setFolderDialogOpen(true)}
+              onUpload={() => fileInputRef.current?.click()}
             />
           </div>
 
@@ -558,8 +567,8 @@ export function MediaLibrary({ userId, onPlay }: Props) {
           </div>
         ) : isEmpty ? (
           <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-            비어 있습니다. 우측 상단 "+ 폴더" 또는 "↑ 업로드"로 시작하거나, 이
-            영역에 파일을 드래그&드롭하세요.
+            비어 있습니다. 브레드크럼 우측 "…" 메뉴의 폴더 추가/파일 업로드로
+            시작하거나, 이 영역에 파일을 드래그&드롭하세요.
           </div>
         ) : (
           <>
@@ -700,24 +709,6 @@ export function MediaLibrary({ userId, onPlay }: Props) {
           </>
         )}
       </div>
-
-      {/* Sticky bottom action bar — 모바일과 동일 atom (density="compact") */}
-      <div className="border-t border-border bg-card px-[18px] py-3">
-        <ActionBar
-          creating={creating}
-          newName={newName}
-          setNewName={setNewName}
-          onStartCreate={() => setCreating(true)}
-          onCancelCreate={() => {
-            setCreating(false)
-            setNewName('')
-          }}
-          onSubmitCreate={handleCreateFolder}
-          onPickFiles={() => fileInputRef.current?.click()}
-          submittingFolder={submittingFolder}
-          density="compact"
-        />
-      </div>
         </>
       )}
 
@@ -728,6 +719,13 @@ export function MediaLibrary({ userId, onPlay }: Props) {
         multiple
         hidden
         onChange={onFileInputChange}
+      />
+
+      <CreateFolderDialog
+        open={folderDialogOpen}
+        submitting={submittingFolder}
+        onClose={() => setFolderDialogOpen(false)}
+        onSubmit={handleCreateFolder}
       />
     </div>
   )

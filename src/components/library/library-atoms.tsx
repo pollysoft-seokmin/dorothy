@@ -3,7 +3,19 @@
 // 한쪽 수정이 다른 쪽으로 자연스럽게 따라가도록 한다. density prop으로 모바일
 // (comfortable)/데스크톱(compact) 두 톤만 제공 — 더 세분화는 회의 후 결정.
 
-import { ChevronRight, FileText, Film, Folder, Music, Star } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
+import {
+  ChevronRight,
+  FileText,
+  Film,
+  Folder,
+  FolderPlus,
+  MoreHorizontal,
+  Music,
+  Star,
+  Upload,
+} from 'lucide-react'
 import { cn } from '~/lib/utils'
 import { NowPlayingBars } from '~/components/library/NowPlayingBars'
 import {
@@ -582,130 +594,128 @@ export function PendingRow({ row, onDismiss, density = 'comfortable' }: PendingR
 }
 
 // ─────────────────────────────────────────────────────────
-// ActionBar — `+ 폴더` outline + `↑ 업로드` 그린. 폴더 생성 모드 모핑.
+// LibraryActionsMenu — 브레드크럼 우측 "..." 메뉴 (폴더 추가 / 파일 업로드)
 // ─────────────────────────────────────────────────────────
 
-interface ActionBarProps {
-  creating: boolean
-  newName: string
-  setNewName: (s: string) => void
-  onStartCreate: () => void
-  onCancelCreate: () => void
-  onSubmitCreate: () => void
-  onPickFiles: () => void
-  submittingFolder: boolean
-  density?: Density
-  // sticky 영역의 외곽 패딩/safe-area 처리는 부모가 결정 — atom 은 buttons 만.
-  className?: string
-}
-
-export function ActionBar({
-  creating,
-  newName,
-  setNewName,
-  onCancelCreate,
-  onStartCreate,
-  onSubmitCreate,
-  onPickFiles,
-  submittingFolder,
-  density = 'comfortable',
-  className,
-}: ActionBarProps) {
-  const btnH = density === 'compact' ? 'h-10' : 'h-12'
-  const labelCls = density === 'compact' ? 'text-[13px]' : 'text-sm'
-
-  if (creating) {
-    return (
-      <div className={cn('flex items-center gap-2', className)}>
-        <input
-          autoFocus
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') onSubmitCreate()
-            if (e.key === 'Escape') onCancelCreate()
-          }}
-          placeholder="새 폴더 이름"
-          className={cn(
-            'flex-1 rounded-full border border-primary-bright bg-accent px-4 font-semibold text-foreground placeholder:text-text-dim focus:outline-none',
-            density === 'compact' ? 'h-10 text-[13px]' : 'h-11 text-sm',
-          )}
-        />
+export function LibraryActionsMenu({
+  onCreateFolder,
+  onUpload,
+}: {
+  onCreateFolder: () => void
+  onUpload: () => void
+}) {
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
         <button
           type="button"
-          onClick={onSubmitCreate}
-          disabled={submittingFolder || !newName.trim()}
-          className={cn(
-            'cursor-pointer rounded-full bg-primary-bright px-5 font-extrabold text-background disabled:opacity-50',
-            density === 'compact' ? 'h-10 text-[13px]' : 'h-11 text-sm',
-          )}
+          aria-label="폴더 작업 메뉴"
+          className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-full text-muted-foreground hover:bg-white/10 hover:text-foreground data-[state=open]:bg-white/10"
         >
-          만들기
+          <MoreHorizontal className="size-[18px]" />
         </button>
-      </div>
-    )
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          align="end"
+          sideOffset={6}
+          className="z-[70] min-w-[10rem] rounded-md border bg-popover py-1 shadow-md"
+        >
+          <DropdownMenu.Item
+            className="flex cursor-pointer items-center gap-2.5 px-3 py-2 text-sm outline-none data-[highlighted]:bg-accent"
+            onSelect={onCreateFolder}
+          >
+            <FolderPlus className="size-4" />
+            폴더 추가
+          </DropdownMenu.Item>
+          <DropdownMenu.Item
+            className="flex cursor-pointer items-center gap-2.5 px-3 py-2 text-sm outline-none data-[highlighted]:bg-accent"
+            onSelect={onUpload}
+          >
+            <Upload className="size-4" />
+            파일 업로드
+          </DropdownMenu.Item>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  )
+}
+
+// ─────────────────────────────────────────────────────────
+// CreateFolderDialog — 폴더명 입력 팝업(모달). 오버레이 + 중앙 카드.
+// ─────────────────────────────────────────────────────────
+
+export function CreateFolderDialog({
+  open,
+  submitting,
+  onClose,
+  onSubmit,
+}: {
+  open: boolean
+  submitting: boolean
+  onClose: () => void
+  onSubmit: (name: string) => void
+}) {
+  const [name, setName] = useState('')
+
+  // 열릴 때마다 입력값 초기화.
+  useEffect(() => {
+    if (open) setName('')
+  }, [open])
+
+  if (!open) return null
+
+  const submit = () => {
+    const trimmed = name.trim()
+    if (trimmed) onSubmit(trimmed)
   }
 
   return (
-    <div className={cn('grid grid-cols-[1fr_1.4fr] gap-2.5', className)}>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
       <button
         type="button"
-        onClick={onStartCreate}
-        className={cn(
-          btnH,
-          labelCls,
-          'flex cursor-pointer items-center justify-center gap-2 rounded-full border border-white/20 font-extrabold text-foreground hover:bg-white/5',
-        )}
+        aria-label="닫기"
+        onClick={onClose}
+        className="absolute inset-0 bg-black/55"
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="새 폴더 만들기"
+        className="relative w-full max-w-xs rounded-2xl border border-border bg-card p-5 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
       >
-        <PlusIcon /> 폴더
-      </button>
-      <button
-        type="button"
-        onClick={onPickFiles}
-        className={cn(
-          btnH,
-          labelCls,
-          'flex cursor-pointer items-center justify-center gap-2 rounded-full bg-primary-bright font-extrabold text-background shadow-[0_4px_14px_rgba(29,215,96,0.3)] hover:bg-primary',
-        )}
-      >
-        <UploadIcon /> 업로드
-      </button>
+        <h2 className="text-base font-extrabold tracking-[-0.02em] text-foreground">
+          새 폴더
+        </h2>
+        <input
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') submit()
+            if (e.key === 'Escape') onClose()
+          }}
+          placeholder="폴더 이름"
+          className="mt-3.5 h-11 w-full rounded-full border border-border bg-accent px-4 text-sm font-semibold text-foreground placeholder:text-text-dim focus:border-primary-bright focus:outline-none"
+        />
+        <div className="mt-4 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="cursor-pointer rounded-full px-4 py-2 text-sm font-bold text-muted-foreground hover:text-foreground"
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={submitting || !name.trim()}
+            className="cursor-pointer rounded-full bg-primary-bright px-5 py-2 text-sm font-extrabold text-background hover:bg-primary disabled:opacity-50"
+          >
+            만들기
+          </button>
+        </div>
+      </div>
     </div>
-  )
-}
-
-// 작은 인라인 아이콘 — lucide import 추가 비용 줄이려고 path 그대로.
-function PlusIcon() {
-  return (
-    <svg
-      className="size-4"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M5 12h14" />
-      <path d="M12 5v14" />
-    </svg>
-  )
-}
-
-function UploadIcon() {
-  return (
-    <svg
-      className="size-4"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-      <polyline points="17 8 12 3 7 8" />
-      <line x1="12" x2="12" y1="3" y2="15" />
-    </svg>
   )
 }
