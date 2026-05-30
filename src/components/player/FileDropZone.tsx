@@ -1,7 +1,8 @@
 import { useCallback, useRef, useState } from 'react'
-import { Upload, Music } from 'lucide-react'
+import { Music } from 'lucide-react'
 import { cn } from '~/lib/utils'
 import { toast } from 'sonner'
+import { LibraryEmptyDropZone } from '~/components/library/library-atoms'
 
 // 받아주는 미디어 파일 확장자. 브라우저 비호환 포맷(.avi/.mkv/.flv/...)은
 // useMediaPlayer가 ffmpeg.wasm으로 자동 변환한다.
@@ -66,41 +67,22 @@ export function FileDropZone({ onMediaLoad, fileName }: FileDropZoneProps) {
 
   return (
     <div className="w-full">
-      {/* 데스크톱: Drag & Drop 영역 — 점선 박스 + 그린-소프트 원형 Upload 아이콘 */}
-      <div
-        className={cn(
-          'hidden sm:flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-8 transition-colors cursor-pointer',
-          isDragging
-            ? 'border-primary bg-primary/5'
-            : 'border-white/15 bg-white/[0.025] hover:border-white/30',
-        )}
-        onDragOver={(e) => {
-          e.preventDefault()
-          setIsDragging(true)
-        }}
-        onDragEnter={(e) => {
-          e.preventDefault()
-          setIsDragging(true)
-        }}
-        onDragLeave={() => setIsDragging(false)}
-        onDrop={handleDrop}
-        onClick={() => inputRef.current?.click()}
-      >
-        <div className="grid size-14 place-items-center rounded-full bg-primary-soft text-primary-bright">
-          <Upload className="size-6" />
-        </div>
-        <p className="text-sm text-muted-foreground">
-          오디오/비디오 파일을 여기에 드롭하거나 클릭하여 선택
-        </p>
-        <p className="text-[11px] text-text-dim font-mono">
-          mp3 · mp4 · webm · mov · mpg
-        </p>
-        {fileName && (
-          <div className="flex items-center gap-1.5 text-xs text-foreground mt-1">
-            <Music className="h-3.5 w-3.5" />
-            <span className="truncate max-w-[240px]">{fileName}</span>
-          </div>
-        )}
+      {/* 데스크톱: 빈 폴더(LibraryEmptyDropZone)와 동일한 드롭존 — 드래그&드롭 직접 처리 */}
+      <div className="hidden sm:block w-full">
+        <LibraryEmptyDropZone
+          onPickFiles={() => inputRef.current?.click()}
+          dragging={isDragging}
+          onDragOver={(e) => {
+            e.preventDefault()
+            setIsDragging(true)
+          }}
+          onDragEnter={(e) => {
+            e.preventDefault()
+            setIsDragging(true)
+          }}
+          onDragLeave={() => setIsDragging(false)}
+          onDrop={handleDrop}
+        />
       </div>
 
       {/* 모바일: Spotify-style 그린 pill CTA */}

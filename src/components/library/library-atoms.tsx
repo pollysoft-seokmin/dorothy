@@ -307,13 +307,40 @@ export function FavoritesEmpty() {
 // LibraryEmptyDropZone — 빈 폴더(데스크톱) 드롭/클릭 업로드 안내 영역
 // ─────────────────────────────────────────────────────────
 
-export function LibraryEmptyDropZone({ onPickFiles }: { onPickFiles: () => void }) {
+interface LibraryEmptyDropZoneProps {
+  onPickFiles: () => void
+  // 드래그&드롭을 직접 받는 경우(비로그인 플레이어)만 전달. 라이브러리는 부모
+  // pane 이 드롭을 처리하므로 생략한다.
+  dragging?: boolean
+  onDragOver?: React.DragEventHandler<HTMLButtonElement>
+  onDragEnter?: React.DragEventHandler<HTMLButtonElement>
+  onDragLeave?: React.DragEventHandler<HTMLButtonElement>
+  onDrop?: React.DragEventHandler<HTMLButtonElement>
+}
+
+export function LibraryEmptyDropZone({
+  onPickFiles,
+  dragging = false,
+  onDragOver,
+  onDragEnter,
+  onDragLeave,
+  onDrop,
+}: LibraryEmptyDropZoneProps) {
   return (
-    <div className="flex h-full flex-col p-4">
+    <div className="flex h-full min-h-[260px] flex-col p-4">
       <button
         type="button"
         onClick={onPickFiles}
-        className="flex flex-1 cursor-pointer flex-col items-center justify-center gap-3.5 rounded-2xl border-2 border-dashed border-white/15 bg-white/[0.025] px-8 text-center hover:border-white/25 hover:bg-white/[0.04]"
+        onDragOver={onDragOver}
+        onDragEnter={onDragEnter}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
+        className={cn(
+          'flex flex-1 cursor-pointer flex-col items-center justify-center gap-3.5 rounded-2xl border-2 border-dashed px-8 text-center transition-colors',
+          dragging
+            ? 'border-primary bg-primary/5'
+            : 'border-white/15 bg-white/[0.025] hover:border-white/25 hover:bg-white/[0.04]',
+        )}
       >
         <div className="grid size-16 place-items-center rounded-full bg-primary-soft text-primary-bright">
           <Upload className="size-7" />
