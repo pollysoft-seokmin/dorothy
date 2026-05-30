@@ -304,6 +304,45 @@ export function FavoritesEmpty() {
 }
 
 // ─────────────────────────────────────────────────────────
+// LibraryEmptyDropZone — 빈 폴더(데스크톱) 드롭/클릭 업로드 안내 영역
+// ─────────────────────────────────────────────────────────
+
+export function LibraryEmptyDropZone({ onPickFiles }: { onPickFiles: () => void }) {
+  return (
+    <div className="flex h-full flex-col p-4">
+      <button
+        type="button"
+        onClick={onPickFiles}
+        className="flex flex-1 cursor-pointer flex-col items-center justify-center gap-3.5 rounded-2xl border-2 border-dashed border-white/15 bg-white/[0.025] px-8 text-center hover:border-white/25 hover:bg-white/[0.04]"
+      >
+        <div className="grid size-16 place-items-center rounded-full bg-primary-soft text-primary-bright">
+          <Upload className="size-7" />
+        </div>
+        <div>
+          <div className="text-[15px] font-extrabold tracking-[-0.02em] text-foreground">
+            오프라인 모드 미디어 추가
+          </div>
+          <p className="mt-1.5 max-w-[300px] text-[13px] leading-relaxed text-muted-foreground">
+            오프라인 모드에서 사용하는 오디오·비디오 파일을 여기에 드롭하거나,
+            클릭하여 선택하세요.
+          </p>
+        </div>
+        <div className="mt-1 flex flex-wrap justify-center gap-1.5">
+          {['mp3', 'mp4', 'webm', 'mov', 'lrc', 'smi'].map((ext) => (
+            <span
+              key={ext}
+              className="rounded-full bg-secondary px-2 py-[3px] font-mono text-[10px] font-bold text-muted-foreground"
+            >
+              {ext}
+            </span>
+          ))}
+        </div>
+      </button>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────
 // TypeTile — 컬러 코드 + (재생 중) 막대 그래프
 // ─────────────────────────────────────────────────────────
 
