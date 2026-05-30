@@ -21,10 +21,15 @@ import {
   ActionBar,
   AssetRow as AssetRowAtom,
   BreadcrumbChips,
+  FavoritesEmpty,
   FolderRow as FolderRowAtom,
+  LibraryTabs,
   PendingRow,
+  RecentPlaybackList,
   SectionLabel,
+  type LibraryTab,
 } from '~/components/library/library-atoms'
+import { useRecentPlaybacks } from '~/hooks/useRecentPlaybacks'
 import {
   createFolder,
   deleteAsset,
@@ -139,6 +144,7 @@ function RowActionsMenu({
 }
 
 export function MediaLibrary({ userId, onPlay }: Props) {
+  const [tab, setTab] = useState<LibraryTab>('folders')
   const [tree, setTree] = useState<FolderRow[]>([])
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null)
   const [folders, setFolders] = useState<FolderListItem[]>([])
@@ -164,6 +170,15 @@ export function MediaLibrary({ userId, onPlay }: Props) {
 
   const playingFileName = usePlayerStore((s) => s.fileName)
   const playStatus = usePlayerStore((s) => s.status)
+
+  // 최근 탭이 보일 때만 fetch. 라이브러리가 player 트리에 있어 resolve 결과를
+  // onPlay 로 바로 위임한다 (ui-store playRequest 우회 불필요, #105).
+  const {
+    recent,
+    error: recentError,
+    resolvingId,
+    playRecent,
+  } = useRecentPlaybacks({ active: tab === 'recent', onResolved: onPlay })
 
   const refreshTree = useCallback(async () => {
     const rows = await getFolderTree()
@@ -500,14 +515,40 @@ export function MediaLibrary({ userId, onPlay }: Props) {
         </button>
       </div>
 
-      {/* Breadcrumb */}
-      <div className="border-b border-border px-3.5 pb-1.5">
-        <BreadcrumbChips
-          crumbs={breadcrumb}
-          onSelect={setCurrentFolderId}
-          density="compact"
-        />
+      {/* Tabs — 최근 / 폴더 / 즐겨찾기 */}
+      <div className="border-b border-border px-2.5 pt-1.5">
+        <LibraryTabs active={tab} onChange={setTab} density="compact" />
       </div>
+
+      {tab === 'recent' && (
+        <div className="flex-1 min-h-0 overflow-y-auto px-2.5 pb-2 pt-1">
+          <RecentPlaybackList
+            rows={recent}
+            error={recentError}
+            resolvingId={resolvingId}
+            playingFileName={playingFileName}
+            onPlay={playRecent}
+            density="compact"
+          />
+        </div>
+      )}
+
+      {tab === 'favorites' && (
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <FavoritesEmpty />
+        </div>
+      )}
+
+      {tab === 'folders' && (
+        <>
+          {/* Breadcrumb */}
+          <div className="border-b border-border px-3.5 pb-1.5">
+            <BreadcrumbChips
+              crumbs={breadcrumb}
+              onSelect={setCurrentFolderId}
+              density="compact"
+            />
+          </div>
 
       {/* Scrollable list */}
       <div className="flex-1 min-h-0 overflow-y-auto px-2.5 pb-2">
@@ -677,6 +718,8 @@ export function MediaLibrary({ userId, onPlay }: Props) {
           density="compact"
         />
       </div>
+        </>
+      )}
 
       <input
         ref={fileInputRef}

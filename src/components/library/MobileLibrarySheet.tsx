@@ -21,11 +21,16 @@ import {
   ActionBar,
   AssetRow,
   BreadcrumbChips,
+  FavoritesEmpty,
   FolderRow,
+  LibraryTabs,
   PendingRow,
+  RecentPlaybackList,
   SectionLabel,
   StorageGauge,
+  type LibraryTab,
 } from '~/components/library/library-atoms'
+import { useRecentPlaybacks } from '~/hooks/useRecentPlaybacks'
 import {
   createFolder,
   getFolderTree,
@@ -52,6 +57,7 @@ export function MobileLibrarySheet({ userId, onPlay }: Props) {
   const playingFileName = usePlayerStore((s) => s.fileName)
   const playStatus = usePlayerStore((s) => s.status)
 
+  const [tab, setTab] = useState<LibraryTab>('folders')
   const [tree, setTree] = useState<FolderRowType[]>([])
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null)
   const [folders, setFolders] = useState<FolderListItem[]>([])
@@ -68,6 +74,20 @@ export function MobileLibrarySheet({ userId, onPlay }: Props) {
   const [submittingFolder, setSubmittingFolder] = useState(false)
   const [dragActive, setDragActive] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // 최근 탭 — 시트가 열려 있고 최근 탭일 때만 fetch. 재생 시 onPlay 후 시트를 닫는다.
+  const {
+    recent,
+    error: recentError,
+    resolvingId,
+    playRecent,
+  } = useRecentPlaybacks({
+    active: isOpen && tab === 'recent',
+    onResolved: (payload) => {
+      onPlay(payload)
+      close()
+    },
+  })
 
   const refreshTree = useCallback(async () => {
     const rows = await getFolderTree()
@@ -394,6 +414,31 @@ export function MobileLibrarySheet({ userId, onPlay }: Props) {
           />
         </div>
 
+        {/* Tabs — 최근 / 폴더 / 즐겨찾기 */}
+        <div className="border-b border-border px-4 pt-1">
+          <LibraryTabs active={tab} onChange={setTab} />
+        </div>
+
+        {tab === 'recent' && (
+          <div className="flex-1 min-h-0 overflow-y-auto px-3 py-2">
+            <RecentPlaybackList
+              rows={recent}
+              error={recentError}
+              resolvingId={resolvingId}
+              playingFileName={playingFileName}
+              onPlay={playRecent}
+            />
+          </div>
+        )}
+
+        {tab === 'favorites' && (
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <FavoritesEmpty />
+          </div>
+        )}
+
+        {tab === 'folders' && (
+          <>
         {/* Breadcrumb */}
         <div className="px-4">
           <BreadcrumbChips crumbs={breadcrumb} onSelect={setCurrentFolderId} />
@@ -487,6 +532,8 @@ export function MobileLibrarySheet({ userId, onPlay }: Props) {
             submittingFolder={submittingFolder}
           />
         </div>
+          </>
+        )}
 
         <input
           ref={fileInputRef}

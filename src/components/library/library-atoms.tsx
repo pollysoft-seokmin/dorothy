@@ -3,15 +3,17 @@
 // 한쪽 수정이 다른 쪽으로 자연스럽게 따라가도록 한다. density prop으로 모바일
 // (comfortable)/데스크톱(compact) 두 톤만 제공 — 더 세분화는 회의 후 결정.
 
-import { ChevronRight, FileText, Film, Folder, Home, Music } from 'lucide-react'
+import { ChevronRight, FileText, Film, Folder, Home, Music, Star } from 'lucide-react'
 import { cn } from '~/lib/utils'
 import { NowPlayingBars } from '~/components/library/NowPlayingBars'
 import {
   formatBytes,
+  formatRelativeTime,
   phaseLabel,
   type AssetItem,
   type LibraryMediaType,
   type PendingItem,
+  type RecentPlayback,
 } from '~/components/library/library-shared'
 
 type Density = 'comfortable' | 'compact'
@@ -121,6 +123,170 @@ export function StorageGauge({ used, quota, byType }: StorageGaugeProps) {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────
+// LibraryTabs — 최근 / 폴더 / 즐겨찾기 탭바 (밑줄 인디케이터)
+// ─────────────────────────────────────────────────────────
+
+export type LibraryTab = 'recent' | 'folders' | 'favorites'
+
+const TAB_DEFS: { key: LibraryTab; label: string }[] = [
+  { key: 'recent', label: '최근' },
+  { key: 'folders', label: '폴더' },
+  { key: 'favorites', label: '즐겨찾기' },
+]
+
+interface LibraryTabsProps {
+  active: LibraryTab
+  onChange: (tab: LibraryTab) => void
+  density?: Density
+}
+
+export function LibraryTabs({ active, onChange, density = 'comfortable' }: LibraryTabsProps) {
+  const textCls = density === 'compact' ? 'text-[13px]' : 'text-sm'
+  const padCls = density === 'compact' ? 'px-2.5 pb-2 pt-0.5' : 'px-3 pb-2.5 pt-1'
+  return (
+    <div className="flex items-center gap-1">
+      {TAB_DEFS.map((t) => {
+        const isActive = t.key === active
+        return (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => onChange(t.key)}
+            aria-pressed={isActive}
+            className={cn(
+              'relative cursor-pointer font-bold tracking-[-0.01em] transition-colors',
+              textCls,
+              padCls,
+              isActive
+                ? 'text-foreground'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {t.label}
+            {isActive && (
+              <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-primary-bright" />
+            )}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────
+// RecentPlaybackList — 최근 재생 목록 (아이콘 + 제목/아티스트 + 상대시간)
+// ─────────────────────────────────────────────────────────
+
+const VIDEO_EXT_RE = /\.(mp4|webm|mov|mpg|mpeg|m4v|avi|mkv)$/i
+
+interface RecentPlaybackListProps {
+  rows: RecentPlayback[] | null
+  error: string | null
+  resolvingId: string | null
+  playingFileName: string | null
+  onPlay: (row: RecentPlayback) => void
+  density?: Density
+}
+
+export function RecentPlaybackList({
+  rows,
+  error,
+  resolvingId,
+  playingFileName,
+  onPlay,
+  density = 'comfortable',
+}: RecentPlaybackListProps) {
+  if (error)
+    return (
+      <p className="py-6 text-center text-sm text-destructive">
+        불러오기 실패: {error}
+      </p>
+    )
+  if (rows === null)
+    return (
+      <p className="py-6 text-center text-sm text-text-dim">불러오는 중…</p>
+    )
+  if (rows.length === 0)
+    return (
+      <p className="py-6 text-center text-sm text-text-dim">
+        아직 재생 이력이 없습니다.
+      </p>
+    )
+
+  const rowCls = density === 'compact' ? 'gap-3 px-2 py-2' : 'gap-3 py-2.5'
+  return (
+    <ul>
+      {rows.map((row) => {
+        // 강조 정책: 현재 player 에 로딩된 파일과 fileName 이 같으면 초록.
+        const isLoaded = row.fileName === playingFileName
+        const Icon = VIDEO_EXT_RE.test(row.fileName) ? Film : Music
+        const isResolving = resolvingId === row.id
+        return (
+          <li key={row.id}>
+            <button
+              type="button"
+              onClick={() => onPlay(row)}
+              disabled={isResolving}
+              className={cn(
+                'flex w-full items-center rounded-md text-left hover:bg-white/5 disabled:opacity-60 cursor-pointer',
+                rowCls,
+              )}
+            >
+              <div className="grid size-10 shrink-0 place-items-center rounded bg-accent">
+                <Icon
+                  className={cn(
+                    'size-[18px]',
+                    isLoaded ? 'text-primary-bright' : 'text-muted-foreground',
+                  )}
+                />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div
+                  className={cn(
+                    'truncate text-sm font-bold tracking-[-0.01em]',
+                    isLoaded ? 'text-primary-bright' : 'text-foreground',
+                  )}
+                  title={row.title ?? row.fileName}
+                >
+                  {row.title ?? row.fileName}
+                </div>
+                <div className="truncate text-xs text-muted-foreground">
+                  {row.artist ?? '—'}
+                  {' · '}
+                  <span className="text-text-dim">
+                    {formatRelativeTime(row.lastPlayedAt)}
+                  </span>
+                </div>
+              </div>
+            </button>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+// ─────────────────────────────────────────────────────────
+// FavoritesEmpty — 즐겨찾기(추후 구현) 빈 상태 안내
+// ─────────────────────────────────────────────────────────
+
+export function FavoritesEmpty() {
+  return (
+    <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
+      <div className="grid size-12 place-items-center rounded-full bg-secondary text-text-dim">
+        <Star className="size-6" />
+      </div>
+      <div className="mt-3 text-sm font-bold text-foreground">
+        즐겨찾기는 준비 중입니다
+      </div>
+      <p className="mt-1 max-w-[240px] text-xs leading-relaxed text-muted-foreground">
+        곧 자주 듣는 미디어를 즐겨찾기에 모아볼 수 있어요.
+      </p>
     </div>
   )
 }
