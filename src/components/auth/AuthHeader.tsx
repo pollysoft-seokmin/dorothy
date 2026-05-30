@@ -1,9 +1,10 @@
 import { Link, useRouterState } from '@tanstack/react-router'
-import { Library, LogIn } from 'lucide-react'
+import { Library, LogIn, Plus } from 'lucide-react'
 import { Button } from '~/components/ui/button'
 import { DorothyMark } from '~/components/brand/DorothyMark'
 import { useSession } from '~/lib/auth-client'
 import { useUiStore } from '~/stores/ui-store'
+import { usePlayerStore } from '~/stores/player-store'
 
 // 데스크톱·모바일 공통 30x30 그린 그라데이션 원형 아바타 + 이니셜.
 // 디자인 명세: width/height 30, font 12px, weight 700, color #000,
@@ -28,6 +29,13 @@ export function AuthHeader() {
   const toggleMobileLibrary = useUiStore((s) => s.toggleMobileLibrary)
   const toggleDesktopLibrary = useUiStore((s) => s.toggleDesktopLibrary)
   const openAccountSheet = useUiStore((s) => s.openAccountSheet)
+  const requestMediaPick = useUiStore((s) => s.requestMediaPick)
+
+  // 비로그인 + 이미 콘텐츠가 로딩된 경우: 본문의 미디어 추가 안내 대신 상단 "+"
+  // 버튼으로 다른 파일을 선택하게 한다 (#105). player-store 는 전역이라 트리와
+  // 무관하게 읽을 수 있다.
+  const playerFileName = usePlayerStore((s) => s.fileName)
+  const showAddMedia = !data?.user && !!playerFileName
 
   // 라이브러리 토글은 미디어 라이브러리를 가진 index 라우트 + 로그인 상태에서만
   // 의미가 있다. 다른 라우트에선 라이브러리가 마운트되지 않아 클릭해도 아무 일이
@@ -103,12 +111,25 @@ export function AuthHeader() {
             </button>
           </>
         ) : (
-          <Button asChild size="sm" variant="outline">
-            <Link to="/login">
-              <LogIn className="size-4" />
-              <span>로그인</span>
-            </Link>
-          </Button>
+          <>
+            {/* 콘텐츠 로딩 시: 로그인 버튼 왼쪽 "+" 로 다른 미디어 선택 (#105). */}
+            {showAddMedia && (
+              <button
+                type="button"
+                onClick={requestMediaPick}
+                aria-label="미디어 추가"
+                className="inline-flex items-center justify-center rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
+              >
+                <Plus className="size-5" />
+              </button>
+            )}
+            <Button asChild size="sm" variant="outline">
+              <Link to="/login">
+                <LogIn className="size-4" />
+                <span>로그인</span>
+              </Link>
+            </Button>
+          </>
         )}
       </div>
     </header>
