@@ -350,7 +350,7 @@ export function LibraryEmptyDropZone({
             미디어 추가
           </div>
           <p className="mt-1.5 max-w-[300px] text-[13px] leading-relaxed text-muted-foreground">
-            오디오·비디오 파일을 여기에 드롭하거나, 클릭하여 선택하세요.
+            파일을 여기에 드롭하거나, 클릭하여 선택하세요.
           </p>
         </div>
         <div className="mt-1 flex flex-wrap justify-center gap-1.5">
