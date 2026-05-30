@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { upload } from '@vercel/blob/client'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
-import { Library, MoreHorizontal, Search } from 'lucide-react'
+import { MoreHorizontal, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { usePlayerStore } from '~/stores/player-store'
 import { extractSamiTrailerBytes } from '~/lib/sami-trailer'
@@ -483,10 +483,10 @@ export function MediaLibrary({ userId, onPlay }: Props) {
       onDragLeave={onPaneDragLeave}
       onDrop={onPaneDrop}
     >
-      {/* Header — Library 아이콘 + 제목 + Search placeholder */}
+      {/* Header — 제목 + Search placeholder. 아이콘은 타이틀바의 토글 버튼으로
+          이동해 패널 헤더에선 제거 (#100). */}
       <div className="flex items-center justify-between px-[18px] pt-[18px]">
         <div className="flex items-center gap-2.5">
-          <Library className="size-[17px]" />
           <h2 className="text-base font-extrabold tracking-[-0.02em]">
             내 미디어
           </h2>

@@ -37,6 +37,7 @@ function Home() {
   // playRequest 를 채워 둔다. 여기서 잡아 player 에 위임하고 즉시 clear (#90).
   const playRequest = useUiStore((s) => s.playRequest)
   const clearPlayRequest = useUiStore((s) => s.clearPlayRequest)
+  const isDesktopLibraryOpen = useUiStore((s) => s.isDesktopLibraryOpen)
   useEffect(() => {
     if (!playRequest) return
     player.loadUrl(playRequest)
@@ -45,19 +46,20 @@ function Home() {
 
   return (
     <main className="flex-1 min-h-0 flex">
-      <div className="flex-1 flex items-stretch justify-center min-w-0">
-        <AudioPlayer player={player} isLoggedIn={!!userId} />
-      </div>
-      {userId && isLgUp && (
+      {userId && isLgUp && isDesktopLibraryOpen && (
         // body가 더 이상 스크롤되지 않으므로 h-screen sticky top-0 불필요.
         // flex stretch로 main 높이만큼 차지 + 내부 스크롤로 라이브러리 처리.
         // bg-card(#121212)로 본문 영역(#000)과 톤을 분리해 Spotify의 nested
-        // grays 패턴을 만든다.
+        // grays 패턴을 만든다. 좌측 배치이므로 경계선은 border-r.
         // 디자인 명세 폭 340. 내부 라이브러리가 자체 scroll 을 가지므로 overflow는 hidden.
-        <aside className="flex w-[340px] flex-col overflow-hidden border-l bg-card">
+        // 표시 여부는 타이틀의 Library 토글 버튼이 제어한다 (#100).
+        <aside className="flex w-[340px] flex-col overflow-hidden border-r bg-card">
           <MediaLibrary userId={userId} onPlay={player.loadUrl} />
         </aside>
       )}
+      <div className="flex-1 flex items-stretch justify-center min-w-0">
+        <AudioPlayer player={player} isLoggedIn={!!userId} />
+      </div>
       {userId && <MobileLibrarySheet userId={userId} onPlay={player.loadUrl} />}
     </main>
   )
