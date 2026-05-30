@@ -10,15 +10,10 @@ import {
   resolveRecentPlayback,
 } from '~/server/personalization'
 import { getStorageUsage } from '~/server/storage'
+import { StorageGauge } from '~/components/library/library-atoms'
 
 type Playback = Awaited<ReturnType<typeof getRecentPlaybacks>>[number]
-
-function formatBytes(n: number): string {
-  if (n < 1024) return `${n} B`
-  if (n < 1024 ** 2) return `${(n / 1024).toFixed(1)} KB`
-  if (n < 1024 ** 3) return `${(n / 1024 ** 2).toFixed(1)} MB`
-  return `${(n / 1024 ** 3).toFixed(2)} GB`
-}
+type Usage = Awaited<ReturnType<typeof getStorageUsage>>
 
 // "lastPlayedAt"을 한국어 상대 시간으로. 매우 좁은 의미라 외부 의존성 없이 인라인.
 function formatRelativeTime(at: Date | string): string {
@@ -47,9 +42,7 @@ export function AccountPanel({ active, onClose }: AccountPanelProps) {
 
   const setPlayRequest = useUiStore((s) => s.setPlayRequest)
 
-  const [usage, setUsage] = useState<{ used: number; quota: number } | null>(
-    null,
-  )
+  const [usage, setUsage] = useState<Usage | null>(null)
   const [history, setHistory] = useState<Playback[] | null>(null)
   const [historyError, setHistoryError] = useState<string | null>(null)
   const [signingOut, setSigningOut] = useState(false)
@@ -121,7 +114,6 @@ export function AccountPanel({ active, onClose }: AccountPanelProps) {
   if (!data?.user) return null
 
   const initial = data.user.email?.[0]?.toUpperCase() ?? 'U'
-  const usageRatio = usage ? Math.min(1, usage.used / usage.quota) : 0
 
   return (
     <>
@@ -157,34 +149,24 @@ export function AccountPanel({ active, onClose }: AccountPanelProps) {
         </button>
       </div>
 
-      {/* Storage gauge mini */}
+      {/* Storage — 내 미디어와 동일한 StorageGauge atom (세그먼트 바 + 범례). */}
       <div className="mt-3 rounded-xl bg-secondary p-4">
-        <div className="flex items-baseline justify-between">
-          <div className="text-[11px] font-bold tracking-[0.12em] uppercase text-muted-foreground">
-            스토리지
-          </div>
-          <div className="font-mono text-xs">
-            {usage ? (
-              <>
-                {formatBytes(usage.used)}
-                <span className="text-text-dim">
-                  {' '}
-                  / {formatBytes(usage.quota)}
-                </span>
-              </>
-            ) : (
-              <span className="text-text-dim">불러오는 중…</span>
-            )}
-          </div>
-        </div>
-        <div className="mt-2 h-1 overflow-hidden rounded-full bg-accent">
-          <div
-            className={`h-full rounded-full transition-all duration-300 ${
-              usageRatio > 0.9 ? 'bg-destructive' : 'bg-primary-bright'
-            }`}
-            style={{ width: `${usageRatio * 100}%` }}
+        {usage ? (
+          <StorageGauge
+            used={usage.used}
+            quota={usage.quota}
+            byType={usage.byType}
           />
-        </div>
+        ) : (
+          <div className="flex items-baseline justify-between">
+            <div className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-text-dim">
+              스토리지
+            </div>
+            <div className="font-mono text-[11px] text-text-dim">
+              불러오는 중…
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Recent playback */}

@@ -24,7 +24,6 @@ import {
   FolderRow as FolderRowAtom,
   PendingRow,
   SectionLabel,
-  StorageGauge,
 } from '~/components/library/library-atoms'
 import {
   createFolder,
@@ -499,11 +498,6 @@ export function MediaLibrary({ userId, onPlay }: Props) {
         >
           <Search className="size-[15px]" />
         </button>
-      </div>
-
-      {/* StorageGauge — 모바일과 동일 atom */}
-      <div className="px-[18px] pb-3 pt-3.5">
-        <StorageGauge used={usage.used} quota={usage.quota} byType={usage.byType} />
       </div>
 
       {/* Breadcrumb */}
