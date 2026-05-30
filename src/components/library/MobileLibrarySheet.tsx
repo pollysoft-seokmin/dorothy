@@ -27,7 +27,6 @@ import {
   PendingRow,
   RecentPlaybackList,
   SectionLabel,
-  StorageGauge,
   type LibraryTab,
 } from '~/components/library/library-atoms'
 import { useRecentPlaybacks } from '~/hooks/useRecentPlaybacks'
@@ -403,15 +402,6 @@ export function MobileLibrarySheet({ userId, onPlay }: Props) {
           >
             <X className="size-[18px]" />
           </button>
-        </div>
-
-        {/* Storage gauge */}
-        <div className="px-5 pb-3.5 pt-3">
-          <StorageGauge
-            used={usage.used}
-            quota={usage.quota}
-            byType={usage.byType}
-          />
         </div>
 
         {/* Tabs — 최근 / 폴더 / 즐겨찾기 */}
