@@ -66,7 +66,9 @@ export function FileDropZone({ onMediaLoad, fileName }: FileDropZoneProps) {
   )
 
   return (
-    <div className="w-full">
+    // 파일 미선택(빈 상태)일 때는 가용 세로 공간을 채워 모바일 CTA를 화면 중앙에
+    // 배치한다. 파일이 로드되면 일반 흐름으로 되돌려 플레이어 콘텐츠를 가리지 않는다.
+    <div className={cn('w-full', !fileName && 'flex flex-1 flex-col')}>
       {/* 데스크톱: 빈 폴더(LibraryEmptyDropZone)와 동일한 드롭존 — 드래그&드롭 직접 처리 */}
       <div className="hidden sm:block w-full">
         <LibraryEmptyDropZone
@@ -85,8 +87,13 @@ export function FileDropZone({ onMediaLoad, fileName }: FileDropZoneProps) {
         />
       </div>
 
-      {/* 모바일: Spotify-style 그린 pill CTA */}
-      <div className="sm:hidden flex flex-col gap-2">
+      {/* 모바일: Spotify-style 그린 pill CTA — 빈 상태에선 화면 중앙 정렬 */}
+      <div
+        className={cn(
+          'sm:hidden flex flex-col gap-2',
+          !fileName && 'flex-1 items-center justify-center',
+        )}
+      >
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
