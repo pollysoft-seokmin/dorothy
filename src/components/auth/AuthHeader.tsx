@@ -1,5 +1,5 @@
 import { Link, useRouterState } from '@tanstack/react-router'
-import { Library, LogIn, Menu } from 'lucide-react'
+import { Library, LogIn } from 'lucide-react'
 import { Button } from '~/components/ui/button'
 import { DorothyMark } from '~/components/brand/DorothyMark'
 import { useSession } from '~/lib/auth-client'
@@ -44,14 +44,14 @@ export function AuthHeader() {
       <div className="flex items-center gap-2">
         {showLibraryTrigger && (
           <>
-            {/* 모바일: 햄버거 → bottom sheet 드로어 토글. */}
+            {/* 모바일: 내 미디어 아이콘 → bottom sheet 드로어 토글. */}
             <button
               type="button"
               onClick={toggleMobileLibrary}
               className="lg:hidden -ml-1 p-1.5 rounded text-muted-foreground hover:bg-muted hover:text-foreground"
               aria-label="미디어 라이브러리 열기"
             >
-              <Menu className="size-5" />
+              <Library className="size-5" />
             </button>
             {/* 데스크톱: Library 아이콘 → 좌측 "내 미디어" 패널 표시/숨김 토글 (#100). */}
             <button
