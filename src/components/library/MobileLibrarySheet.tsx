@@ -18,11 +18,12 @@ import {
   type PendingItem,
 } from '~/components/library/library-shared'
 import {
-  ActionBar,
   AssetRow,
   BreadcrumbChips,
+  CreateFolderDialog,
   FavoritesEmpty,
   FolderRow,
+  LibraryActionsMenu,
   LibraryTabs,
   PendingRow,
   RecentPlaybackList,
@@ -68,8 +69,7 @@ export function MobileLibrarySheet({ userId, onPlay }: Props) {
   })
   const [loading, setLoading] = useState(false)
   const [pending, setPending] = useState<PendingItem[]>([])
-  const [creating, setCreating] = useState(false)
-  const [newName, setNewName] = useState('')
+  const [folderDialogOpen, setFolderDialogOpen] = useState(false)
   const [submittingFolder, setSubmittingFolder] = useState(false)
   const [dragActive, setDragActive] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -127,12 +127,9 @@ export function MobileLibrarySheet({ userId, onPlay }: Props) {
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (creating) {
-          setCreating(false)
-          setNewName('')
-        } else {
-          close()
-        }
+        // 폴더 생성 팝업이 열려 있으면 팝업이 Escape 를 처리하도록 시트는 둔다.
+        if (folderDialogOpen) return
+        close()
       }
     }
     window.addEventListener('keydown', onKey)
@@ -142,7 +139,7 @@ export function MobileLibrarySheet({ userId, onPlay }: Props) {
       window.removeEventListener('keydown', onKey)
       document.body.style.overflow = prevOverflow
     }
-  }, [isOpen, creating, close])
+  }, [isOpen, folderDialogOpen, close])
 
   const breadcrumb = useMemo(() => {
     const map = new Map(tree.map((f) => [f.id, f]))
@@ -159,22 +156,24 @@ export function MobileLibrarySheet({ userId, onPlay }: Props) {
     return path
   }, [tree, currentFolderId])
 
-  const handleCreateFolder = useCallback(async () => {
-    const name = newName.trim()
-    if (!name || submittingFolder) return
-    setSubmittingFolder(true)
-    try {
-      await createFolder({ data: { name, parentId: currentFolderId } })
-      setNewName('')
-      setCreating(false)
-      await refreshTree()
-      await refreshContents(currentFolderId)
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : '폴더 생성 실패')
-    } finally {
-      setSubmittingFolder(false)
-    }
-  }, [newName, submittingFolder, currentFolderId, refreshTree, refreshContents])
+  const handleCreateFolder = useCallback(
+    async (name: string) => {
+      const trimmed = name.trim()
+      if (!trimmed || submittingFolder) return
+      setSubmittingFolder(true)
+      try {
+        await createFolder({ data: { name: trimmed, parentId: currentFolderId } })
+        setFolderDialogOpen(false)
+        await refreshTree()
+        await refreshContents(currentFolderId)
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : '폴더 생성 실패')
+      } finally {
+        setSubmittingFolder(false)
+      }
+    },
+    [submittingFolder, currentFolderId, refreshTree, refreshContents],
+  )
 
   const startUpload = useCallback(
     async (files: File[], targetFolderId: string | null) => {
@@ -429,9 +428,15 @@ export function MobileLibrarySheet({ userId, onPlay }: Props) {
 
         {tab === 'folders' && (
           <>
-        {/* Breadcrumb */}
-        <div className="px-4">
-          <BreadcrumbChips crumbs={breadcrumb} onSelect={setCurrentFolderId} />
+        {/* Breadcrumb + 우측 "..." 메뉴(폴더 추가 / 파일 업로드) */}
+        <div className="flex items-center gap-1 px-4">
+          <div className="min-w-0 flex-1">
+            <BreadcrumbChips crumbs={breadcrumb} onSelect={setCurrentFolderId} />
+          </div>
+          <LibraryActionsMenu
+            onCreateFolder={() => setFolderDialogOpen(true)}
+            onUpload={() => fileInputRef.current?.click()}
+          />
         </div>
 
         {/* Scrollable body */}
@@ -506,22 +511,6 @@ export function MobileLibrarySheet({ userId, onPlay }: Props) {
           )}
         </div>
 
-        {/* Sticky bottom action bar — 일반/생성 모핑 */}
-        <div className="border-t border-border bg-card px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3">
-          <ActionBar
-            creating={creating}
-            newName={newName}
-            setNewName={setNewName}
-            onStartCreate={() => setCreating(true)}
-            onCancelCreate={() => {
-              setCreating(false)
-              setNewName('')
-            }}
-            onSubmitCreate={handleCreateFolder}
-            onPickFiles={() => fileInputRef.current?.click()}
-            submittingFolder={submittingFolder}
-          />
-        </div>
           </>
         )}
 
@@ -532,6 +521,13 @@ export function MobileLibrarySheet({ userId, onPlay }: Props) {
           multiple
           className="hidden"
           onChange={onFileInputChange}
+        />
+
+        <CreateFolderDialog
+          open={folderDialogOpen}
+          submitting={submittingFolder}
+          onClose={() => setFolderDialogOpen(false)}
+          onSubmit={handleCreateFolder}
         />
       </aside>
     </div>
@@ -558,9 +554,7 @@ function EmptyDropZone({ onPickFiles }: { onPickFiles: () => void }) {
             이 폴더는 비어 있어요
           </div>
           <p className="mt-1.5 max-w-[280px] text-[13px] leading-relaxed text-muted-foreground">
-            여기에 파일을 드래그하거나, 아래{' '}
-            <span className="font-bold text-foreground">업로드</span> 버튼으로
-            추가하세요.
+            여기를 눌러 파일을 선택하거나, 이 영역에 드래그해서 추가하세요.
           </p>
         </div>
         <div className="mt-1 flex flex-wrap justify-center gap-1.5">
