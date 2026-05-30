@@ -33,13 +33,14 @@ export function FileDropZone({ onMediaLoad, fileName }: FileDropZoneProps) {
 
   // 상단 툴바의 "+" 버튼(AuthHeader, 다른 트리)이 ui-store nonce 를 올리면
   // 파일 선택창을 연다 — 콘텐츠 로딩 후 안내 UI 가 숨겨진 상태에서도 교체 가능 (#105).
+  // 마운트 시점 nonce 를 "처리 완료"로 기록해 두고, 값이 실제로 바뀐 경우에만
+  // 연다. boolean "첫 실행 스킵" 가드는 StrictMode 의 effect 2회 실행 때
+  // 두 번째에서 발사돼 로그인/로그아웃 마운트마다 파일창이 뜨는 문제가 있었다.
   const mediaPickNonce = useUiStore((s) => s.mediaPickNonce)
-  const firstNonce = useRef(true)
+  const handledNonce = useRef(mediaPickNonce)
   useEffect(() => {
-    if (firstNonce.current) {
-      firstNonce.current = false
-      return
-    }
+    if (mediaPickNonce === handledNonce.current) return
+    handledNonce.current = mediaPickNonce
     inputRef.current?.click()
   }, [mediaPickNonce])
 
