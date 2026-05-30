@@ -541,8 +541,8 @@ export function MediaLibrary({ userId, onPlay }: Props) {
 
       {tab === 'folders' && (
         <>
-          {/* Breadcrumb */}
-          <div className="border-b border-border px-3.5 pb-1.5">
+          {/* Breadcrumb — 위/아래 16px 여백은 BreadcrumbChips(py-4)가 담당 */}
+          <div className="border-b border-border px-3.5">
             <BreadcrumbChips
               crumbs={breadcrumb}
               onSelect={setCurrentFolderId}

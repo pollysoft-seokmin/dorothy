@@ -3,7 +3,7 @@
 // 한쪽 수정이 다른 쪽으로 자연스럽게 따라가도록 한다. density prop으로 모바일
 // (comfortable)/데스크톱(compact) 두 톤만 제공 — 더 세분화는 회의 후 결정.
 
-import { ChevronRight, FileText, Film, Folder, Home, Music, Star } from 'lucide-react'
+import { ChevronRight, FileText, Film, Folder, Music, Star } from 'lucide-react'
 import { cn } from '~/lib/utils'
 import { NowPlayingBars } from '~/components/library/NowPlayingBars'
 import {
@@ -319,7 +319,7 @@ export function TypeTile({ kind, playing, density = 'comfortable' }: TypeTilePro
 }
 
 // ─────────────────────────────────────────────────────────
-// BreadcrumbChips — pill chips 수평 스크롤, 첫 칸 home 아이콘
+// BreadcrumbChips — pill chips 수평 스크롤. 위/아래 16px 여백(py-4).
 // ─────────────────────────────────────────────────────────
 
 interface BreadcrumbChipsProps {
@@ -334,9 +334,8 @@ export function BreadcrumbChips({ crumbs, onSelect, density = 'comfortable' }: B
       ? 'rounded-full px-2.5 py-1 text-[12px]'
       : 'rounded-full px-3 py-1.5 text-[13px]'
   const sep = density === 'compact' ? 'text-[12px]' : 'text-[13px]'
-  const homeSize = density === 'compact' ? 'size-3' : 'size-[13px]'
   return (
-    <div className="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap py-1 scrollbar-thin">
+    <div className="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap py-4 scrollbar-thin">
       {crumbs.map((crumb, i) => {
         const active = i === crumbs.length - 1
         return (
@@ -352,7 +351,6 @@ export function BreadcrumbChips({ crumbs, onSelect, density = 'comfortable' }: B
                   : 'text-muted-foreground hover:text-foreground',
               )}
             >
-              {i === 0 && <Home className={homeSize} />}
               {crumb.name}
             </button>
             {!active && (
