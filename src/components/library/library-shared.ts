@@ -85,3 +85,27 @@ export function phaseLabel(p: PendingItem['phase']): string {
         ? '업로드 중'
         : '실패'
 }
+
+// 최근 재생 항목 — server getRecentPlaybacks 의 행 구조를 클라이언트에서 다루기
+// 위한 구조적 타입. lastPlayedAt 은 직렬화 경로에 따라 Date/string 둘 다 가능.
+export type RecentPlayback = {
+  id: string
+  title: string | null
+  artist: string | null
+  album: string | null
+  fileName: string
+  durationSeconds: number | null
+  lastPlayedAt: Date | string
+}
+
+// "lastPlayedAt"을 한국어 상대 시간으로. 매우 좁은 의미라 외부 의존성 없이 인라인.
+export function formatRelativeTime(at: Date | string): string {
+  const ts = typeof at === 'string' ? new Date(at) : at
+  const diffSec = Math.max(0, (Date.now() - ts.getTime()) / 1000)
+  if (diffSec < 60) return '방금 전'
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}분 전`
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}시간 전`
+  if (diffSec < 86400 * 2) return '어제'
+  if (diffSec < 86400 * 7) return `${Math.floor(diffSec / 86400)}일 전`
+  return ts.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })
+}
