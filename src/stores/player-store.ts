@@ -49,6 +49,10 @@ export interface PlayerStore {
   // 트랙/가사 로드/reset에서는 초기화하지 않는다.
   lyricsLanguage: LyricsLanguage
 
+  // 재생 옵션 — 한 문장(가사 라인) 재생이 끝나면 자동으로 멈춘다(shadowing 기본값).
+  // localStorage 로 영속하며 트랙/가사 로드·reset 에서는 초기화하지 않는다 (#107).
+  autoStopAfterLine: boolean
+
   // 액션
   setStatus: (status: PlayStatus) => void
   setCurrentTime: (time: number) => void
@@ -69,8 +73,12 @@ export interface PlayerStore {
   cycleGlobalLineMask: () => void
   cycleLyricsLanguage: () => void
   setLyricsLanguage: (language: LyricsLanguage) => void
+  setAutoStopAfterLine: (value: boolean) => void
+  initPlaybackPrefs: () => void
   reset: () => void
 }
+
+const AUTO_STOP_STORAGE_KEY = 'dorothy-autostop'
 
 function nextRepeat(current: RepeatCount): RepeatCount {
   const i = REPEAT_CYCLE.indexOf(current)
@@ -98,6 +106,7 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
   lineMaskStates: new Map<number, LineMaskState>(),
   globalLineMask: 0,
   lyricsLanguage: 'en-ko',
+  autoStopAfterLine: true,
 
   setStatus: (status) => set({ status }),
   setCurrentTime: (currentTime) => set({ currentTime }),
@@ -186,6 +195,26 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
   cycleLyricsLanguage: () =>
     set((s) => ({ lyricsLanguage: nextLyricsLanguage(s.lyricsLanguage) })),
   setLyricsLanguage: (language) => set({ lyricsLanguage: language }),
+  setAutoStopAfterLine: (value) => {
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem(AUTO_STOP_STORAGE_KEY, value ? '1' : '0')
+      } catch {
+        // localStorage 접근 불가 — 적용만 하고 저장은 건너뛴다.
+      }
+    }
+    set({ autoStopAfterLine: value })
+  },
+  // 클라이언트 마운트 시 localStorage 값으로 하이드레이트. 미저장이면 기본 true 유지.
+  initPlaybackPrefs: () => {
+    if (typeof window === 'undefined') return
+    try {
+      const v = window.localStorage.getItem(AUTO_STOP_STORAGE_KEY)
+      if (v === '0' || v === '1') set({ autoStopAfterLine: v === '1' })
+    } catch {
+      // 무시 — 기본값 유지.
+    }
+  },
   reset: () =>
     set({
       status: 'idle',

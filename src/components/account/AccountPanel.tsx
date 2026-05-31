@@ -5,8 +5,43 @@ import { toast } from 'sonner'
 import { authClient, useSession } from '~/lib/auth-client'
 import { getStorageUsage } from '~/server/storage'
 import { StorageGauge } from '~/components/library/library-atoms'
+import { ThemeToggle } from '~/components/theme/ThemeToggle'
+import { usePlayerStore } from '~/stores/player-store'
+import { cn } from '~/lib/utils'
 
 type Usage = Awaited<ReturnType<typeof getStorageUsage>>
+
+// 켜짐=primary-bright 트랙 + 흰 노브. 외부 의존성 없이 인라인.
+function SettingSwitch({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean
+  onChange: (value: boolean) => void
+  label: string
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={() => onChange(!checked)}
+      className={cn(
+        'relative h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors',
+        checked ? 'bg-primary-bright' : 'bg-muted-foreground/40',
+      )}
+    >
+      <span
+        className={cn(
+          'absolute top-0.5 size-5 rounded-full bg-white shadow-sm transition-transform',
+          checked ? 'translate-x-[22px]' : 'translate-x-0.5',
+        )}
+      />
+    </button>
+  )
+}
 
 interface AccountPanelProps {
   // 부모(시트/모달)가 보일 때만 true. fetch 게이트 + 세션 로그아웃 시 onClose 가드.
@@ -22,6 +57,9 @@ export function AccountPanel({ active, onClose }: AccountPanelProps) {
 
   const [usage, setUsage] = useState<Usage | null>(null)
   const [signingOut, setSigningOut] = useState(false)
+
+  const autoStopAfterLine = usePlayerStore((s) => s.autoStopAfterLine)
+  const setAutoStopAfterLine = usePlayerStore((s) => s.setAutoStopAfterLine)
 
   // 패널이 활성(보이는) 상태일 때만 fetch — 닫힌 채로 불필요한 호출을 막는다.
   // 사용자/세션이 바뀌어도 다시 활성화될 때 최신 데이터를 가져온다.
@@ -115,6 +153,29 @@ export function AccountPanel({ active, onClose }: AccountPanelProps) {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Settings — 테마 + 재생 옵션 (#107) */}
+      <div className="mt-3 rounded-xl bg-secondary p-4">
+        <div className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-text-dim">
+          설정
+        </div>
+
+        <div className="mt-3.5 flex items-center justify-between gap-3">
+          <span className="text-sm font-bold text-foreground">테마</span>
+          <ThemeToggle />
+        </div>
+
+        <div className="mt-3.5 flex items-center justify-between gap-3">
+          <span className="text-sm font-bold text-foreground">
+            한 문장 재생 후 자동 멈춤
+          </span>
+          <SettingSwitch
+            checked={autoStopAfterLine}
+            onChange={setAutoStopAfterLine}
+            label="한 문장 재생 후 자동 멈춤"
+          />
+        </div>
       </div>
     </>
   )
