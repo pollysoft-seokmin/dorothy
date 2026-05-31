@@ -76,7 +76,7 @@ function NameEditDialog({
         type="button"
         aria-label="닫기"
         onClick={onClose}
-        className="absolute inset-0 bg-black/55"
+        className="absolute inset-0 bg-black/55 backdrop-blur-[4px]"
       />
       <div
         role="dialog"
