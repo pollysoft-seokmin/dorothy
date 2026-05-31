@@ -62,7 +62,7 @@ export function LyricsPanel({
   onToggleCheck,
   onMaskToggle,
 }: LyricsPanelProps) {
-  const activeRef = useRef<HTMLButtonElement>(null)
+  const activeRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const prevLyricsRef = useRef<ParsedLyrics | null>(null)
 
