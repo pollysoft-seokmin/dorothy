@@ -10,6 +10,7 @@ import { AuthHeader } from '~/components/auth/AuthHeader'
 import { MobileAccountSheet } from '~/components/account/MobileAccountSheet'
 import { DesktopAccountModal } from '~/components/account/DesktopAccountModal'
 import { useThemeStore } from '~/stores/theme-store'
+import { usePlayerStore } from '~/stores/player-store'
 import { applyTheme, THEME_STORAGE_KEY } from '~/lib/theme'
 import appCss from '~/styles/app.css?url'
 
@@ -51,6 +52,7 @@ function RootDocument() {
   // 인 동안 OS 다크모드 변경에 반응한다.
   useEffect(() => {
     useThemeStore.getState().init()
+    usePlayerStore.getState().initPlaybackPrefs()
     const mq = window.matchMedia('(prefers-color-scheme: dark)')
     const onChange = () => {
       if (useThemeStore.getState().theme === 'system') applyTheme('system')

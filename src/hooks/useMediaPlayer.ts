@@ -76,7 +76,25 @@ export function useMediaPlayer() {
         if (lyrics && lyrics.lines.length > 0) {
           const newIndex = findLineIndex(lyrics.lines, now)
           if (newIndex !== currentLineIndex) {
+            // 한 문장 재생 후 자동 멈춤: 직전 문장(currentLineIndex)이 끝나 다음
+            // 라인으로 넘어가는 경계에서 일시정지. 구간 반복(checkedLines) 중이거나
+            // intro(-1)에서 첫 라인 진입은 제외한다 (#107).
+            const { autoStopAfterLine, checkedLines } = store.getState()
+            const shouldAutoStop =
+              autoStopAfterLine &&
+              checkedLines.size === 0 &&
+              currentLineIndex >= 0 &&
+              newIndex > currentLineIndex
             setCurrentLineIndex(newIndex)
+            if (shouldAutoStop) {
+              const boundary = lyrics.lines[newIndex].time
+              media.currentTime = boundary
+              media.pause()
+              store.getState().setCurrentTime(boundary)
+              store.getState().setStatus('paused')
+              stopRafLoop()
+              return
+            }
           }
         }
 
@@ -186,6 +204,12 @@ export function useMediaPlayer() {
     const clamped = Math.max(0, Math.min(time, media.duration || 0))
     media.currentTime = clamped
     store.getState().setCurrentTime(clamped)
+    // 자동 멈춤이 새 위치의 문장을 끝까지 재생하도록 currentLineIndex 를 함께
+    // 동기화한다(seek 후 rAF 첫 tick 의 거짓 경계 검출 방지) (#107).
+    const { lyrics } = store.getState()
+    if (lyrics && lyrics.lines.length > 0) {
+      store.getState().setCurrentLineIndex(findLineIndex(lyrics.lines, clamped))
+    }
   }, [])
 
   const loadFile = useCallback(
