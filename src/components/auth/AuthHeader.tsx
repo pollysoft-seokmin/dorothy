@@ -5,6 +5,7 @@ import { DorothyMark } from '~/components/brand/DorothyMark'
 import { useSession } from '~/lib/auth-client'
 import { useUiStore } from '~/stores/ui-store'
 import { usePlayerStore } from '~/stores/player-store'
+import { displayName } from '~/lib/user-display'
 
 // 데스크톱·모바일 공통 30x30 그린 그라데이션 원형 아바타 + 이니셜.
 // 디자인 명세: width/height 30, font 12px, weight 700, color #000,
@@ -45,7 +46,9 @@ export function AuthHeader() {
 
   // 계정은 같은 isAccountSheetOpen 슬라이스로 모바일=Bottom Sheet, 데스크톱=
   // 중앙 모달로 표시. 풀페이지 /account 라우트는 더 이상 존재하지 않는다 (#75).
-  const initial = data?.user?.email?.[0]?.toUpperCase() ?? '?'
+  // 타이틀 표기는 이름(미설정 시 이메일 prefix CamelCase) — 내 계정과 동일 (#114).
+  const name = data?.user ? displayName(data.user) : ''
+  const initial = name[0]?.toUpperCase() ?? '?'
 
   return (
     <header className="flex items-center justify-between border-b border-border dark:border-white/15 px-4 py-3 sm:px-6">
@@ -105,7 +108,7 @@ export function AuthHeader() {
               className="hidden lg:inline-flex items-center gap-3.5 cursor-pointer rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               <span className="text-[13px] text-muted-foreground transition-colors hover:text-foreground">
-                {data.user.email}
+                {name}
               </span>
               <AccountAvatar initial={initial} />
             </button>

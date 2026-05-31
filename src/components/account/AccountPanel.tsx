@@ -8,6 +8,7 @@ import { StorageGauge } from '~/components/library/library-atoms'
 import { ThemeToggle } from '~/components/theme/ThemeToggle'
 import { usePlayerStore } from '~/stores/player-store'
 import { cn } from '~/lib/utils'
+import { displayName as deriveDisplayName } from '~/lib/user-display'
 
 type Usage = Awaited<ReturnType<typeof getStorageUsage>>
 
@@ -206,10 +207,9 @@ export function AccountPanel({ active, onClose }: AccountPanelProps) {
 
   if (!data?.user) return null
 
-  // 이름 미설정 시 이메일 @ 앞부분으로 폴백 표시.
-  const emailPrefix = (data.user.email ?? '').split('@')[0]
-  const displayName = data.user.name?.trim() ? data.user.name : emailPrefix
-  const initial = displayName?.[0]?.toUpperCase() ?? 'U'
+  // 이름 미설정 시 이메일 @ 앞부분 CamelCase 로 폴백 — 타이틀과 동일 (#114).
+  const displayName = deriveDisplayName(data.user)
+  const initial = displayName[0]?.toUpperCase() ?? 'U'
 
   return (
     <>
