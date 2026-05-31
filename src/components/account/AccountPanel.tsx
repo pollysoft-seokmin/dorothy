@@ -168,12 +168,12 @@ export function AccountPanel({ active, onClose }: AccountPanelProps) {
 
         <div className="mt-3.5 flex items-center justify-between gap-3">
           <span className="text-sm font-bold text-foreground">
-            한 문장 재생 후 자동 멈춤
+            구간 재생 후 자동 멈춤
           </span>
           <SettingSwitch
             checked={autoStopAfterLine}
             onChange={setAutoStopAfterLine}
-            label="한 문장 재생 후 자동 멈춤"
+            label="구간 재생 후 자동 멈춤"
           />
         </div>
       </div>

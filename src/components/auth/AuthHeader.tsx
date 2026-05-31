@@ -48,7 +48,7 @@ export function AuthHeader() {
   const initial = data?.user?.email?.[0]?.toUpperCase() ?? '?'
 
   return (
-    <header className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6">
+    <header className="flex items-center justify-between border-b border-border dark:border-white/15 px-4 py-3 sm:px-6">
       <div className="flex items-center gap-2">
         {showLibraryTrigger && (
           <>
