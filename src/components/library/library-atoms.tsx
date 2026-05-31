@@ -468,18 +468,16 @@ interface RowDensityProps {
 
 interface FolderRowProps extends RowDensityProps {
   name: string
-  count?: number | null
   onClick: () => void
   actions?: React.ReactNode
 }
 
-export function FolderRow({ name, count, onClick, actions, density = 'comfortable' }: FolderRowProps) {
+export function FolderRow({ name, onClick, actions, density = 'comfortable' }: FolderRowProps) {
   const rowCls =
     density === 'compact'
       ? 'gap-3 rounded-md px-2 py-2'
       : 'gap-3.5 rounded px-1 py-2.5'
   const nameCls = density === 'compact' ? 'text-[13px]' : 'text-[15px]'
-  const subCls = density === 'compact' ? 'text-[11px]' : 'text-xs'
   return (
     <div className={cn('group flex items-center', rowCls, 'hover:bg-white/[0.04]')}>
       <button
@@ -496,9 +494,6 @@ export function FolderRow({ name, count, onClick, actions, density = 'comfortabl
             )}
           >
             {name}
-          </span>
-          <span className={cn(subCls, 'mt-0.5 block text-text-dim')}>
-            {count !== null && count !== undefined ? `${count}개 항목` : '폴더'}
           </span>
         </span>
         {!actions && (
