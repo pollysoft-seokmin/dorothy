@@ -53,12 +53,6 @@ const TYPE_ICON: Record<LibraryMediaType | 'folder', typeof Music> = {
   folder: Folder,
 }
 
-const TYPE_LABEL: Record<LibraryMediaType, string> = {
-  audio: '오디오',
-  video: '영상',
-  lyrics: '가사',
-}
-
 // ─────────────────────────────────────────────────────────
 // StorageGauge — 6px 세그먼트 가로 바 + 라벨 + 6px 도트 범례
 // ─────────────────────────────────────────────────────────
@@ -543,7 +537,6 @@ export function AssetRow({
       ? 'gap-3 rounded-md px-2 py-2'
       : 'gap-3.5 rounded px-1 py-2.5'
   const nameCls = density === 'compact' ? 'text-[13px]' : 'text-[15px]'
-  const subCls = density === 'compact' ? 'text-[11px]' : 'text-xs'
   return (
     <div
       className={cn(
@@ -572,16 +565,6 @@ export function AssetRow({
             title={asset.name}
           >
             {asset.name}
-          </span>
-          <span
-            className={cn(
-              subCls,
-              'mt-0.5 flex items-center gap-1.5 text-text-dim',
-            )}
-          >
-            <span>{TYPE_LABEL[kind]}</span>
-            <span>·</span>
-            <span className="font-mono">{formatBytes(asset.sizeBytes)}</span>
           </span>
         </span>
       </button>
