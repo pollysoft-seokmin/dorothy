@@ -120,7 +120,7 @@ export function LyricsPanel({
       ref={containerRef}
       className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-thin py-4"
     >
-      <div className="flex flex-col gap-1">
+      <div className="flex min-h-full flex-col justify-center gap-1">
         {lyrics.lines.map((line, i) => {
           const { primary, secondary } = pickLineTexts(line, language)
           const position: LyricPosition =
