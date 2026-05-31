@@ -49,6 +49,9 @@ export function useMediaPlayer() {
   const objectUrlRef = useRef<string | null>(null)
   const rafRef = useRef<number>(0)
   const lastSyncRef = useRef<number>(0)
+  // "한 문장 재생 후 자동 멈춤"용 — 현재 문장이 끝나는 시각(다음 라인 시작).
+  // play()/seek() 에서 현재 위치 기준으로 설정하고, rAF 가 도달 시 소비한다.
+  const autoStopAtRef = useRef<number | null>(null)
   // 빠른 연속 클릭 시 늦게 도착한 이전 트랙의 가사가 새 트랙을 덮어쓰지 않도록
   // 매 loadUrl 호출마다 generation을 증가시키고, 비동기 가사 로드 완료 시점에
   // 비교해서 stale이면 무시한다.
@@ -76,25 +79,29 @@ export function useMediaPlayer() {
         if (lyrics && lyrics.lines.length > 0) {
           const newIndex = findLineIndex(lyrics.lines, now)
           if (newIndex !== currentLineIndex) {
-            // 한 문장 재생 후 자동 멈춤: 직전 문장(currentLineIndex)이 끝나 다음
-            // 라인으로 넘어가는 경계에서 일시정지. 구간 반복(checkedLines) 중이거나
-            // intro(-1)에서 첫 라인 진입은 제외한다 (#107).
-            const { autoStopAfterLine, checkedLines } = store.getState()
-            const shouldAutoStop =
-              autoStopAfterLine &&
-              checkedLines.size === 0 &&
-              currentLineIndex >= 0 &&
-              newIndex > currentLineIndex
             setCurrentLineIndex(newIndex)
-            if (shouldAutoStop) {
-              const boundary = lyrics.lines[newIndex].time
-              media.currentTime = boundary
-              media.pause()
-              store.getState().setCurrentTime(boundary)
-              store.getState().setStatus('paused')
-              stopRafLoop()
-              return
+          }
+        }
+
+        // 한 문장 재생 후 자동 멈춤 — 재생/seek 시점에 정해둔 문장 끝(autoStopAtRef)에
+        // 도달하면 일시정지. 도달한 타깃은 옵션과 무관하게 소비하고, 옵션이 켜져
+        // 있고 구간 반복 중이 아닐 때만 실제로 멈춘다 (#107).
+        if (autoStopAtRef.current != null && now >= autoStopAtRef.current) {
+          const target = autoStopAtRef.current
+          autoStopAtRef.current = null
+          const { autoStopAfterLine, checkedLines } = store.getState()
+          if (autoStopAfterLine && checkedLines.size === 0) {
+            media.currentTime = target
+            media.pause()
+            store.getState().setCurrentTime(target)
+            if (lyrics && lyrics.lines.length > 0) {
+              store.getState().setCurrentLineIndex(
+                findLineIndex(lyrics.lines, target),
+              )
             }
+            store.getState().setStatus('paused')
+            stopRafLoop()
+            return
           }
         }
 
@@ -170,14 +177,40 @@ export function useMediaPlayer() {
     return hi
   }
 
+  // 현재 재생 위치가 속한 문장(가사 라인)의 끝 시각을 자동 멈춤 타깃으로 잡는다.
+  // intro(라인 이전)면 첫 문장(0)을 한 문장으로 본다. 가사가 없으면 타깃 없음.
+  const armAutoStop = useCallback(() => {
+    const media = mediaRef.current
+    if (!media) {
+      autoStopAtRef.current = null
+      return
+    }
+    const { lyrics, duration } = store.getState()
+    if (!lyrics || lyrics.lines.length === 0) {
+      autoStopAtRef.current = null
+      return
+    }
+    const now = media.currentTime
+    const lines = lyrics.lines
+    const sentence = Math.max(findLineIndex(lines, now), 0)
+    const end =
+      sentence + 1 < lines.length
+        ? lines[sentence + 1].time
+        : Number.isFinite(media.duration)
+          ? media.duration
+          : duration
+    autoStopAtRef.current = end > now ? end : null
+  }, [])
+
   const play = useCallback(() => {
     const media = mediaRef.current
     if (!media || !media.src) return
     media.play().then(() => {
       store.getState().setStatus('playing')
+      armAutoStop()
       startRafLoop()
     })
-  }, [startRafLoop])
+  }, [startRafLoop, armAutoStop])
 
   const pause = useCallback(() => {
     const media = mediaRef.current
@@ -210,7 +243,9 @@ export function useMediaPlayer() {
     if (lyrics && lyrics.lines.length > 0) {
       store.getState().setCurrentLineIndex(findLineIndex(lyrics.lines, clamped))
     }
-  }, [])
+    // 새 위치 기준으로 자동 멈춤 타깃 재설정 — 현재 문장을 끝까지 재생하도록.
+    armAutoStop()
+  }, [armAutoStop])
 
   const loadFile = useCallback(
     async (file: File) => {
