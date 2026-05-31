@@ -5,19 +5,16 @@ import { DorothyMark } from '~/components/brand/DorothyMark'
 import { useSession } from '~/lib/auth-client'
 import { useUiStore } from '~/stores/ui-store'
 import { usePlayerStore } from '~/stores/player-store'
-import { displayName } from '~/lib/user-display'
+import { displayName, avatarColor } from '~/lib/user-display'
 
-// 데스크톱·모바일 공통 30x30 그린 그라데이션 원형 아바타 + 이니셜.
-// 디자인 명세: width/height 30, font 12px, weight 700, color #000,
-// linear-gradient(135deg, #1DB954 0%, #0E7C39 100%).
-function AccountAvatar({ initial }: { initial: string }) {
+// 데스크톱·모바일 공통 30x30 원형 아바타 + 이니셜. 배경은 이메일 해시 기반
+// 24색 팔레트 중 하나(avatarColor)로 사용자마다 항상 동일, 흰 글자 (#114).
+function AccountAvatar({ initial, color }: { initial: string; color: string }) {
   return (
     <span
       aria-hidden
-      className="grid size-[30px] shrink-0 place-items-center rounded-full text-xs font-bold text-background"
-      style={{
-        background: 'linear-gradient(135deg, #1DB954 0%, #0E7C39 100%)',
-      }}
+      className="grid size-[30px] shrink-0 place-items-center rounded-full text-xs font-bold text-white"
+      style={{ background: color }}
     >
       {initial}
     </span>
@@ -49,6 +46,7 @@ export function AuthHeader() {
   // 타이틀 표기는 이름(미설정 시 이메일 prefix CamelCase) — 내 계정과 동일 (#114).
   const name = data?.user ? displayName(data.user) : ''
   const initial = name[0]?.toUpperCase() ?? '?'
+  const avatarBg = data?.user ? avatarColor(data.user.email ?? '') : ''
 
   return (
     <header className="flex items-center justify-between border-b border-border dark:border-white/15 px-4 py-3 sm:px-6">
@@ -95,7 +93,7 @@ export function AuthHeader() {
               aria-label={`내 계정 (${data.user.email})`}
               className="lg:hidden cursor-pointer rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
-              <AccountAvatar initial={initial} />
+              <AccountAvatar initial={initial} color={avatarBg} />
             </button>
 
             {/* 데스크톱: 이메일 텍스트 + 아바타 → 중앙 모달 트리거 (모바일과
@@ -110,7 +108,7 @@ export function AuthHeader() {
               <span className="text-[13px] text-muted-foreground transition-colors hover:text-foreground">
                 {name}
               </span>
-              <AccountAvatar initial={initial} />
+              <AccountAvatar initial={initial} color={avatarBg} />
             </button>
           </>
         ) : (

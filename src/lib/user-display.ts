@@ -18,3 +18,21 @@ export function displayName(user: {
   const prefix = (user.email ?? '').split('@')[0]
   return toCamelCase(prefix) || prefix
 }
+
+// 이니셜 아바타 색 — 이메일을 해싱해 24색 팔레트 중 하나를 항상 동일하게 고른다.
+// 팔레트는 색상환을 24등분(15° 간격)한 hsl 로, 흰 글자와 대비되도록 진한 톤.
+const AVATAR_COLOR_COUNT = 24
+
+function hashString(s: string): number {
+  let h = 0
+  for (let i = 0; i < s.length; i++) {
+    h = (Math.imul(h, 31) + s.charCodeAt(i)) | 0
+  }
+  return Math.abs(h)
+}
+
+export function avatarColor(email: string): string {
+  const index = hashString(email) % AVATAR_COLOR_COUNT
+  const hue = index * (360 / AVATAR_COLOR_COUNT)
+  return `hsl(${hue} 65% 40%)`
+}

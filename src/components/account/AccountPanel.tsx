@@ -8,7 +8,10 @@ import { StorageGauge } from '~/components/library/library-atoms'
 import { ThemeToggle } from '~/components/theme/ThemeToggle'
 import { usePlayerStore } from '~/stores/player-store'
 import { cn } from '~/lib/utils'
-import { displayName as deriveDisplayName } from '~/lib/user-display'
+import {
+  displayName as deriveDisplayName,
+  avatarColor,
+} from '~/lib/user-display'
 
 type Usage = Awaited<ReturnType<typeof getStorageUsage>>
 
@@ -210,6 +213,7 @@ export function AccountPanel({ active, onClose }: AccountPanelProps) {
   // 이름 미설정 시 이메일 @ 앞부분 CamelCase 로 폴백 — 타이틀과 동일 (#114).
   const displayName = deriveDisplayName(data.user)
   const initial = displayName[0]?.toUpperCase() ?? 'U'
+  const avatarBg = avatarColor(data.user.email ?? '')
 
   return (
     <>
@@ -218,13 +222,8 @@ export function AccountPanel({ active, onClose }: AccountPanelProps) {
       <div className="rounded-xl bg-secondary p-4">
         <div className="flex items-start gap-3.5">
           <div
-            className="grid shrink-0 place-items-center rounded-full text-xl font-extrabold text-background"
-            style={{
-              width: 52,
-              height: 52,
-              background:
-                'linear-gradient(135deg, #1DB954 0%, #0E7C39 100%)',
-            }}
+            className="grid shrink-0 place-items-center rounded-full text-xl font-extrabold text-white"
+            style={{ width: 52, height: 52, background: avatarBg }}
           >
             {initial}
           </div>
