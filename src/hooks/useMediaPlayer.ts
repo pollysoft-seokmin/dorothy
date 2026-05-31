@@ -192,7 +192,11 @@ export function useMediaPlayer() {
     }
     const now = media.currentTime
     const lines = lyrics.lines
-    const sentence = Math.max(findLineIndex(lines, now), 0)
+    // 라인 경계 직전(앞 문장 끝에서 자동 멈춤 후 재생 시, mp3 seek 정밀도로
+    // currentTime 이 다음 라인 시작보다 아주 약간 앞에 떨어지는 케이스)을 다음
+    // 문장 시작으로 보정 — 안 하면 그 문장을 못 잡아 재생 직후 곧바로 멈춘다.
+    const EPSILON = 0.05
+    const sentence = Math.max(findLineIndex(lines, now + EPSILON), 0)
     const end =
       sentence + 1 < lines.length
         ? lines[sentence + 1].time
