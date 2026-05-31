@@ -118,9 +118,11 @@ export function LyricsPanel({
   return (
     <div
       ref={containerRef}
-      className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-thin py-4"
+      className="flex flex-1 min-h-0 flex-col overflow-y-auto overflow-x-hidden scrollbar-thin py-4"
     >
-      <div className="flex min-h-full flex-col justify-center gap-1">
+      {/* my-auto: 가사가 짧으면 세로 중앙 정렬, 넘치면 margin 이 0으로 접혀
+          상단부터 정상 스크롤(justify-center 의 상단 클리핑 회피). */}
+      <div className="my-auto flex flex-col gap-1">
         {lyrics.lines.map((line, i) => {
           const { primary, secondary } = pickLineTexts(line, language)
           const position: LyricPosition =
