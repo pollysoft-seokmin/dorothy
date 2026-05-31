@@ -10,7 +10,7 @@
 :root {
   --background: #FFFFFF;
   --foreground: #0A0A0A;
-  --card: #F7F7F7;
+  --card: #FFFFFF;
   --card-foreground: #0A0A0A;
   --popover: #FFFFFF;
   --popover-foreground: #0A0A0A;
@@ -26,7 +26,7 @@
   --accent-foreground: #0A0A0A;
   --destructive: #E0394B;
   --destructive-foreground: #FFFFFF;
-  --border: rgba(0, 0, 0, 0.10);
+  --border: #E5E7EB;
   --input: #E8E8E8;
   --ring: rgba(0, 0, 0, 0.3);
   --text-dim: #8A8A8A;
