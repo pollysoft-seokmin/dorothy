@@ -2,6 +2,7 @@ import { Link, useRouterState } from '@tanstack/react-router'
 import { Library, LogIn, Plus } from 'lucide-react'
 import { Button } from '~/components/ui/button'
 import { DorothyMark } from '~/components/brand/DorothyMark'
+import { ThemeToggle } from '~/components/theme/ThemeToggle'
 import { useSession } from '~/lib/auth-client'
 import { useUiStore } from '~/stores/ui-store'
 import { usePlayerStore } from '~/stores/player-store'
@@ -81,6 +82,10 @@ export function AuthHeader() {
         </Link>
       </div>
       <div className="flex items-center gap-2 text-sm">
+        {/* 테마 선택 — 데스크톱 툴바에 항상 노출(로그인 무관). */}
+        <div className="hidden lg:flex">
+          <ThemeToggle />
+        </div>
         {isPending ? (
           <span className="text-muted-foreground">…</span>
         ) : data?.user ? (

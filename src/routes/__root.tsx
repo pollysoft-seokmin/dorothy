@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import {
   Outlet,
   HeadContent,
@@ -8,7 +9,13 @@ import { Toaster } from 'sonner'
 import { AuthHeader } from '~/components/auth/AuthHeader'
 import { MobileAccountSheet } from '~/components/account/MobileAccountSheet'
 import { DesktopAccountModal } from '~/components/account/DesktopAccountModal'
+import { useThemeStore } from '~/stores/theme-store'
+import { applyTheme, THEME_STORAGE_KEY } from '~/lib/theme'
 import appCss from '~/styles/app.css?url'
+
+// 하이드레이션 전에 동기 실행돼 저장된 테마를 <html> 에 적용 — 라이트/다크
+// 전환 시 첫 페인트 FOUC 를 막는다 (#107).
+const themeInitScript = `(function(){try{var t=localStorage.getItem('${THEME_STORAGE_KEY}')||'system';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}})();`
 
 export const Route = createRootRoute({
   head: () => ({
@@ -40,10 +47,23 @@ export const Route = createRootRoute({
 })
 
 function RootDocument() {
+  // 마운트 시 store 를 localStorage 값으로 하이드레이트하고, theme='system'
+  // 인 동안 OS 다크모드 변경에 반응한다.
+  useEffect(() => {
+    useThemeStore.getState().init()
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const onChange = () => {
+      if (useThemeStore.getState().theme === 'system') applyTheme('system')
+    }
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+
   return (
     <html lang="ko">
       <head>
         <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="h-dvh overflow-hidden bg-background text-foreground antialiased flex flex-col">
         <AuthHeader />
