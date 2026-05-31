@@ -48,7 +48,7 @@ function maskText(text: string, state: 0 | 1 | 2): string {
 // row 컨테이너에 py-1 (위/아래 4px) 호흡 여백.
 // 본문이 비어 있어도(단일 언어 모드 + 결측 라인) 라인 row 가 접히지 않게
 // primary div 에 min-h-6 (24px) 을 둬 스크롤 점프를 막는다.
-export const LyricLine = forwardRef<HTMLButtonElement, LyricLineProps>(
+export const LyricLine = forwardRef<HTMLDivElement, LyricLineProps>(
   (
     {
       primary,
@@ -97,9 +97,11 @@ export const LyricLine = forwardRef<HTMLButtonElement, LyricLineProps>(
           aria-hidden="true"
         />
 
-        <button
+        {/* 자막 본문 — 버튼이 아닌 div(role=button) + onClick. 키보드 트래버스는
+            부모 가사 영역에서 처리하므로 tabIndex=-1. */}
+        <div
           ref={ref}
-          type="button"
+          role="button"
           onClick={onClick}
           tabIndex={-1}
           className={cn(
@@ -129,7 +131,7 @@ export const LyricLine = forwardRef<HTMLButtonElement, LyricLineProps>(
               {secondaryDisplay}
             </div>
           )}
-        </button>
+        </div>
       </div>
     )
   },
