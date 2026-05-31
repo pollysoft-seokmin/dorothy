@@ -109,7 +109,7 @@ export const LyricLine = forwardRef<HTMLButtonElement, LyricLineProps>(
         >
           <div
             className={cn(
-              'min-h-6 whitespace-pre-line break-words text-[14px] leading-tight tracking-[-0.02em] transition-all duration-300',
+              'mt-2 min-h-6 whitespace-pre-line break-words text-[14px] leading-tight tracking-[-0.02em] transition-all duration-300',
               isActive
                 ? 'font-extrabold text-foreground'
                 : isPast
