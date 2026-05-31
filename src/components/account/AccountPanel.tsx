@@ -72,11 +72,14 @@ function NameEditDialog({
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      {/* 클릭-아웃 닫기용 투명 오버레이. 계정 모달 위에 딤/블러를 덧대면 흰
+          카드가 프로스티드 사각형으로 떠 보여(라이트 테마) 어색하므로, 추가
+          스크림 없이 팝업 카드의 그림자만으로 부각시킨다. */}
       <button
         type="button"
         aria-label="닫기"
         onClick={onClose}
-        className="absolute inset-0 bg-black/55 backdrop-blur-[4px]"
+        className="absolute inset-0"
       />
       <div
         role="dialog"
