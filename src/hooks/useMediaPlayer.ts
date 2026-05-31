@@ -137,6 +137,20 @@ export function useMediaPlayer() {
               // 마지막 회차 종료 — 체크 자동 해제 (clearCheckedLines가
               // repeatCount/repeatCurrent까지 리셋하므로 다음 tick부터 분기 미진입).
               store.getState().clearCheckedLines()
+              // 자동 멈춤 ON 이면 구간 내 문장별 정지는 건너뛰고, 반복이 끝나는
+              // 이 시점(구간 끝)에서 일시정지한다 (#107).
+              if (store.getState().autoStopAfterLine) {
+                autoStopAtRef.current = null
+                media.currentTime = sectionEnd
+                media.pause()
+                store.getState().setCurrentTime(sectionEnd)
+                store
+                  .getState()
+                  .setCurrentLineIndex(findLineIndex(lyrics.lines, sectionEnd))
+                store.getState().setStatus('paused')
+                stopRafLoop()
+                return
+              }
             }
           }
         }
