@@ -54,7 +54,7 @@ function Home() {
           aria-hidden={!isDesktopLibraryOpen}
           className={`absolute inset-y-0 left-0 z-30 flex w-[340px] flex-col overflow-hidden border-r bg-card transition-transform duration-250 ease-out ${
             isDesktopLibraryOpen
-              ? 'translate-x-0 shadow-[12px_0_40px_-8px_rgba(0,0,0,0.55)]'
+              ? 'translate-x-0 shadow-[6px_0_18px_-10px_rgba(0,0,0,0.35)]'
               : '-translate-x-full pointer-events-none'
           }`}
         >
