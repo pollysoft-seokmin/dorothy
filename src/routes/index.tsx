@@ -34,6 +34,7 @@ function Home() {
   const isLgUp = useIsLgUp()
 
   const isDesktopLibraryOpen = useUiStore((s) => s.isDesktopLibraryOpen)
+  const closeDesktopLibrary = useUiStore((s) => s.closeDesktopLibrary)
 
   return (
     <main className="relative flex-1 min-h-0 flex">
@@ -42,6 +43,17 @@ function Home() {
       <div className="flex-1 flex items-stretch justify-center min-w-0">
         <AudioPlayer player={player} isLoggedIn={!!userId} />
       </div>
+      {userId && isLgUp && isDesktopLibraryOpen && (
+        // 패널 바깥(재생 화면) 클릭 시 닫기. 투명 click-catcher 라 화면을 덮어
+        // 가리진 않는다. z-20 으로 패널(z-30)·행 메뉴/폴더 생성 팝업 portal(z-50)
+        // 보다 아래라, 그 위젯들 클릭은 가로채지 않고 본문 클릭만 닫기로 잡는다.
+        <button
+          type="button"
+          aria-label="내 미디어 닫기"
+          onClick={closeDesktopLibrary}
+          className="absolute inset-0 z-20 cursor-default"
+        />
+      )}
       {userId && isLgUp && (
         // 좌측 도킹 floating 패널 — push 대신 재생 화면 위로 슬라이드 인/아웃 (#118).
         // 열림/닫힘 transition 을 위해 상시 마운트하고 isDesktopLibraryOpen 으로

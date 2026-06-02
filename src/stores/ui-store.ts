@@ -14,6 +14,7 @@ interface UiStore {
   // 타이틀의 Library 토글 버튼으로 보였다/숨겼다 한다 (#100).
   isDesktopLibraryOpen: boolean
   toggleDesktopLibrary: () => void
+  closeDesktopLibrary: () => void
 
   // 계정 정보(프로필 + 스토리지 + 최근 재생) 열림 상태 — 같은 슬라이스로
   // 모바일=Bottom Sheet, 데스크톱=중앙 모달이 분기된다. 슬라이스명은 모바일이
@@ -38,6 +39,7 @@ export const useUiStore = create<UiStore>((set) => ({
   isDesktopLibraryOpen: true,
   toggleDesktopLibrary: () =>
     set((s) => ({ isDesktopLibraryOpen: !s.isDesktopLibraryOpen })),
+  closeDesktopLibrary: () => set({ isDesktopLibraryOpen: false }),
 
   isAccountSheetOpen: false,
   openAccountSheet: () => set({ isAccountSheetOpen: true }),
