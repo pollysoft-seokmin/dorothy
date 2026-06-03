@@ -120,23 +120,19 @@ export type UploadAggregate = {
   uploading: boolean
 }
 
-// 구간(segment) 모델 — 전체 진행 바를 "모든 파일의 단계 수 합"으로 균등 분할한다.
-// 변환을 거치는 파일은 2구간(변환·업로드), 아니면 1구간(업로드). 한 파일이 소비한
-// 구간 수 = step + 현재 step 내부 진행(progress/100), done/error 는 자기 구간 전부.
-// 분모(전체 구간 수)는 시작 전 계획 단계에서 확정되므로 진행 중 줄지 않는다.
-function itemSegmentsTotal(p: PendingItem): number {
-  return p.segments && p.segments > 0 ? p.segments : 1
-}
-function itemSegmentsDone(p: PendingItem): number {
-  const segs = itemSegmentsTotal(p)
-  if (p.phase === 'done' || p.phase === 'error') return segs
-  const within = (step: number) => step + (p.progress || 0) / 100
-  const v = within(p.step ?? 0)
-  return v < 0 ? 0 : v > segs ? segs : v
+// 한 파일의 0..1 진행도. 파일은 전체 바에서 동일한 몫(1/N)을 차지한다. 변환을
+// 거치는 파일은 segments=2 로 변환이 앞 절반(step 0, 0→0.5)·업로드가 뒤 절반
+// (step 1, 0.5→1)을 채운다. 변환 없는 파일은 segments=1 로 업로드가 0→1 전체를
+// 채운다. done/error 는 1. (step + progress/100)/segments 라 단계 전환에도 모노토닉.
+function itemFraction(p: PendingItem): number {
+  if (p.phase === 'done' || p.phase === 'error') return 1
+  const segs = p.segments && p.segments > 0 ? p.segments : 1
+  const f = ((p.step ?? 0) + (p.progress || 0) / 100) / segs
+  return f < 0 ? 0 : f > 1 ? 1 : f
 }
 
-// pending 배열을 요약 — 요약 셀과 헤더 진행 링이 공유한다. 게이지는 구간 기반
-// (소비 구간 합 / 전체 구간 합)이라 단계 전환·구간 경계에서도 모노토닉하다.
+// pending 배열을 요약 — 요약 셀과 헤더 진행 링이 공유한다. 게이지는 파일 동일
+// 가중 평균(각 파일 1/N)이라, 분모가 파일 수로 고정되어 진행 중 내려가지 않는다.
 // total/processed 카운트는 파일 단위 라벨용("3/5").
 export function uploadAggregate(items: PendingItem[]): UploadAggregate {
   const total = items.length
@@ -145,9 +141,8 @@ export function uploadAggregate(items: PendingItem[]): UploadAggregate {
     (p) => p.phase === 'done' || p.phase === 'error',
   ).length
   const active = items.find(isUploadActive) ?? null
-  const segTotal = items.reduce((s, p) => s + itemSegmentsTotal(p), 0)
-  const segDone = items.reduce((s, p) => s + itemSegmentsDone(p), 0)
-  const fraction = segTotal === 0 ? 0 : segDone / segTotal
+  const fraction =
+    total === 0 ? 0 : items.reduce((s, p) => s + itemFraction(p), 0) / total
   return {
     total,
     processed,
