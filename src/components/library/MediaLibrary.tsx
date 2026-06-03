@@ -11,6 +11,7 @@ import {
   detectFileMediaType,
   formatBytes,
   needsVideoTranscode,
+  resolveUploadMime,
   type AssetItem,
   type FavoriteItem,
   type FolderListItem,
@@ -428,7 +429,7 @@ export function MediaLibrary({ userId, onPlay }: Props) {
         let finalMime =
           job.mediaType === 'lyrics'
             ? 'application/octet-stream'
-            : job.file.type
+            : resolveUploadMime(job.file, job.mediaType)
 
         if (job.mediaType === 'video') {
           let need = false
