@@ -101,10 +101,14 @@ export async function transcodeToMp4(
   const inputName = `input.${origExt}`
   const outputName = 'output.mp4'
 
+  // ffmpeg.wasm 의 progress 이벤트는 out_time/duration 기반이라 비단조다 —
+  // 중간에 값이 출렁이거나 떨어질 수 있다. 진행 바가 뒤로 가지 않도록 클램프
+  // (0~1) 후 high-water-mark 로 단조 증가만 내보낸다.
+  let maxRatio = 0
   const handleProgress = ({ progress }: { progress: number }) => {
-    // ffmpeg는 가끔 1.0 을 넘는 값을 내보내거나 음수를 내보낼 수 있어 클램프
     const ratio = Math.max(0, Math.min(1, progress))
-    onProgress?.({ ratio })
+    if (ratio > maxRatio) maxRatio = ratio
+    onProgress?.({ ratio: maxRatio })
   }
   const handleLog = ({ type, message }: { type: string; message: string }) => {
     // ffmpeg stderr/stdout을 콘솔로 흘려 디버깅을 돕는다 (Playwright가 캡처)
