@@ -95,7 +95,12 @@ export type PendingItem = {
   mediaType: LibraryMediaType
   // 'done' = 업로드 성공(요약 셀의 전체/진행률 계산을 위해 잠시 유지하다 정리).
   phase: 'preparing' | 'transcoding' | 'uploading' | 'error' | 'done'
+  // 현재 단계(step)의 0..100 진행도.
   progress: number
+  // 이 파일의 단계 수와 현재 단계 인덱스. 변환을 거치면 steps=2(0=변환, 1=업로드),
+  // 아니면 steps=1(업로드만). 전체 진행률이 단계 전환 시 내려가지 않게 하는 근거.
+  steps?: number
+  step?: number
   errorMessage?: string
   folderId: string | null
 }
@@ -115,8 +120,19 @@ export type UploadAggregate = {
   uploading: boolean
 }
 
-// pending 배열을 요약 — 요약 셀과 헤더 진행 링이 공유한다. 진행률은 완료·실패=1,
-// 활성 파일=progress/100 로 보고 전체로 나눈 전체 배치 진행률.
+// 항목 하나의 0..1 진행도(모노토닉). 변환을 거치는 파일은 steps=2 로 변환이 앞
+// 절반(step 0), 업로드가 뒤 절반(step 1)을 차지한다. 단계 전환 시 progress 가 0으로
+// 리셋돼도 (step + progress/100)/steps 는 줄어들지 않는다. done/error 는 1로 본다.
+function itemFraction(p: PendingItem): number {
+  if (p.phase === 'done' || p.phase === 'error') return 1
+  const steps = p.steps && p.steps > 0 ? p.steps : 1
+  const step = p.step ?? 0
+  const f = (step + (p.progress || 0) / 100) / steps
+  return f < 0 ? 0 : f > 1 ? 1 : f
+}
+
+// pending 배열을 요약 — 요약 셀과 헤더 진행 링이 공유한다. 진행률은 각 파일의
+// 모노토닉 itemFraction 평균(파일 동일 가중) → 단계 전환에도 내려가지 않는다.
 export function uploadAggregate(items: PendingItem[]): UploadAggregate {
   const total = items.length
   const errorCount = items.filter((p) => p.phase === 'error').length
@@ -125,13 +141,7 @@ export function uploadAggregate(items: PendingItem[]): UploadAggregate {
   ).length
   const active = items.find(isUploadActive) ?? null
   const fraction =
-    total === 0
-      ? 0
-      : items.reduce(
-          (s, p) =>
-            s + (p.phase === 'done' || p.phase === 'error' ? 1 : p.progress / 100),
-          0,
-        ) / total
+    total === 0 ? 0 : items.reduce((s, p) => s + itemFraction(p), 0) / total
   return {
     total,
     processed,

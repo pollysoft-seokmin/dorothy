@@ -430,6 +430,9 @@ export function MediaLibrary({ userId, onPlay }: Props) {
           folderId: baseFolderId,
           phase: j.mediaType === 'video' ? 'preparing' : 'uploading',
           progress: 0,
+          // 단계 수는 변환 필요 여부가 확정되면(아래) 갱신. 기본 1(업로드만).
+          steps: 1,
+          step: 0,
         })),
       ])
 
@@ -445,6 +448,8 @@ export function MediaLibrary({ userId, onPlay }: Props) {
           job.mediaType === 'lyrics'
             ? 'application/octet-stream'
             : resolveUploadMime(job.file, job.mediaType)
+        // 변환을 거치는 파일은 2단계(변환=앞 절반, 업로드=뒤 절반)로 본다.
+        let didTranscode = false
 
         if (job.mediaType === 'video') {
           let need = false
@@ -457,7 +462,8 @@ export function MediaLibrary({ userId, onPlay }: Props) {
             const trailerBytes = await extractSamiTrailerBytes(job.file).catch(
               () => null,
             )
-            setItem(job.key, { phase: 'transcoding', progress: 0 })
+            // 2단계로 승격 — step 0(변환). 전체 게이지에서 이 파일은 0→0.5.
+            setItem(job.key, { phase: 'transcoding', progress: 0, steps: 2, step: 0 })
             try {
               const transcoded = await transcodeToMp4(job.file, ({ ratio }) => {
                 setItem(job.key, { progress: ratio * 100 })
@@ -473,6 +479,7 @@ export function MediaLibrary({ userId, onPlay }: Props) {
               }
               finalName = toUpload.name
               finalMime = 'video/mp4'
+              didTranscode = true
               setItem(job.key, { name: finalName })
             } catch (e) {
               const msg = e instanceof Error ? e.message : '변환 실패'
@@ -483,7 +490,13 @@ export function MediaLibrary({ userId, onPlay }: Props) {
           }
         }
 
-        setItem(job.key, { phase: 'uploading', progress: 0 })
+        // 업로드 step — 변환을 거쳤으면 2단계 중 step 1(0.5→1), 아니면 단일 단계.
+        setItem(job.key, {
+          phase: 'uploading',
+          progress: 0,
+          steps: didTranscode ? 2 : 1,
+          step: didTranscode ? 1 : 0,
+        })
         try {
           const pathname = `users/${userId}/${finalName}`
           const blob = await upload(pathname, toUpload, {
