@@ -12,14 +12,45 @@ const ALWAYS_TRANSCODE_EXTS = new Set([
   '3gp',
 ])
 
+// 확장자 기반 분류 — 드래그앤드롭(FileSystemFileEntry.file())으로 받은 파일은
+// File.type(MIME)이 비어 있는 경우가 많아 MIME 만으로는 audio/video 판별이 안 된다.
+// 확장자 폴백으로 분류/MIME 보강을 한다.
+const AUDIO_EXTS = new Set([
+  'mp3', 'm4a', 'aac', 'wav', 'ogg', 'oga', 'opus', 'flac', 'weba', 'mka',
+])
+const VIDEO_EXTS = new Set([
+  'mp4', 'm4v', 'webm', 'mov', 'mpg', 'mpeg', 'avi', 'mkv', 'flv', 'wmv', '3gp', 'ts', 'ogv',
+])
+
+// 확장자 → 대표 MIME. blob 업로드의 allowedContentTypes(audio/*|video/*) 통과와
+// 서버 confirmUpload 의 mime 기반 분류를 위해 비어 있는 type 을 채운다.
+const EXT_MIME: Record<string, string> = {
+  mp3: 'audio/mpeg', m4a: 'audio/mp4', aac: 'audio/aac', wav: 'audio/wav',
+  ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/opus', flac: 'audio/flac',
+  weba: 'audio/webm', mka: 'audio/x-matroska',
+  mp4: 'video/mp4', m4v: 'video/x-m4v', webm: 'video/webm', mov: 'video/quicktime',
+  mpg: 'video/mpeg', mpeg: 'video/mpeg', avi: 'video/x-msvideo', mkv: 'video/x-matroska',
+  flv: 'video/x-flv', wmv: 'video/x-ms-wmv', '3gp': 'video/3gpp', ts: 'video/mp2t', ogv: 'video/ogg',
+}
+
 export function getExt(name: string): string {
   return name.toLowerCase().split('.').pop() ?? ''
 }
 
 export async function needsVideoTranscode(file: File): Promise<boolean> {
-  if (!file.type.startsWith('video/')) return false
+  // file.type 이 비어 있어도 확장자로 비디오 여부를 판단(드롭 파일 대응).
+  if (detectFileMediaType(file) !== 'video') return false
   if (ALWAYS_TRANSCODE_EXTS.has(getExt(file.name))) return true
   return !(await probeVideoPlayable(file))
+}
+
+// 업로드 시 사용할 contentType — 비어 있거나 audio/video 가 아니면 확장자에서
+// 보강한다. lyrics 는 호출부에서 application/octet-stream 으로 지정한다.
+export function resolveUploadMime(file: File, mediaType: 'audio' | 'video'): string {
+  if (file.type.startsWith('audio/') || file.type.startsWith('video/')) return file.type
+  const byExt = EXT_MIME[getExt(file.name)]
+  if (byExt) return byExt
+  return mediaType === 'video' ? 'video/mp4' : 'audio/mpeg'
 }
 
 export type FolderRow = {
@@ -51,6 +82,10 @@ export function detectFileMediaType(file: File): LibraryMediaType | null {
   if (file.name.toLowerCase().endsWith('.lrc')) return 'lyrics'
   if (file.type.startsWith('audio/')) return 'audio'
   if (file.type.startsWith('video/')) return 'video'
+  // MIME 이 비거나 generic(빈 문자열/application/octet-stream)일 때 확장자로 폴백.
+  const ext = getExt(file.name)
+  if (AUDIO_EXTS.has(ext)) return 'audio'
+  if (VIDEO_EXTS.has(ext)) return 'video'
   return null
 }
 

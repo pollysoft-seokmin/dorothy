@@ -6,6 +6,12 @@ export type UploadEntry = { file: File; relPath: string[] }
 
 const MAX_DEPTH = 16
 
+// OS/도구가 만든 숨김·시스템 파일은 업로드 대상이 아니므로 조용히 제외한다.
+// 거르지 않으면 ".DS_Store 등은 지원 형식 아님" 토스트로 잡음이 생긴다.
+function isHiddenFile(name: string): boolean {
+  return name.startsWith('.') || name === 'Thumbs.db' || name === 'desktop.ini'
+}
+
 // 빈 세그먼트/현재·상위 경로 토큰 제거 + 깊이 제한.
 function sanitizeSegments(segments: string[]): string[] {
   return segments
@@ -17,12 +23,14 @@ function sanitizeSegments(segments: string[]): string[] {
 // <input webkitdirectory> 로 고른 파일들. 각 File.webkitRelativePath 가
 // "Root/sub/song.mp3" 형태이므로 마지막(파일명)을 뺀 앞부분이 폴더 경로.
 export function entriesFromInput(files: FileList | File[]): UploadEntry[] {
-  return Array.from(files).map((file) => {
-    const rel = (file as File & { webkitRelativePath?: string }).webkitRelativePath
-    if (!rel) return { file, relPath: [] }
-    const parts = rel.split('/')
-    return { file, relPath: sanitizeSegments(parts.slice(0, -1)) }
-  })
+  return Array.from(files)
+    .filter((file) => !isHiddenFile(file.name))
+    .map((file) => {
+      const rel = (file as File & { webkitRelativePath?: string }).webkitRelativePath
+      if (!rel) return { file, relPath: [] }
+      const parts = rel.split('/')
+      return { file, relPath: sanitizeSegments(parts.slice(0, -1)) }
+    })
 }
 
 function readAllEntries(
@@ -55,11 +63,12 @@ async function walkEntry(
   acc: UploadEntry[],
 ): Promise<void> {
   if (entry.isFile) {
+    if (isHiddenFile(entry.name)) return
     const file = await fileFromEntry(entry as FileSystemFileEntry)
     acc.push({ file, relPath: prefix })
     return
   }
-  if (entry.isDirectory && prefix.length < MAX_DEPTH) {
+  if (entry.isDirectory && !isHiddenFile(entry.name) && prefix.length < MAX_DEPTH) {
     const reader = (entry as FileSystemDirectoryEntry).createReader()
     const children = await readAllEntries(reader)
     const nextPrefix = [...prefix, entry.name]
