@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 
-export const QUOTA_BYTES = 1024 ** 3
+export const QUOTA_BYTES = 10 * 1024 ** 3
 
 const isCreateFolderInput = (
   v: unknown,
