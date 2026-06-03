@@ -237,6 +237,8 @@ export function MobileLibrarySheet({ userId, onPlay }: Props) {
           folderId: targetFolderId,
           phase: j.mediaType === 'video' ? 'preparing' : 'uploading',
           progress: 0,
+          steps: 1,
+          step: 0,
         })),
       ])
 
@@ -252,6 +254,8 @@ export function MobileLibrarySheet({ userId, onPlay }: Props) {
           job.mediaType === 'lyrics'
             ? 'application/octet-stream'
             : job.file.type
+        // 변환을 거치는 파일은 2단계(변환=앞 절반, 업로드=뒤 절반)로 본다.
+        let didTranscode = false
 
         if (job.mediaType === 'video') {
           let need = false
@@ -264,7 +268,7 @@ export function MobileLibrarySheet({ userId, onPlay }: Props) {
             const trailerBytes = await extractSamiTrailerBytes(job.file).catch(
               () => null,
             )
-            setItem(job.key, { phase: 'transcoding', progress: 0 })
+            setItem(job.key, { phase: 'transcoding', progress: 0, steps: 2, step: 0 })
             try {
               const transcoded = await transcodeToMp4(job.file, ({ ratio }) => {
                 setItem(job.key, { progress: ratio * 100 })
@@ -280,6 +284,7 @@ export function MobileLibrarySheet({ userId, onPlay }: Props) {
               }
               finalName = toUpload.name
               finalMime = 'video/mp4'
+              didTranscode = true
               setItem(job.key, { name: finalName })
             } catch (e) {
               const msg = e instanceof Error ? e.message : '변환 실패'
@@ -290,7 +295,12 @@ export function MobileLibrarySheet({ userId, onPlay }: Props) {
           }
         }
 
-        setItem(job.key, { phase: 'uploading', progress: 0 })
+        setItem(job.key, {
+          phase: 'uploading',
+          progress: 0,
+          steps: didTranscode ? 2 : 1,
+          step: didTranscode ? 1 : 0,
+        })
         try {
           const pathname = `users/${userId}/${finalName}`
           const blob = await upload(pathname, toUpload, {
