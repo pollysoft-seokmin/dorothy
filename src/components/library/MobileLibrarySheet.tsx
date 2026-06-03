@@ -237,7 +237,7 @@ export function MobileLibrarySheet({ userId, onPlay }: Props) {
           folderId: targetFolderId,
           phase: j.mediaType === 'video' ? 'preparing' : 'uploading',
           progress: 0,
-          steps: 1,
+          segments: j.mediaType === 'video' ? 2 : 1,
           step: 0,
         })),
       ])
@@ -247,59 +247,63 @@ export function MobileLibrarySheet({ userId, onPlay }: Props) {
           prev.map((p) => (p.key === key ? { ...p, ...patch } : p)),
         )
 
+      // 계획 단계 — 비디오 변환 필요 여부를 미리 probe 해 구간 수(분모)를 고정.
+      const willTranscode = new Map<string, boolean>()
       for (const job of jobs) {
+        let t = false
+        if (job.mediaType === 'video') {
+          try {
+            t = await needsVideoTranscode(job.file)
+          } catch {
+            t = false
+          }
+        }
+        willTranscode.set(job.key, t)
+        setItem(job.key, { segments: t ? 2 : 1 })
+      }
+
+      for (const job of jobs) {
+        const transcode = willTranscode.get(job.key) ?? false
         let toUpload: File = job.file
         let finalName = job.file.name
         let finalMime =
           job.mediaType === 'lyrics'
             ? 'application/octet-stream'
             : job.file.type
-        // 변환을 거치는 파일은 2단계(변환=앞 절반, 업로드=뒤 절반)로 본다.
-        let didTranscode = false
 
-        if (job.mediaType === 'video') {
-          let need = false
+        if (transcode) {
+          const trailerBytes = await extractSamiTrailerBytes(job.file).catch(
+            () => null,
+          )
+          setItem(job.key, { phase: 'transcoding', progress: 0, step: 0 })
           try {
-            need = await needsVideoTranscode(job.file)
-          } catch {
-            need = false
-          }
-          if (need) {
-            const trailerBytes = await extractSamiTrailerBytes(job.file).catch(
-              () => null,
-            )
-            setItem(job.key, { phase: 'transcoding', progress: 0, steps: 2, step: 0 })
-            try {
-              const transcoded = await transcodeToMp4(job.file, ({ ratio }) => {
-                setItem(job.key, { progress: ratio * 100 })
-              })
-              if (trailerBytes) {
-                toUpload = new File(
-                  [transcoded, trailerBytes],
-                  transcoded.name,
-                  { type: 'video/mp4', lastModified: Date.now() },
-                )
-              } else {
-                toUpload = transcoded
-              }
-              finalName = toUpload.name
-              finalMime = 'video/mp4'
-              didTranscode = true
-              setItem(job.key, { name: finalName })
-            } catch (e) {
-              const msg = e instanceof Error ? e.message : '변환 실패'
-              setItem(job.key, { phase: 'error', errorMessage: msg, progress: 0 })
-              toast.error(`${job.file.name}: 변환 실패`)
-              continue
+            const transcoded = await transcodeToMp4(job.file, ({ ratio }) => {
+              setItem(job.key, { progress: ratio * 100 })
+            })
+            if (trailerBytes) {
+              toUpload = new File(
+                [transcoded, trailerBytes],
+                transcoded.name,
+                { type: 'video/mp4', lastModified: Date.now() },
+              )
+            } else {
+              toUpload = transcoded
             }
+            finalName = toUpload.name
+            finalMime = 'video/mp4'
+            setItem(job.key, { name: finalName })
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : '변환 실패'
+            setItem(job.key, { phase: 'error', errorMessage: msg, progress: 0 })
+            toast.error(`${job.file.name}: 변환 실패`)
+            continue
           }
         }
 
         setItem(job.key, {
           phase: 'uploading',
           progress: 0,
-          steps: didTranscode ? 2 : 1,
-          step: didTranscode ? 1 : 0,
+          step: transcode ? 1 : 0,
         })
         try {
           const pathname = `users/${userId}/${finalName}`

@@ -430,8 +430,8 @@ export function MediaLibrary({ userId, onPlay }: Props) {
           folderId: baseFolderId,
           phase: j.mediaType === 'video' ? 'preparing' : 'uploading',
           progress: 0,
-          // 단계 수는 변환 필요 여부가 확정되면(아래) 갱신. 기본 1(업로드만).
-          steps: 1,
+          // 구간 수 잠정값(비디오는 변환 가정 2). 아래 계획 단계에서 확정.
+          segments: j.mediaType === 'video' ? 2 : 1,
           step: 0,
         })),
       ])
@@ -441,61 +441,68 @@ export function MediaLibrary({ userId, onPlay }: Props) {
           prev.map((p) => (p.key === key ? { ...p, ...patch } : p)),
         )
 
+      // 계획 단계 — 비디오의 변환 필요 여부를 미리 probe 해 파일별 구간 수(1 또는 2)를
+      // 확정한다. 전체 구간 수(분모)를 진행 시작 전에 고정해, 처리 중 분모 변동으로
+      // 게이지가 내려가는 일을 막는다. 모든 항목이 progress 0 이라 여기서 구간 수가
+      // 바뀌어도 게이지는 0 → 하락 없음.
+      const willTranscode = new Map<string, boolean>()
       for (const job of jobs) {
+        let t = false
+        if (job.mediaType === 'video') {
+          try {
+            t = await needsVideoTranscode(job.file)
+          } catch {
+            t = false
+          }
+        }
+        willTranscode.set(job.key, t)
+        setItem(job.key, { segments: t ? 2 : 1 })
+      }
+
+      for (const job of jobs) {
+        const transcode = willTranscode.get(job.key) ?? false
         let toUpload: File = job.file
         let finalName = job.file.name
         let finalMime =
           job.mediaType === 'lyrics'
             ? 'application/octet-stream'
             : resolveUploadMime(job.file, job.mediaType)
-        // 변환을 거치는 파일은 2단계(변환=앞 절반, 업로드=뒤 절반)로 본다.
-        let didTranscode = false
 
-        if (job.mediaType === 'video') {
-          let need = false
+        if (transcode) {
+          const trailerBytes = await extractSamiTrailerBytes(job.file).catch(
+            () => null,
+          )
+          // 변환 구간(step 0) — 이 파일의 첫 구간을 변환 상세 진행으로 채운다.
+          setItem(job.key, { phase: 'transcoding', progress: 0, step: 0 })
           try {
-            need = await needsVideoTranscode(job.file)
-          } catch {
-            need = false
-          }
-          if (need) {
-            const trailerBytes = await extractSamiTrailerBytes(job.file).catch(
-              () => null,
-            )
-            // 2단계로 승격 — step 0(변환). 전체 게이지에서 이 파일은 0→0.5.
-            setItem(job.key, { phase: 'transcoding', progress: 0, steps: 2, step: 0 })
-            try {
-              const transcoded = await transcodeToMp4(job.file, ({ ratio }) => {
-                setItem(job.key, { progress: ratio * 100 })
-              })
-              if (trailerBytes) {
-                toUpload = new File(
-                  [transcoded, trailerBytes],
-                  transcoded.name,
-                  { type: 'video/mp4', lastModified: Date.now() },
-                )
-              } else {
-                toUpload = transcoded
-              }
-              finalName = toUpload.name
-              finalMime = 'video/mp4'
-              didTranscode = true
-              setItem(job.key, { name: finalName })
-            } catch (e) {
-              const msg = e instanceof Error ? e.message : '변환 실패'
-              setItem(job.key, { phase: 'error', errorMessage: msg, progress: 0 })
-              toast.error(`${job.file.name}: 변환 실패`)
-              continue
+            const transcoded = await transcodeToMp4(job.file, ({ ratio }) => {
+              setItem(job.key, { progress: ratio * 100 })
+            })
+            if (trailerBytes) {
+              toUpload = new File(
+                [transcoded, trailerBytes],
+                transcoded.name,
+                { type: 'video/mp4', lastModified: Date.now() },
+              )
+            } else {
+              toUpload = transcoded
             }
+            finalName = toUpload.name
+            finalMime = 'video/mp4'
+            setItem(job.key, { name: finalName })
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : '변환 실패'
+            setItem(job.key, { phase: 'error', errorMessage: msg, progress: 0 })
+            toast.error(`${job.file.name}: 변환 실패`)
+            continue
           }
         }
 
-        // 업로드 step — 변환을 거쳤으면 2단계 중 step 1(0.5→1), 아니면 단일 단계.
+        // 업로드 구간 — 변환을 거쳤으면 2구간 중 step 1, 아니면 단일 구간 step 0.
         setItem(job.key, {
           phase: 'uploading',
           progress: 0,
-          steps: didTranscode ? 2 : 1,
-          step: didTranscode ? 1 : 0,
+          step: transcode ? 1 : 0,
         })
         try {
           const pathname = `users/${userId}/${finalName}`
