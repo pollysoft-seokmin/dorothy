@@ -5,6 +5,8 @@ import { DorothyMark } from '~/components/brand/DorothyMark'
 import { useSession } from '~/lib/auth-client'
 import { useUiStore } from '~/stores/ui-store'
 import { usePlayerStore } from '~/stores/player-store'
+import { useUploadStore } from '~/stores/upload-store'
+import { uploadAggregate } from '~/components/library/library-shared'
 import { displayName, avatarColor } from '~/lib/user-display'
 
 // 데스크톱·모바일 공통 30x30 원형 아바타 + 이니셜. 배경은 이메일 해시 기반
@@ -17,6 +19,66 @@ function AccountAvatar({ initial, color }: { initial: string; color: string }) {
       style={{ background: color }}
     >
       {initial}
+    </span>
+  )
+}
+
+// 업로드 중일 때만 표시. 무한 회전하는 arc(활성 표시) + 가운데 진행 퍼센트.
+// 전역 upload-store 를 구독하므로 라이브러리(요약 셀)와 항상 같은 값을 보인다.
+function UploadProgressRing() {
+  const items = useUploadStore((s) => s.items)
+  const { uploading, pct } = uploadAggregate(items)
+  if (!uploading) return null
+
+  const size = 30
+  const stroke = 3
+  const r = (size - stroke) / 2
+  const c = 2 * Math.PI * r
+
+  return (
+    <span
+      role="progressbar"
+      aria-valuenow={pct}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label={`업로드 중 ${pct}%`}
+      title={`업로드 중 ${pct}%`}
+      className="relative inline-grid shrink-0 place-items-center"
+      style={{ width: size, height: size }}
+    >
+      {/* 트랙 */}
+      <svg width={size} height={size} className="absolute inset-0">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          strokeWidth={stroke}
+          className="stroke-white/12"
+        />
+      </svg>
+      {/* 무한 회전 arc */}
+      <svg
+        width={size}
+        height={size}
+        className="absolute inset-0 animate-spin"
+        style={{ animationDuration: '1s' }}
+      >
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          className="stroke-primary-bright"
+          strokeDasharray={`${c * 0.3} ${c}`}
+        />
+      </svg>
+      {/* 가운데 퍼센트 */}
+      <span className="text-[9px] font-bold leading-none tabular-nums text-foreground">
+        {pct}
+      </span>
     </span>
   )
 }
@@ -86,6 +148,9 @@ export function AuthHeader() {
           <span className="text-muted-foreground">…</span>
         ) : data?.user ? (
           <>
+            {/* 업로드 중이면 계정(이름/아바타) 왼쪽에 원형 진행 링 표시. */}
+            <UploadProgressRing />
+
             {/* 모바일: 그린 그라데이션 아바타만 → bottom sheet 트리거. */}
             <button
               type="button"
