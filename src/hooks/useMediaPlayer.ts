@@ -358,6 +358,7 @@ export function useMediaPlayer() {
       name: string
       mediaType: MediaType
       lrcUrl?: string
+      mediaAssetId?: string
     }) => {
       const current = mediaRef.current
       if (current) current.pause()
@@ -369,7 +370,7 @@ export function useMediaPlayer() {
       if (current && store.getState().mediaType === params.mediaType) {
         current.src = params.url
       }
-      store.getState().loadTrack(params.name, params.mediaType, null)
+      store.getState().loadTrack(params.name, params.mediaType, null, params.mediaAssetId ?? null)
 
       const gen = ++lyricsLoadGenRef.current
       void (async () => {

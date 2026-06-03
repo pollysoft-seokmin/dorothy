@@ -11,6 +11,7 @@ type PlayPayload = {
   name: string
   mediaType: 'audio' | 'video'
   lrcUrl?: string
+  mediaAssetId?: string
 }
 
 // 최근 재생 목록 fetch + 행 클릭 시 resolve→재생. "내 미디어"의 최근 탭이
