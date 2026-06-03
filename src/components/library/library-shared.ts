@@ -95,11 +95,11 @@ export type PendingItem = {
   mediaType: LibraryMediaType
   // 'done' = 업로드 성공(요약 셀의 전체/진행률 계산을 위해 잠시 유지하다 정리).
   phase: 'preparing' | 'transcoding' | 'uploading' | 'error' | 'done'
-  // 현재 단계(step)의 0..100 진행도.
+  // 현재 구간(step)의 0..100 진행도.
   progress: number
-  // 이 파일의 단계 수와 현재 단계 인덱스. 변환을 거치면 steps=2(0=변환, 1=업로드),
-  // 아니면 steps=1(업로드만). 전체 진행률이 단계 전환 시 내려가지 않게 하는 근거.
-  steps?: number
+  // 이 파일의 구간 수와 현재 구간 인덱스. 변환을 거치면 segments=2(0=변환, 1=업로드),
+  // 아니면 segments=1(업로드만). 구간 모델 게이지 계산의 근거.
+  segments?: number
   step?: number
   errorMessage?: string
   folderId: string | null
@@ -120,19 +120,24 @@ export type UploadAggregate = {
   uploading: boolean
 }
 
-// 항목 하나의 0..1 진행도(모노토닉). 변환을 거치는 파일은 steps=2 로 변환이 앞
-// 절반(step 0), 업로드가 뒤 절반(step 1)을 차지한다. 단계 전환 시 progress 가 0으로
-// 리셋돼도 (step + progress/100)/steps 는 줄어들지 않는다. done/error 는 1로 본다.
-function itemFraction(p: PendingItem): number {
-  if (p.phase === 'done' || p.phase === 'error') return 1
-  const steps = p.steps && p.steps > 0 ? p.steps : 1
-  const step = p.step ?? 0
-  const f = (step + (p.progress || 0) / 100) / steps
-  return f < 0 ? 0 : f > 1 ? 1 : f
+// 구간(segment) 모델 — 전체 진행 바를 "모든 파일의 단계 수 합"으로 균등 분할한다.
+// 변환을 거치는 파일은 2구간(변환·업로드), 아니면 1구간(업로드). 한 파일이 소비한
+// 구간 수 = step + 현재 step 내부 진행(progress/100), done/error 는 자기 구간 전부.
+// 분모(전체 구간 수)는 시작 전 계획 단계에서 확정되므로 진행 중 줄지 않는다.
+function itemSegmentsTotal(p: PendingItem): number {
+  return p.segments && p.segments > 0 ? p.segments : 1
+}
+function itemSegmentsDone(p: PendingItem): number {
+  const segs = itemSegmentsTotal(p)
+  if (p.phase === 'done' || p.phase === 'error') return segs
+  const within = (step: number) => step + (p.progress || 0) / 100
+  const v = within(p.step ?? 0)
+  return v < 0 ? 0 : v > segs ? segs : v
 }
 
-// pending 배열을 요약 — 요약 셀과 헤더 진행 링이 공유한다. 진행률은 각 파일의
-// 모노토닉 itemFraction 평균(파일 동일 가중) → 단계 전환에도 내려가지 않는다.
+// pending 배열을 요약 — 요약 셀과 헤더 진행 링이 공유한다. 게이지는 구간 기반
+// (소비 구간 합 / 전체 구간 합)이라 단계 전환·구간 경계에서도 모노토닉하다.
+// total/processed 카운트는 파일 단위 라벨용("3/5").
 export function uploadAggregate(items: PendingItem[]): UploadAggregate {
   const total = items.length
   const errorCount = items.filter((p) => p.phase === 'error').length
@@ -140,8 +145,9 @@ export function uploadAggregate(items: PendingItem[]): UploadAggregate {
     (p) => p.phase === 'done' || p.phase === 'error',
   ).length
   const active = items.find(isUploadActive) ?? null
-  const fraction =
-    total === 0 ? 0 : items.reduce((s, p) => s + itemFraction(p), 0) / total
+  const segTotal = items.reduce((s, p) => s + itemSegmentsTotal(p), 0)
+  const segDone = items.reduce((s, p) => s + itemSegmentsDone(p), 0)
+  const fraction = segTotal === 0 ? 0 : segDone / segTotal
   return {
     total,
     processed,
