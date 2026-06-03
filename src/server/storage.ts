@@ -33,6 +33,25 @@ const isRenameInput = (
   )
 }
 
+const MAX_FOLDER_DEPTH = 16
+
+const isEnsurePathInput = (
+  v: unknown,
+): v is { parentId: string | null; segments: string[] } => {
+  if (typeof v !== 'object' || v === null) return false
+  const o = v as Record<string, unknown>
+  return (
+    (o.parentId === null || typeof o.parentId === 'string') &&
+    Array.isArray(o.segments) &&
+    o.segments.length > 0 &&
+    o.segments.length <= MAX_FOLDER_DEPTH &&
+    o.segments.every(
+      (s) =>
+        typeof s === 'string' && s.trim().length > 0 && s.length <= 100,
+    )
+  )
+}
+
 const isListInput = (v: unknown): v is { folderId: string | null } => {
   if (typeof v !== 'object' || v === null) return false
   const o = v as Record<string, unknown>
@@ -235,6 +254,77 @@ export const createFolder = createServerFn({ method: 'POST' })
       throw e
     }
     return { id, name, parentId: data.parentId }
+  })
+
+// 경로 세그먼트(["English", "Unit1", ...])를 따라 내려가며 없는 폴더만
+// get-or-create 하고 마지막 폴더의 id 를 돌려준다. 폴더 구조 업로드에서 각
+// 디렉터리 경로마다 한 번씩 호출된다. 같은 (user, parent, name) 은 unique 제약이
+// 있어 멱등하며, 동시 호출 race 로 23505 가 나면 다시 조회해 기존 행을 쓴다.
+export const ensureFolderPath = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => {
+    if (!isEnsurePathInput(data)) throw new Error('Invalid folder path payload')
+    return data
+  })
+  .handler(async ({ data }) => {
+    const user = await requireUser()
+    const { db } = await import('./db/client')
+    const { folder } = await import('./db/schema')
+    const { and, eq, isNull } = await import('drizzle-orm')
+
+    if (data.parentId) {
+      const [parent] = await db
+        .select({ id: folder.id })
+        .from(folder)
+        .where(and(eq(folder.id, data.parentId), eq(folder.userId, user.id)))
+        .limit(1)
+      if (!parent) throw new Response('Parent folder not found', { status: 404 })
+    }
+
+    let currentParent: string | null = data.parentId
+    for (const raw of data.segments) {
+      const name = raw.trim()
+      const parentClause =
+        currentParent === null
+          ? isNull(folder.parentId)
+          : eq(folder.parentId, currentParent)
+
+      const [existing] = await db
+        .select({ id: folder.id })
+        .from(folder)
+        .where(and(eq(folder.userId, user.id), parentClause, eq(folder.name, name)))
+        .limit(1)
+      if (existing) {
+        currentParent = existing.id
+        continue
+      }
+
+      const id = crypto.randomUUID()
+      try {
+        await db.insert(folder).values({
+          id,
+          userId: user.id,
+          parentId: currentParent,
+          name,
+        })
+        currentParent = id
+      } catch (e: unknown) {
+        const cause = (e as { cause?: { code?: string; constraint?: string } }).cause
+        if (cause?.code === '23505') {
+          // 동시 생성 race — 방금 들어간 행을 다시 조회해 그 id 를 쓴다.
+          const [row] = await db
+            .select({ id: folder.id })
+            .from(folder)
+            .where(and(eq(folder.userId, user.id), parentClause, eq(folder.name, name)))
+            .limit(1)
+          if (!row) throw e
+          currentParent = row.id
+        } else {
+          throw e
+        }
+      }
+    }
+
+    return { folderId: currentParent }
   })
 
 export const renameFolder = createServerFn({ method: 'POST' })
