@@ -10,6 +10,7 @@ import {
   basenameNoExt,
   detectFileMediaType,
   formatBytes,
+  isUploadActive,
   needsVideoTranscode,
   resolveUploadMime,
   type AssetItem,
@@ -31,6 +32,7 @@ import {
   PendingRow,
   RecentPlaybackList,
   SectionLabel,
+  UploadSummaryCell,
   type LibraryTab,
 } from '~/components/library/library-atoms'
 import { useFavoritesStore } from '~/stores/favorites-store'
@@ -232,6 +234,16 @@ export function MediaLibrary({ userId, onPlay }: Props) {
   useEffect(() => {
     if (tab === 'favorites') void loadFavorites()
   }, [tab, loadFavorites])
+
+  // 배치가 모두 끝나면(활성 0) 성공(done) 항목을 정리해 요약 셀을 사라지게 한다.
+  // 실패(error) 항목은 닫기 전까지 행으로 남긴다.
+  useEffect(() => {
+    if (pending.length === 0) return
+    if (pending.some(isUploadActive)) return
+    if (pending.some((p) => p.phase === 'done')) {
+      setPending((prev) => prev.filter((p) => p.phase !== 'done'))
+    }
+  }, [pending])
 
   // 폴더 선택 input 에 webkitdirectory/directory 부착 — 표준 input 타입에 없어
   // JSX 속성으로 두면 타입 에러라 마운트 후 DOM 에 직접 설정한다.
@@ -493,7 +505,9 @@ export function MediaLibrary({ userId, onPlay }: Props) {
               folderId: job.targetFolderId,
             },
           })
-          setPending((prev) => prev.filter((p) => p.key !== job.key))
+          // 성공 항목은 제거하지 않고 done 마크 — 요약 셀의 전체/진행률 계산을
+          // 유지한다. 활성이 0이 되면 아래 effect 가 done 항목을 정리한다.
+          setItem(job.key, { phase: 'done', progress: 100 })
           await refreshContents(baseFolderId)
           await refreshUsage()
         } catch (e) {
@@ -576,17 +590,21 @@ export function MediaLibrary({ userId, onPlay }: Props) {
     [runUpload, currentFolderId],
   )
 
-  const pendingHere = pending.filter((p) => p.folderId === currentFolderId)
+  // 업로드 상태는 폴더와 무관하게 전역으로 요약한다(드롭 위치/탐색과 분리).
+  const uploadingNow = pending.some(isUploadActive)
+  const errorItems = pending.filter((p) => p.phase === 'error')
   const isInitialEmpty =
     loading &&
     folders.length === 0 &&
     assets.length === 0 &&
-    pendingHere.length === 0
+    !uploadingNow &&
+    errorItems.length === 0
   const isEmpty =
     !loading &&
     folders.length === 0 &&
     assets.length === 0 &&
-    pendingHere.length === 0
+    !uploadingNow &&
+    errorItems.length === 0
 
   return (
     <div
@@ -679,12 +697,18 @@ export function MediaLibrary({ userId, onPlay }: Props) {
           />
         ) : (
           <>
-            {pendingHere.length > 0 && (
+            {uploadingNow && (
+              <div className="pt-2">
+                <UploadSummaryCell items={pending} density="compact" />
+              </div>
+            )}
+
+            {errorItems.length > 0 && (
               <>
-                <SectionLabel density="compact" right={`${pendingHere.length}개`}>
-                  업로드 중
+                <SectionLabel density="compact" right={`${errorItems.length}개`}>
+                  업로드 실패
                 </SectionLabel>
-                {pendingHere.map((p) => (
+                {errorItems.map((p) => (
                   <PendingRow
                     key={p.key}
                     row={p}

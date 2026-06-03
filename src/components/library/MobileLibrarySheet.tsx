@@ -10,6 +10,7 @@ import {
   basenameNoExt,
   detectFileMediaType,
   formatBytes,
+  isUploadActive,
   needsVideoTranscode,
   type AssetItem,
   type FavoriteItem,
@@ -29,6 +30,7 @@ import {
   PendingRow,
   RecentPlaybackList,
   SectionLabel,
+  UploadSummaryCell,
   type LibraryTab,
 } from '~/components/library/library-atoms'
 import { useFavoritesStore } from '~/stores/favorites-store'
@@ -128,6 +130,15 @@ export function MobileLibrarySheet({ userId, onPlay }: Props) {
     if (!isOpen) return
     refreshContents(currentFolderId)
   }, [isOpen, currentFolderId, refreshContents])
+
+  // 배치 완료(활성 0) 시 done 항목 정리 — 요약 셀 사라지고 실패 행만 남는다.
+  useEffect(() => {
+    if (pending.length === 0) return
+    if (pending.some(isUploadActive)) return
+    if (pending.some((p) => p.phase === 'done')) {
+      setPending((prev) => prev.filter((p) => p.phase !== 'done'))
+    }
+  }, [pending])
 
   useEffect(() => {
     if (isOpen && tab === 'favorites') void loadFavorites()
@@ -301,7 +312,8 @@ export function MobileLibrarySheet({ userId, onPlay }: Props) {
               folderId: targetFolderId,
             },
           })
-          setPending((prev) => prev.filter((p) => p.key !== job.key))
+          // 성공은 제거 대신 done 마크 — 요약 셀의 전체/진행률 계산 유지.
+          setItem(job.key, { phase: 'done', progress: 100 })
           await refreshContents(targetFolderId)
           await refreshUsage()
         } catch (e) {
@@ -374,12 +386,14 @@ export function MobileLibrarySheet({ userId, onPlay }: Props) {
     [startUpload, currentFolderId],
   )
 
-  const pendingHere = pending.filter((p) => p.folderId === currentFolderId)
+  const uploadingNow = pending.some(isUploadActive)
+  const errorItems = pending.filter((p) => p.phase === 'error')
   const isEmpty =
     !loading &&
     folders.length === 0 &&
     assets.length === 0 &&
-    pendingHere.length === 0
+    !uploadingNow &&
+    errorItems.length === 0
 
   return (
     <div
@@ -494,12 +508,18 @@ export function MobileLibrarySheet({ userId, onPlay }: Props) {
             </div>
           ) : (
             <>
-              {pendingHere.length > 0 && (
+              {uploadingNow && (
+                <div className="pt-1">
+                  <UploadSummaryCell items={pending} />
+                </div>
+              )}
+
+              {errorItems.length > 0 && (
                 <>
-                  <SectionLabel right={`${pendingHere.length}개`}>
-                    업로드 중
+                  <SectionLabel right={`${errorItems.length}개`}>
+                    업로드 실패
                   </SectionLabel>
-                  {pendingHere.map((p) => (
+                  {errorItems.map((p) => (
                     <PendingRow
                       key={p.key}
                       row={p}

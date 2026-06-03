@@ -93,10 +93,16 @@ export type PendingItem = {
   key: string
   name: string
   mediaType: LibraryMediaType
-  phase: 'preparing' | 'transcoding' | 'uploading' | 'error'
+  // 'done' = 업로드 성공(요약 셀의 전체/진행률 계산을 위해 잠시 유지하다 정리).
+  phase: 'preparing' | 'transcoding' | 'uploading' | 'error' | 'done'
   progress: number
   errorMessage?: string
   folderId: string | null
+}
+
+// 아직 처리 중(준비/변환/업로드)인 항목 — done/error 는 settled.
+export function isUploadActive(p: PendingItem): boolean {
+  return p.phase === 'preparing' || p.phase === 'transcoding' || p.phase === 'uploading'
 }
 
 export function basenameNoExt(name: string): string {
@@ -118,7 +124,9 @@ export function phaseLabel(p: PendingItem['phase']): string {
       ? '변환 중'
       : p === 'uploading'
         ? '업로드 중'
-        : '실패'
+        : p === 'done'
+          ? '완료'
+          : '실패'
 }
 
 // 최근 재생 항목 — server getRecentPlaybacks 의 행 구조를 클라이언트에서 다루기
