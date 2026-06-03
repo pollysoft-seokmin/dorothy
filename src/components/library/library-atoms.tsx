@@ -17,12 +17,14 @@ import {
   Music,
   Star,
   Upload,
+  UploadCloud,
 } from 'lucide-react'
 import { cn } from '~/lib/utils'
 import { NowPlayingBars } from '~/components/library/NowPlayingBars'
 import {
   formatBytes,
   formatRelativeTime,
+  isUploadActive,
   phaseLabel,
   type AssetItem,
   type FavoriteItem,
@@ -811,6 +813,76 @@ export function PendingRow({ row, onDismiss, density = 'comfortable' }: PendingR
           닫기
         </button>
       )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────
+// UploadSummaryCell — 업로드 진행을 단일 셀로 요약. 활성 항목이 있을 때만 렌더.
+// 전체 배치 진행률(완료/실패=1, 현재 파일=progress/전체) 게이지 + 현재 파일 + 실패 요약.
+// items 는 활성+done(+error) 전부 — 전체/진행률 계산용.
+// ─────────────────────────────────────────────────────────
+
+interface UploadSummaryCellProps extends RowDensityProps {
+  items: PendingItem[]
+}
+
+export function UploadSummaryCell({ items, density = 'comfortable' }: UploadSummaryCellProps) {
+  const total = items.length
+  if (total === 0) return null
+  const errorCount = items.filter((p) => p.phase === 'error').length
+  const processed = items.filter((p) => p.phase === 'done' || p.phase === 'error').length
+  const active = items.find(isUploadActive)
+  const fraction =
+    items.reduce(
+      (s, p) => s + (p.phase === 'done' || p.phase === 'error' ? 1 : p.progress / 100),
+      0,
+    ) / total
+  const pct = Math.round(fraction * 100)
+
+  const pad = density === 'compact' ? 'px-2.5 py-2.5' : 'px-3 py-3'
+  const trackHeight = density === 'compact' ? 'h-[3px]' : 'h-[4px]'
+
+  return (
+    <div className={cn('rounded-lg border border-border bg-secondary/60', pad)}>
+      <div className="flex items-center gap-2">
+        <UploadCloud className="size-4 shrink-0 text-primary-bright" />
+        <span className="text-[12px] font-extrabold tracking-[-0.01em] text-foreground">
+          업로드 중
+        </span>
+        <span className="font-mono text-[11px] text-text-dim">
+          {processed}/{total}
+        </span>
+        <span className="ml-auto font-mono text-[12px] font-bold text-primary-bright">
+          {pct}%
+        </span>
+      </div>
+      <div className="mt-1 flex items-center gap-1.5 text-[11px] font-semibold">
+        {active ? (
+          <>
+            <span
+              className="min-w-0 truncate text-muted-foreground"
+              title={active.name}
+            >
+              {active.name}
+            </span>
+            <span className="shrink-0 text-text-dim">· {phaseLabel(active.phase)}</span>
+          </>
+        ) : (
+          <span className="text-muted-foreground">마무리 중…</span>
+        )}
+        {errorCount > 0 && (
+          <span className="ml-auto shrink-0 font-bold text-destructive">
+            {errorCount}개 실패
+          </span>
+        )}
+      </div>
+      <div className={cn(trackHeight, 'mt-2 overflow-hidden rounded-full bg-white/[0.08]')}>
+        <div
+          className="h-full rounded-full bg-primary-bright transition-[width] duration-200"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
     </div>
   )
 }
