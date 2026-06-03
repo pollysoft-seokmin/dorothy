@@ -98,6 +98,18 @@ export type RecentPlayback = {
   lastPlayedAt: Date | string
 }
 
+// 즐겨찾기 항목 — server getFavorites/toggleFavorite 가 돌려주는 구조. position
+// 오름차순이 표시 순서. blobUrl/lrcUrl 로 곧장 재생 페이로드를 구성한다.
+export type FavoriteItem = {
+  id: string
+  mediaAssetId: string
+  name: string
+  mediaType: 'audio' | 'video'
+  blobUrl: string
+  lrcUrl?: string
+  position: number
+}
+
 // "lastPlayedAt"을 한국어 상대 시간으로. 매우 좁은 의미라 외부 의존성 없이 인라인.
 export function formatRelativeTime(at: Date | string): string {
   const ts = typeof at === 'string' ? new Date(at) : at

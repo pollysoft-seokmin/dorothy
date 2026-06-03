@@ -24,6 +24,9 @@ export interface PlayerStore {
   fileName: string
   mediaType: MediaType
   metadata: TrackMetadata | null
+  // 라이브러리에서 로드된 경우의 자산 id. 로컬 파일(비로그인) 재생 시엔 null.
+  // 즐겨찾기 별(★) 토글이 이 id 로 favorite 을 매핑한다.
+  mediaAssetId: string | null
 
   // 가사
   lyrics: ParsedLyrics | null
@@ -62,6 +65,7 @@ export interface PlayerStore {
     fileName: string,
     mediaType: MediaType,
     metadata: TrackMetadata | null,
+    mediaAssetId?: string | null,
   ) => void
   loadLyrics: (lyrics: ParsedLyrics) => void
   setLyricsLoading: (loading: boolean) => void
@@ -97,6 +101,7 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
   fileName: '',
   mediaType: 'audio',
   metadata: null,
+  mediaAssetId: null,
   lyrics: null,
   currentLineIndex: -1,
   lyricsLoading: false,
@@ -125,11 +130,12 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
       }
       return { repeatCount: next, repeatCurrent: 0 }
     }),
-  loadTrack: (fileName, mediaType, metadata) =>
+  loadTrack: (fileName, mediaType, metadata, mediaAssetId = null) =>
     set({
       fileName,
       mediaType,
       metadata,
+      mediaAssetId,
       status: 'idle',
       currentTime: 0,
       duration: 0,
@@ -223,6 +229,7 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
       fileName: '',
       mediaType: 'audio',
       metadata: null,
+      mediaAssetId: null,
       lyrics: null,
       currentLineIndex: -1,
       lyricsLoading: false,

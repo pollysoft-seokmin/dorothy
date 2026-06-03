@@ -150,9 +150,32 @@ export const mediaAsset = pgTable(
   ],
 )
 
+export const favorite = pgTable(
+  'favorite',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    mediaAssetId: text('media_asset_id')
+      .notNull()
+      .references(() => mediaAsset.id, { onDelete: 'cascade' }),
+    // 사용자가 지정한 표시 순서. 작을수록 위. 추가 시 (max+1) 로 끝에 붙고,
+    // reorderFavorites 가 0..n-1 로 재배치한다.
+    position: integer('position').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('favorite_user_position_idx').on(t.userId, t.position),
+    // 같은 자산을 두 번 즐겨찾기할 수 없다. toggle 의 멱등성 근거.
+    uniqueIndex('favorite_user_asset_unique').on(t.userId, t.mediaAssetId),
+  ],
+)
+
 export type User = typeof user.$inferSelect
 export type Session = typeof session.$inferSelect
 export type UserPreferences = typeof userPreferences.$inferSelect
 export type PlaybackHistory = typeof playbackHistory.$inferSelect
 export type Folder = typeof folder.$inferSelect
 export type MediaAsset = typeof mediaAsset.$inferSelect
+export type Favorite = typeof favorite.$inferSelect

@@ -1,5 +1,6 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
 import { usePlayerStore } from '~/stores/player-store'
+import { useFavoritesStore } from '~/stores/favorites-store'
 import type { useMediaPlayer } from '~/hooks/useMediaPlayer'
 import { useKeyboardShortcuts } from '~/hooks/useKeyboardShortcuts'
 import { usePreferencesSync } from '~/hooks/usePreferencesSync'
@@ -29,6 +30,7 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
   const fileName = usePlayerStore((s) => s.fileName)
   const mediaType = usePlayerStore((s) => s.mediaType)
   const metadata = usePlayerStore((s) => s.metadata)
+  const mediaAssetId = usePlayerStore((s) => s.mediaAssetId)
   const lyrics = usePlayerStore((s) => s.lyrics)
   const currentLineIndex = usePlayerStore((s) => s.currentLineIndex)
   const checkedLines = usePlayerStore((s) => s.checkedLines)
@@ -46,6 +48,23 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
 
   const hasFile = !!fileName
   const disabled = !hasFile
+
+  // 즐겨찾기 — 라이브러리 자산(mediaAssetId 보유)일 때만 별을 노출/토글한다.
+  const favItems = useFavoritesStore((s) => s.items)
+  const favPendingIds = useFavoritesStore((s) => s.pendingIds)
+  const loadFavorites = useFavoritesStore((s) => s.load)
+  const toggleFavorite = useFavoritesStore((s) => s.toggle)
+  const isFavorite = !!mediaAssetId && favItems.some((i) => i.mediaAssetId === mediaAssetId)
+  const favoritePending = !!mediaAssetId && favPendingIds.has(mediaAssetId)
+
+  // 로그인 사용자는 별 상태를 즉시 보여줄 수 있도록 마운트 시 목록을 한 번 적재.
+  useEffect(() => {
+    if (isLoggedIn) void loadFavorites()
+  }, [isLoggedIn, loadFavorites])
+
+  const handleToggleFavorite = useCallback(() => {
+    if (mediaAssetId) void toggleFavorite(mediaAssetId)
+  }, [mediaAssetId, toggleFavorite])
 
   const handleMediaLoad = useCallback(
     (file: File) => loadFile(file),
@@ -132,6 +151,10 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
           fileName={fileName}
           mediaType={mediaType}
           metadata={metadata}
+          favoritable={isLoggedIn && !!mediaAssetId}
+          isFavorite={isFavorite}
+          favoritePending={favoritePending}
+          onToggleFavorite={handleToggleFavorite}
         />
 
         {/* 가사 패널 */}

@@ -3,7 +3,7 @@
 // 한쪽 수정이 다른 쪽으로 자연스럽게 따라가도록 한다. density prop으로 모바일
 // (comfortable)/데스크톱(compact) 두 톤만 제공 — 더 세분화는 회의 후 결정.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import {
   ChevronRight,
@@ -11,6 +11,7 @@ import {
   Film,
   Folder,
   FolderPlus,
+  GripVertical,
   MoreHorizontal,
   Music,
   Star,
@@ -23,6 +24,7 @@ import {
   formatRelativeTime,
   phaseLabel,
   type AssetItem,
+  type FavoriteItem,
   type LibraryMediaType,
   type PendingItem,
   type RecentPlayback,
@@ -278,7 +280,7 @@ export function RecentPlaybackList({
 }
 
 // ─────────────────────────────────────────────────────────
-// FavoritesEmpty — 즐겨찾기(추후 구현) 빈 상태 안내
+// FavoritesEmpty — 즐겨찾기 빈 상태 안내
 // ─────────────────────────────────────────────────────────
 
 export function FavoritesEmpty() {
@@ -288,12 +290,188 @@ export function FavoritesEmpty() {
         <Star className="size-6" />
       </div>
       <div className="mt-3 text-sm font-bold text-foreground">
-        즐겨찾기는 준비 중입니다
+        즐겨찾기가 비어 있습니다
       </div>
       <p className="mt-1 max-w-[240px] text-xs leading-relaxed text-muted-foreground">
-        곧 자주 듣는 미디어를 즐겨찾기에 모아볼 수 있어요.
+        재생 중인 미디어의 제목 옆 별(★)을 눌러 즐겨찾기에 추가하세요.
       </p>
     </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────
+// FavoritesList — 즐겨찾기 목록. 그립 핸들 드래그(pointer 이벤트)로 순서 변경,
+// 행 클릭 재생, 행 우측 ★ 로 해제. 데스크톱 마우스 + 모바일 터치 모두 지원.
+// 외부 DnD 라이브러리 없이 live-reflow 방식 — 드래그 중 포인터가 행 중점을
+// 넘으면 그 자리로 즉시 재배치하고, 포인터 업에서 새 순서를 커밋한다.
+// ─────────────────────────────────────────────────────────
+
+interface FavoritesListProps {
+  items: FavoriteItem[]
+  loaded: boolean
+  playingFileName: string | null
+  onPlay: (item: FavoriteItem) => void
+  onRemove: (mediaAssetId: string) => void
+  onReorder: (orderedIds: string[]) => void
+  density?: Density
+}
+
+function moveItem<T>(arr: T[], from: number, to: number): T[] {
+  if (from === to || from < 0 || to < 0) return arr
+  const next = [...arr]
+  const [it] = next.splice(from, 1)
+  next.splice(to, 0, it)
+  return next
+}
+
+export function FavoritesList({
+  items,
+  loaded,
+  playingFileName,
+  onPlay,
+  onRemove,
+  onReorder,
+  density = 'comfortable',
+}: FavoritesListProps) {
+  const listRef = useRef<HTMLUListElement>(null)
+  // 드래그 중에만 채워지는 로컬 순서. null 이면 props.items 를 그대로 렌더.
+  const [dragOrder, setDragOrder] = useState<FavoriteItem[] | null>(null)
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const pointerIdRef = useRef<number | null>(null)
+
+  const order = dragOrder ?? items
+
+  if (!loaded) {
+    return <p className="py-6 text-center text-sm text-text-dim">불러오는 중…</p>
+  }
+  if (items.length === 0) {
+    return <FavoritesEmpty />
+  }
+
+  const rowCls = density === 'compact' ? 'gap-2 rounded-md px-1.5 py-2' : 'gap-2.5 py-2.5'
+  const nameCls = density === 'compact' ? 'text-[13px]' : 'text-[15px]'
+
+  const indexFromPointer = (clientY: number): number => {
+    const container = listRef.current
+    if (!container) return 0
+    const rows = Array.from(
+      container.querySelectorAll<HTMLElement>('[data-fav-row]'),
+    )
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i].getBoundingClientRect()
+      if (clientY < r.top + r.height / 2) return i
+    }
+    return rows.length - 1
+  }
+
+  const onHandlePointerDown = (e: React.PointerEvent, id: string) => {
+    e.preventDefault()
+    ;(e.currentTarget as Element).setPointerCapture(e.pointerId)
+    pointerIdRef.current = e.pointerId
+    setDraggingId(id)
+    setDragOrder([...order])
+  }
+
+  const onHandlePointerMove = (e: React.PointerEvent) => {
+    if (draggingId === null || e.pointerId !== pointerIdRef.current) return
+    setDragOrder((cur) => {
+      const base = cur ?? items
+      const from = base.findIndex((x) => x.id === draggingId)
+      const to = indexFromPointer(e.clientY)
+      return from === -1 ? base : moveItem(base, from, to)
+    })
+  }
+
+  const finishDrag = (e: React.PointerEvent) => {
+    if (draggingId === null) return
+    const finalOrder = dragOrder ?? items
+    const changed = finalOrder.some((it, i) => it.id !== items[i]?.id)
+    if (changed) onReorder(finalOrder.map((it) => it.id))
+    try {
+      ;(e.currentTarget as Element).releasePointerCapture(e.pointerId)
+    } catch {
+      // already released
+    }
+    pointerIdRef.current = null
+    setDraggingId(null)
+    setDragOrder(null)
+  }
+
+  return (
+    <ul ref={listRef} className="select-none">
+      {order.map((item) => {
+        const isPlaying = item.name === playingFileName
+        const isDragging = item.id === draggingId
+        const Icon = item.mediaType === 'video' ? Film : Music
+        return (
+          <li
+            key={item.id}
+            data-fav-row
+            className={cn(
+              'group flex items-center',
+              rowCls,
+              isDragging
+                ? 'bg-white/[0.06] ring-1 ring-primary/40'
+                : isPlaying
+                  ? 'bg-primary/10'
+                  : 'hover:bg-white/[0.04]',
+            )}
+          >
+            <button
+              type="button"
+              aria-label="드래그하여 순서 변경"
+              onPointerDown={(e) => onHandlePointerDown(e, item.id)}
+              onPointerMove={onHandlePointerMove}
+              onPointerUp={finishDrag}
+              onPointerCancel={finishDrag}
+              style={{ touchAction: 'none' }}
+              className="grid size-7 shrink-0 cursor-grab touch-none place-items-center text-text-dim hover:text-foreground active:cursor-grabbing"
+            >
+              <GripVertical className="size-[16px]" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onPlay(item)}
+              className="flex min-w-0 flex-1 items-center gap-3 text-left cursor-pointer"
+            >
+              <div
+                className={cn(
+                  density === 'compact' ? 'size-9 rounded-md' : 'size-11 rounded-lg',
+                  'grid shrink-0 place-items-center bg-secondary',
+                  isPlaying ? 'text-primary-bright' : item.mediaType === 'video' ? 'text-[#A28DFF]' : 'text-primary-bright',
+                )}
+              >
+                {isPlaying ? (
+                  <NowPlayingBars playing size={density === 'compact' ? 14 : 18} />
+                ) : (
+                  <Icon className={density === 'compact' ? 'size-[17px]' : 'size-5'} />
+                )}
+              </div>
+              <span
+                className={cn(
+                  nameCls,
+                  'block min-w-0 flex-1 truncate font-bold tracking-[-0.01em]',
+                  isPlaying ? 'text-primary-bright' : 'text-foreground',
+                )}
+                title={item.name}
+              >
+                {item.name}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              aria-label="즐겨찾기 해제"
+              onClick={() => onRemove(item.mediaAssetId)}
+              className="grid size-7 shrink-0 cursor-pointer place-items-center rounded-full text-primary-bright hover:bg-white/10"
+            >
+              <Star className="size-[16px] fill-current" />
+            </button>
+          </li>
+        )
+      })}
+    </ul>
   )
 }
 

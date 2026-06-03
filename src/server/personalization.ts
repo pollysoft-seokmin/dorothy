@@ -191,6 +191,7 @@ export const resolveRecentPlayback = createServerFn({ method: 'POST' })
       name: asset.name,
       mediaType: asset.mediaType === 'video' ? ('video' as const) : ('audio' as const),
       lrcUrl: sibling?.blobUrl,
+      mediaAssetId: asset.id,
     }
   })
 

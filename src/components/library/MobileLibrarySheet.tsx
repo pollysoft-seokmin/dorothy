@@ -12,6 +12,7 @@ import {
   formatBytes,
   needsVideoTranscode,
   type AssetItem,
+  type FavoriteItem,
   type FolderListItem,
   type FolderRow as FolderRowType,
   type LibraryMediaType,
@@ -21,7 +22,7 @@ import {
   AssetRow,
   BreadcrumbChips,
   CreateFolderDialog,
-  FavoritesEmpty,
+  FavoritesList,
   FolderRow,
   LibraryActionsMenu,
   LibraryTabs,
@@ -30,6 +31,7 @@ import {
   SectionLabel,
   type LibraryTab,
 } from '~/components/library/library-atoms'
+import { useFavoritesStore } from '~/stores/favorites-store'
 import { useRecentPlaybacks } from '~/hooks/useRecentPlaybacks'
 import {
   createFolder,
@@ -46,6 +48,7 @@ type Props = {
     name: string
     mediaType: 'audio' | 'video'
     lrcUrl?: string
+    mediaAssetId?: string
   }) => void
 }
 
@@ -56,6 +59,12 @@ export function MobileLibrarySheet({ userId, onPlay }: Props) {
   const close = useUiStore((s) => s.closeMobileLibrary)
   const playingFileName = usePlayerStore((s) => s.fileName)
   const playStatus = usePlayerStore((s) => s.status)
+
+  const favItems = useFavoritesStore((s) => s.items)
+  const favLoaded = useFavoritesStore((s) => s.loaded)
+  const loadFavorites = useFavoritesStore((s) => s.load)
+  const removeFavorite = useFavoritesStore((s) => s.toggle)
+  const reorderFavorites = useFavoritesStore((s) => s.reorder)
 
   const [tab, setTab] = useState<LibraryTab>('folders')
   const [tree, setTree] = useState<FolderRowType[]>([])
@@ -119,6 +128,10 @@ export function MobileLibrarySheet({ userId, onPlay }: Props) {
     if (!isOpen) return
     refreshContents(currentFolderId)
   }, [isOpen, currentFolderId, refreshContents])
+
+  useEffect(() => {
+    if (isOpen && tab === 'favorites') void loadFavorites()
+  }, [isOpen, tab, loadFavorites])
 
   useEffect(() => {
     if (!isOpen) return
@@ -321,10 +334,25 @@ export function MobileLibrarySheet({ userId, onPlay }: Props) {
         name: asset.name,
         mediaType: asset.mediaType === 'video' ? 'video' : 'audio',
         lrcUrl: sibling?.blobUrl,
+        mediaAssetId: asset.id,
       })
       close()
     },
     [assets, onPlay, close],
+  )
+
+  const handlePlayFavorite = useCallback(
+    (item: FavoriteItem) => {
+      onPlay({
+        url: item.blobUrl,
+        name: item.name,
+        mediaType: item.mediaType,
+        lrcUrl: item.lrcUrl,
+        mediaAssetId: item.mediaAssetId,
+      })
+      close()
+    },
+    [onPlay, close],
   )
 
   const onBodyDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
@@ -421,8 +449,15 @@ export function MobileLibrarySheet({ userId, onPlay }: Props) {
         )}
 
         {tab === 'favorites' && (
-          <div className="flex-1 min-h-0 overflow-y-auto">
-            <FavoritesEmpty />
+          <div className="flex-1 min-h-0 overflow-y-auto px-3 py-2">
+            <FavoritesList
+              items={favItems}
+              loaded={favLoaded}
+              playingFileName={playingFileName}
+              onPlay={handlePlayFavorite}
+              onRemove={removeFavorite}
+              onReorder={reorderFavorites}
+            />
           </div>
         )}
 

@@ -12,6 +12,7 @@ import {
   formatBytes,
   needsVideoTranscode,
   type AssetItem,
+  type FavoriteItem,
   type FolderListItem,
   type FolderRow,
   type LibraryMediaType,
@@ -21,7 +22,7 @@ import {
   AssetRow as AssetRowAtom,
   BreadcrumbChips,
   CreateFolderDialog,
-  FavoritesEmpty,
+  FavoritesList,
   FolderRow as FolderRowAtom,
   LibraryActionsMenu,
   LibraryEmptyDropZone,
@@ -31,6 +32,7 @@ import {
   SectionLabel,
   type LibraryTab,
 } from '~/components/library/library-atoms'
+import { useFavoritesStore } from '~/stores/favorites-store'
 import { useRecentPlaybacks } from '~/hooks/useRecentPlaybacks'
 import {
   createFolder,
@@ -51,6 +53,7 @@ type Props = {
     name: string
     mediaType: 'audio' | 'video'
     lrcUrl?: string
+    mediaAssetId?: string
   }) => void
 }
 
@@ -172,6 +175,12 @@ export function MediaLibrary({ userId, onPlay }: Props) {
   const playingFileName = usePlayerStore((s) => s.fileName)
   const playStatus = usePlayerStore((s) => s.status)
 
+  const favItems = useFavoritesStore((s) => s.items)
+  const favLoaded = useFavoritesStore((s) => s.loaded)
+  const loadFavorites = useFavoritesStore((s) => s.load)
+  const removeFavorite = useFavoritesStore((s) => s.toggle)
+  const reorderFavorites = useFavoritesStore((s) => s.reorder)
+
   // 최근 탭이 보일 때만 fetch. 라이브러리가 player 트리에 있어 resolve 결과를
   // onPlay 로 바로 위임한다 (ui-store playRequest 우회 불필요, #105).
   const {
@@ -210,6 +219,11 @@ export function MediaLibrary({ userId, onPlay }: Props) {
   useEffect(() => {
     refreshContents(currentFolderId)
   }, [currentFolderId, refreshContents])
+
+  // 즐겨찾기 탭 진입 시 목록 로드(최초 1회, 이후 store 가 단일 소스로 유지).
+  useEffect(() => {
+    if (tab === 'favorites') void loadFavorites()
+  }, [tab, loadFavorites])
 
   const breadcrumb = useMemo(() => {
     const map = new Map(tree.map((f) => [f.id, f]))
@@ -451,9 +465,23 @@ export function MediaLibrary({ userId, onPlay }: Props) {
         name: asset.name,
         mediaType: asset.mediaType === 'video' ? 'video' : 'audio',
         lrcUrl: sibling?.blobUrl,
+        mediaAssetId: asset.id,
       })
     },
     [assets, onPlay],
+  )
+
+  const handlePlayFavorite = useCallback(
+    (item: FavoriteItem) => {
+      onPlay({
+        url: item.blobUrl,
+        name: item.name,
+        mediaType: item.mediaType,
+        lrcUrl: item.lrcUrl,
+        mediaAssetId: item.mediaAssetId,
+      })
+    },
+    [onPlay],
   )
 
   // ── Drag & drop on the whole pane ─────────────────────────
@@ -537,8 +565,16 @@ export function MediaLibrary({ userId, onPlay }: Props) {
       )}
 
       {tab === 'favorites' && (
-        <div className="flex-1 min-h-0 overflow-y-auto">
-          <FavoritesEmpty />
+        <div className="flex-1 min-h-0 overflow-y-auto px-2.5 pb-2 pt-1">
+          <FavoritesList
+            items={favItems}
+            loaded={favLoaded}
+            playingFileName={playingFileName}
+            onPlay={handlePlayFavorite}
+            onRemove={removeFavorite}
+            onReorder={reorderFavorites}
+            density="compact"
+          />
         </div>
       )}
 
