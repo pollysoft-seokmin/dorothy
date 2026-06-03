@@ -33,6 +33,11 @@ import {
   type LibraryTab,
 } from '~/components/library/library-atoms'
 import { useFavoritesStore } from '~/stores/favorites-store'
+import {
+  entriesFromDataTransfer,
+  entriesFromInput,
+  type UploadEntry,
+} from '~/lib/folder-upload'
 import { useRecentPlaybacks } from '~/hooks/useRecentPlaybacks'
 import {
   createFolder,
@@ -42,6 +47,7 @@ import {
   getStorageUsage,
   listFolderContents,
   confirmUpload,
+  ensureFolderPath,
   renameAsset,
   renameFolder,
 } from '~/server/storage'
@@ -171,6 +177,7 @@ export function MediaLibrary({ userId, onPlay }: Props) {
   const [dragActive, setDragActive] = useState(false)
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const folderInputRef = useRef<HTMLInputElement>(null)
 
   const playingFileName = usePlayerStore((s) => s.fileName)
   const playStatus = usePlayerStore((s) => s.status)
@@ -224,6 +231,15 @@ export function MediaLibrary({ userId, onPlay }: Props) {
   useEffect(() => {
     if (tab === 'favorites') void loadFavorites()
   }, [tab, loadFavorites])
+
+  // 폴더 선택 input 에 webkitdirectory/directory 부착 — 표준 input 타입에 없어
+  // JSX 속성으로 두면 타입 에러라 마운트 후 DOM 에 직접 설정한다.
+  useEffect(() => {
+    const el = folderInputRef.current
+    if (!el) return
+    el.setAttribute('webkitdirectory', '')
+    el.setAttribute('directory', '')
+  }, [])
 
   const breadcrumb = useMemo(() => {
     const map = new Map(tree.map((f) => [f.id, f]))
@@ -315,13 +331,19 @@ export function MediaLibrary({ userId, onPlay }: Props) {
     [currentFolderId, refreshContents, refreshUsage],
   )
 
-  const startUpload = useCallback(
-    async (files: File[], targetFolderId: string | null) => {
-      const classified = files.map((f) => ({ file: f, mediaType: detectFileMediaType(f) }))
-      const acceptable = classified.filter(
-        (c): c is { file: File; mediaType: LibraryMediaType } => c.mediaType !== null,
-      )
-      const rejected = files.length - acceptable.length
+  // 업로드 코어 — entries 는 {file, relPath(폴더 세그먼트)} 목록. 평면 업로드는
+  // relPath=[] 로 들어오고, 폴더 업로드/드롭은 relPath 가 채워져 있다. baseFolderId
+  // 는 드롭/선택한 위치(보통 현재 폴더). 고유 relPath 마다 ensureFolderPath 를 한 번
+  // 호출해 폴더를 만들고, 각 파일을 해석된 folderId 로 업로드한다.
+  const runUpload = useCallback(
+    async (entries: UploadEntry[], baseFolderId: string | null) => {
+      const acceptable = entries
+        .map((e) => ({ ...e, mediaType: detectFileMediaType(e.file) }))
+        .filter(
+          (c): c is UploadEntry & { mediaType: LibraryMediaType } =>
+            c.mediaType !== null,
+        )
+      const rejected = entries.length - acceptable.length
       if (rejected > 0) {
         toast.error(`${rejected}개 파일은 지원 형식이 아니라 제외됨 (오디오/비디오/.lrc)`)
       }
@@ -335,19 +357,61 @@ export function MediaLibrary({ userId, onPlay }: Props) {
         return
       }
 
-      const jobs = acceptable.map(({ file, mediaType }) => ({
-        key: `${Date.now()}-${Math.random().toString(36).slice(2)}-${file.name}`,
-        file,
-        mediaType,
-      }))
+      // 고유 폴더 경로마다 ensureFolderPath 1회 → pathKey→folderId 캐시.
+      const pathKey = (segs: string[]) => segs.join(' ')
+      const folderIdByPath = new Map<string, string | null>([['', baseFolderId]])
+      const uniquePaths = new Map<string, string[]>()
+      for (const c of acceptable) {
+        if (c.relPath.length > 0) uniquePaths.set(pathKey(c.relPath), c.relPath)
+      }
+      let foldersTouched = false
+      for (const [key, segs] of uniquePaths) {
+        try {
+          const { folderId } = await ensureFolderPath({
+            data: { parentId: baseFolderId, segments: segs },
+          })
+          folderIdByPath.set(key, folderId)
+          foldersTouched = true
+        } catch {
+          toast.error(`폴더 생성 실패: ${segs.join('/')}`)
+          // 매핑 미설정 → 해당 경로 파일은 아래에서 건너뛴다.
+        }
+      }
+      if (foldersTouched) {
+        await refreshTree()
+        await refreshContents(baseFolderId)
+      }
 
+      const jobs = acceptable
+        .map(({ file, mediaType, relPath }) => {
+          const key = relPath.length > 0 ? pathKey(relPath) : ''
+          if (!folderIdByPath.has(key)) return null
+          return {
+            key: `${Date.now()}-${Math.random().toString(36).slice(2)}-${file.name}`,
+            file,
+            mediaType,
+            targetFolderId: folderIdByPath.get(key) ?? null,
+          }
+        })
+        .filter(
+          (j): j is {
+            key: string
+            file: File
+            mediaType: LibraryMediaType
+            targetFolderId: string | null
+          } => j !== null,
+        )
+      if (jobs.length === 0) return
+
+      // 진행 표시는 드롭/선택한 위치(baseFolderId)에 모아 보여준다 — 하위 폴더로
+      // 들어가는 파일도 사용자가 작업한 화면에서 진행률이 보이게.
       setPending((prev) => [
         ...prev,
         ...jobs.map<PendingItem>((j) => ({
           key: j.key,
           name: j.file.name,
           mediaType: j.mediaType,
-          folderId: targetFolderId,
+          folderId: baseFolderId,
           phase: j.mediaType === 'video' ? 'preparing' : 'uploading',
           progress: 0,
         })),
@@ -411,7 +475,7 @@ export function MediaLibrary({ userId, onPlay }: Props) {
             handleUploadUrl: '/api/blob/upload',
             clientPayload: JSON.stringify({
               size: toUpload.size,
-              folderId: targetFolderId,
+              folderId: job.targetFolderId,
             }),
             contentType: finalMime,
             onUploadProgress: ({ percentage }) => {
@@ -425,11 +489,11 @@ export function MediaLibrary({ userId, onPlay }: Props) {
               name: finalName,
               mimeType: finalMime,
               sizeBytes: toUpload.size,
-              folderId: targetFolderId,
+              folderId: job.targetFolderId,
             },
           })
           setPending((prev) => prev.filter((p) => p.key !== job.key))
-          await refreshContents(targetFolderId)
+          await refreshContents(baseFolderId)
           await refreshUsage()
         } catch (e) {
           const msg = e instanceof Error ? e.message : '업로드 실패'
@@ -438,20 +502,22 @@ export function MediaLibrary({ userId, onPlay }: Props) {
         }
       }
     },
-    [userId, usage, refreshContents, refreshUsage],
+    [userId, usage, refreshContents, refreshUsage, refreshTree],
   )
 
   const dismissPending = useCallback((key: string) => {
     setPending((prev) => prev.filter((p) => p.key !== key))
   }, [])
 
+  // 파일 선택 / 폴더 선택(webkitdirectory) 공통 — entriesFromInput 이 폴더 선택 시
+  // webkitRelativePath 로 구조를 복원한다.
   const onFileInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(e.target.files ?? [])
-      if (files.length > 0) startUpload(files, currentFolderId)
+      const files = e.target.files
+      if (files && files.length > 0) void runUpload(entriesFromInput(files), currentFolderId)
       e.target.value = ''
     },
-    [startUpload, currentFolderId],
+    [runUpload, currentFolderId],
   )
 
   const handlePlay = useCallback(
@@ -500,10 +566,13 @@ export function MediaLibrary({ userId, onPlay }: Props) {
       e.preventDefault()
       setDragActive(false)
       setDragOverFolderId(null)
-      const files = Array.from(e.dataTransfer.files)
-      if (files.length > 0) startUpload(files, currentFolderId)
+      // entriesFromDataTransfer 가 폴더 트리를 순회해 구조를 보존한다(평면 파일은
+      // relPath=[]). items 는 핸들러 종료 후 무효화되므로 즉시 전달.
+      void entriesFromDataTransfer(e.dataTransfer).then((entries) => {
+        if (entries.length > 0) void runUpload(entries, currentFolderId)
+      })
     },
-    [startUpload, currentFolderId],
+    [runUpload, currentFolderId],
   )
 
   const pendingHere = pending.filter((p) => p.folderId === currentFolderId)
@@ -593,6 +662,7 @@ export function MediaLibrary({ userId, onPlay }: Props) {
             <LibraryActionsMenu
               onCreateFolder={() => setFolderDialogOpen(true)}
               onUpload={() => fileInputRef.current?.click()}
+              onUploadFolder={() => folderInputRef.current?.click()}
             />
           </div>
 
@@ -669,8 +739,12 @@ export function MediaLibrary({ userId, onPlay }: Props) {
                         e.stopPropagation()
                         setDragActive(false)
                         setDragOverFolderId(null)
-                        const files = Array.from(e.dataTransfer.files)
-                        if (files.length > 0) startUpload(files, f.id)
+                        // 폴더 행에 드롭 → 그 폴더를 base 로 구조 보존 업로드.
+                        void entriesFromDataTransfer(e.dataTransfer).then(
+                          (entries) => {
+                            if (entries.length > 0) void runUpload(entries, f.id)
+                          },
+                        )
                       }}
                     >
                       <FolderRowAtom
@@ -752,6 +826,17 @@ export function MediaLibrary({ userId, onPlay }: Props) {
         ref={fileInputRef}
         type="file"
         accept="audio/*,video/*,.lrc,.mpg,.mpeg,.avi,.mkv,.flv,.wmv,.3gp"
+        multiple
+        hidden
+        onChange={onFileInputChange}
+      />
+
+      {/* 폴더 업로드 — webkitdirectory/directory 는 표준 타입에 없어 ref 로 부착.
+          accept 는 디렉터리 선택과 함께 쓰면 일부 브라우저가 무시하므로 생략하고,
+          지원 형식 필터링은 detectFileMediaType 가 담당한다. */}
+      <input
+        ref={folderInputRef}
+        type="file"
         multiple
         hidden
         onChange={onFileInputChange}

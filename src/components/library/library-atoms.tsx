@@ -11,6 +11,7 @@ import {
   Film,
   Folder,
   FolderPlus,
+  FolderUp,
   GripVertical,
   MoreHorizontal,
   Music,
@@ -821,9 +822,12 @@ export function PendingRow({ row, onDismiss, density = 'comfortable' }: PendingR
 export function LibraryActionsMenu({
   onCreateFolder,
   onUpload,
+  onUploadFolder,
 }: {
   onCreateFolder: () => void
   onUpload: () => void
+  // 데스크톱 전용 — 폴더 구조 업로드. 미전달 시 메뉴 항목을 숨긴다(모바일).
+  onUploadFolder?: () => void
 }) {
   return (
     <DropdownMenu.Root>
@@ -856,6 +860,15 @@ export function LibraryActionsMenu({
             <Upload className="size-4" />
             파일 업로드
           </DropdownMenu.Item>
+          {onUploadFolder && (
+            <DropdownMenu.Item
+              className="flex cursor-pointer items-center gap-2.5 px-3 py-2 text-sm outline-none data-[highlighted]:bg-accent"
+              onSelect={onUploadFolder}
+            >
+              <FolderUp className="size-4" />
+              폴더 업로드
+            </DropdownMenu.Item>
+          )}
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
