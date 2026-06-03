@@ -105,6 +105,44 @@ export function isUploadActive(p: PendingItem): boolean {
   return p.phase === 'preparing' || p.phase === 'transcoding' || p.phase === 'uploading'
 }
 
+export type UploadAggregate = {
+  total: number
+  processed: number
+  errorCount: number
+  active: PendingItem | null
+  fraction: number
+  pct: number
+  uploading: boolean
+}
+
+// pending 배열을 요약 — 요약 셀과 헤더 진행 링이 공유한다. 진행률은 완료·실패=1,
+// 활성 파일=progress/100 로 보고 전체로 나눈 전체 배치 진행률.
+export function uploadAggregate(items: PendingItem[]): UploadAggregate {
+  const total = items.length
+  const errorCount = items.filter((p) => p.phase === 'error').length
+  const processed = items.filter(
+    (p) => p.phase === 'done' || p.phase === 'error',
+  ).length
+  const active = items.find(isUploadActive) ?? null
+  const fraction =
+    total === 0
+      ? 0
+      : items.reduce(
+          (s, p) =>
+            s + (p.phase === 'done' || p.phase === 'error' ? 1 : p.progress / 100),
+          0,
+        ) / total
+  return {
+    total,
+    processed,
+    errorCount,
+    active,
+    fraction,
+    pct: Math.round(fraction * 100),
+    uploading: active !== null,
+  }
+}
+
 export function basenameNoExt(name: string): string {
   const lastDot = name.lastIndexOf('.')
   return (lastDot > 0 ? name.slice(0, lastDot) : name).toLowerCase()

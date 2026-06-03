@@ -34,6 +34,7 @@ import {
   type LibraryTab,
 } from '~/components/library/library-atoms'
 import { useFavoritesStore } from '~/stores/favorites-store'
+import { useUploadStore } from '~/stores/upload-store'
 import { useRecentPlaybacks } from '~/hooks/useRecentPlaybacks'
 import {
   createFolder,
@@ -79,7 +80,9 @@ export function MobileLibrarySheet({ userId, onPlay }: Props) {
     byType: { audio: 0, video: 0, lyrics: 0 },
   })
   const [loading, setLoading] = useState(false)
-  const [pending, setPending] = useState<PendingItem[]>([])
+  // 업로드 진행은 전역 store — 헤더의 원형 진행 링과 단일 소스를 공유한다.
+  const pending = useUploadStore((s) => s.items)
+  const setPending = useUploadStore((s) => s.setItems)
   const [folderDialogOpen, setFolderDialogOpen] = useState(false)
   const [submittingFolder, setSubmittingFolder] = useState(false)
   const [dragActive, setDragActive] = useState(false)

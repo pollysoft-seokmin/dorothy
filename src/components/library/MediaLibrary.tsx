@@ -36,6 +36,7 @@ import {
   type LibraryTab,
 } from '~/components/library/library-atoms'
 import { useFavoritesStore } from '~/stores/favorites-store'
+import { useUploadStore } from '~/stores/upload-store'
 import {
   entriesFromDataTransfer,
   entriesFromInput,
@@ -176,7 +177,9 @@ export function MediaLibrary({ userId, onPlay }: Props) {
     | null
   >(null)
   const [submittingRename, setSubmittingRename] = useState(false)
-  const [pending, setPending] = useState<PendingItem[]>([])
+  // 업로드 진행은 전역 store — 헤더의 원형 진행 링과 단일 소스를 공유한다.
+  const pending = useUploadStore((s) => s.items)
+  const setPending = useUploadStore((s) => s.setItems)
   const [dragActive, setDragActive] = useState(false)
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)

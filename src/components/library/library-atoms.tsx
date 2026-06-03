@@ -24,8 +24,8 @@ import { NowPlayingBars } from '~/components/library/NowPlayingBars'
 import {
   formatBytes,
   formatRelativeTime,
-  isUploadActive,
   phaseLabel,
+  uploadAggregate,
   type AssetItem,
   type FavoriteItem,
   type LibraryMediaType,
@@ -828,17 +828,8 @@ interface UploadSummaryCellProps extends RowDensityProps {
 }
 
 export function UploadSummaryCell({ items, density = 'comfortable' }: UploadSummaryCellProps) {
-  const total = items.length
+  const { total, processed, errorCount, active, pct } = uploadAggregate(items)
   if (total === 0) return null
-  const errorCount = items.filter((p) => p.phase === 'error').length
-  const processed = items.filter((p) => p.phase === 'done' || p.phase === 'error').length
-  const active = items.find(isUploadActive)
-  const fraction =
-    items.reduce(
-      (s, p) => s + (p.phase === 'done' || p.phase === 'error' ? 1 : p.progress / 100),
-      0,
-    ) / total
-  const pct = Math.round(fraction * 100)
 
   const pad = density === 'compact' ? 'px-2.5 py-2.5' : 'px-3 py-3'
   const trackHeight = density === 'compact' ? 'h-[3px]' : 'h-[4px]'
