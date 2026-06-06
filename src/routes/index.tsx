@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { AudioPlayer } from '~/components/player/AudioPlayer'
 import { MediaLibrary } from '~/components/library/MediaLibrary'
@@ -35,6 +35,13 @@ function Home() {
 
   const isDesktopLibraryOpen = useUiStore((s) => s.isDesktopLibraryOpen)
   const closeDesktopLibrary = useUiStore((s) => s.closeDesktopLibrary)
+  const playFromDesktopLibrary = useCallback(
+    (params: Parameters<typeof player.loadUrl>[0]) => {
+      player.loadUrl(params)
+      closeDesktopLibrary()
+    },
+    [player, closeDesktopLibrary],
+  )
 
   return (
     <main className="relative flex-1 min-h-0 flex">
@@ -70,7 +77,7 @@ function Home() {
               : '-translate-x-full pointer-events-none'
           }`}
         >
-          <MediaLibrary userId={userId} onPlay={player.loadUrl} />
+          <MediaLibrary userId={userId} onPlay={playFromDesktopLibrary} />
         </aside>
       )}
       {userId && <MobileLibrarySheet userId={userId} onPlay={player.loadUrl} />}
