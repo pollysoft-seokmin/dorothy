@@ -362,8 +362,10 @@ export function useMediaPlayer() {
   //  3) 비호환이면 원본을 받아 ffmpeg.wasm 으로 H.264/AAC MP4 로 변환(진행률 표시)→캐시→재생
   // 오디오/비-Drive 는 기존처럼 즉시 스트리밍(차단 X).
   //
-  // 가사 정책: 오디오/비디오 무관하게 임베디드 SAMI trailer를 먼저 시도하고,
-  // 없으면 같은 basename의 .lrc 사이드카로 폴백. (원본 URL 기준 — 변환과 무관)
+  // 가사 정책: 임베디드 SAMI trailer 우선, 없으면 같은 basename 의 .lrc 사이드카.
+  //  - 변환 경로(비호환 비디오): 다운로드한 원본 바이트에서 추출(변환 시 trailer 가
+  //    사라지므로 변환 전에). 즉 다운로드·가사·변환이 로딩 시점에 함께 일어난다.
+  //  - 그 외(오디오/스트리밍/캐시 적중): 원본 URL 기준으로 추출.
   const loadUrl = useCallback(
     (params: {
       url: string
@@ -424,17 +426,15 @@ export function useMediaPlayer() {
           params.mimeType ?? null,
         )
 
-      // 가사 로드 — 원본 URL 기준(변환 여부와 무관). 비디오 변환과 병렬로 진행.
-      void (async () => {
-        // 1순위: 임베디드 SAMI trailer (Polly 포맷). 컨테이너 무관하므로
-        // 오디오/비디오 모두 시도. 없거나 추출 실패면 null 반환.
+      // 가사(원본 URL 기준) — 원본을 따로 받지 않는 경로(오디오/스트리밍/캐시
+      // 적중)에서 사용. 1순위 임베디드 SAMI trailer(URL range), 2순위 사이드카 .lrc.
+      const loadLyricsFromUrl = async () => {
         const sami = await extractEmbeddedSamiFromUrl(params.url)
         if (gen !== lyricsLoadGenRef.current) return
         if (sami && sami.lines.length > 0) {
           store.getState().loadLyrics(sami)
           return
         }
-        // 2순위: 사이드카 .lrc
         if (params.lrcUrl) {
           const lrc = await fetchLyricsFromUrl(params.lrcUrl)
           if (gen !== lyricsLoadGenRef.current) return
@@ -444,34 +444,62 @@ export function useMediaPlayer() {
           }
         }
         store.getState().setLyricsLoading(false)
-      })()
+      }
 
-      if (!considerTranscode) return
+      // 가사(다운로드한 원본 바이트 기준) — 변환 경로에서 사용. 변환 시 SAMI
+      // trailer 가 사라지므로 변환 전에 같은 바이트에서 추출한다(loadFile 과 동일).
+      const loadLyricsFromFile = async (file: File) => {
+        const embedded = await extractEmbeddedSami(file).catch(() => null)
+        if (gen !== lyricsLoadGenRef.current) return
+        if (embedded && embedded.lines.length > 0) {
+          store.getState().loadLyrics(embedded)
+          return
+        }
+        if (params.lrcUrl) {
+          const lrc = await fetchLyricsFromUrl(params.lrcUrl)
+          if (gen !== lyricsLoadGenRef.current) return
+          if (lrc && lrc.lines.length > 0) {
+            store.getState().loadLyrics(lrc)
+            return
+          }
+        }
+        store.getState().setLyricsLoading(false)
+      }
+
+      // 비-변환 경로(오디오/비-Drive/호환 비디오)는 즉시 스트리밍 + URL 가사.
+      if (!considerTranscode) {
+        void loadLyricsFromUrl()
+        return
+      }
 
       // 비디오 소스 해결 — 캐시 → 프로브 → 변환 순. 비동기이며 매 단계에서
       // gen 으로 stale(새 트랙으로 교체됨) 여부를 확인하고 빠져나간다.
       const fileId = params.providerFileId as string
       void (async () => {
-        // 1) 캐시된 변환 결과 재활용
+        // 1) 캐시된 변환 결과 재활용 — 원본 미다운로드이므로 가사는 URL 에서.
         const cached = await getCachedTranscode(fileId)
         if (gen !== lyricsLoadGenRef.current) return
         if (cached) {
           applySource(URL.createObjectURL(cached))
+          void loadLyricsFromUrl()
           return
         }
 
-        // 2) 항상 변환 대상이 아니면 스트리밍 재생 가능 여부 프로브
+        // 2) 항상 변환 대상이 아니면 스트리밍 재생 가능 여부 프로브 — 호환이면
+        //    스트리밍 + URL 가사.
         const ext = getExt(params.name)
         if (!ALWAYS_TRANSCODE_EXTS.has(ext)) {
           const playable = await probeVideoPlayableUrl(params.url)
           if (gen !== lyricsLoadGenRef.current) return
           if (playable) {
             applySource(params.url)
+            void loadLyricsFromUrl()
             return
           }
         }
 
-        // 3) 비호환 — 원본을 받아 변환. 디밍 + 진행률 표시(store).
+        // 3) 비호환 — 실제 파일을 한 번만 받아, 그 바이트에서 가사 추출과 변환을
+        //    함께 수행한다(다운로드·가사·변환 일원화). 디밍 + 진행률 표시(store).
         store.getState().startConversion()
         try {
           const resp = await fetch(params.url)
@@ -481,6 +509,8 @@ export function useMediaPlayer() {
           const file = new File([blob], params.name, {
             type: blob.type || params.mimeType || 'video/mp4',
           })
+          // 가사는 변환과 병렬로 같은 다운로드 바이트에서 추출(변환 전 trailer 보존).
+          void loadLyricsFromFile(file)
           const out = await transcodeToMp4(file, ({ ratio }) => {
             if (gen === lyricsLoadGenRef.current) {
               store.getState().setConversionProgress(ratio)

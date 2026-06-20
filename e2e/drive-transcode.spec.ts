@@ -135,7 +135,7 @@ async function openLibraryAndPlay(page: import('@playwright/test').Page) {
 
 test('Drive 비호환 비디오: 변환 진행 UI → 재생 → 캐시 재활용', async ({ page }) => {
   test.setTimeout(180_000)
-  await installMocks(page)
+  const mocks = await installMocks(page)
 
   await page.goto('/')
   await expect(page.getByRole('button', { name: '내 미디어' }).first()).toBeVisible({
@@ -162,6 +162,10 @@ test('Drive 비호환 비디오: 변환 진행 UI → 재생 → 캐시 재활�
   await expect
     .poll(async () => video.evaluate((el: HTMLVideoElement) => el.duration), { timeout: 20_000 })
     .toBeGreaterThan(0)
+
+  // 일원화 검증: 비호환 경로는 실제 파일을 한 번만 받아 가사+변환에 함께 쓰므로
+  // 프록시 호출은 다운로드 1회뿐(가사용 별도 URL fetch 없음).
+  expect(mocks.proxyHits()).toBe(1)
 
   const firstSrc = await video.evaluate((el: HTMLVideoElement) => el.src)
 
