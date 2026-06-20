@@ -222,7 +222,7 @@ export function GoogleDriveBrowser({
           disabled={loading}
           className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground hover:bg-white/5 hover:text-foreground disabled:cursor-default disabled:opacity-60"
         >
-          <RefreshCw className="size-4" />
+          <RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
 
