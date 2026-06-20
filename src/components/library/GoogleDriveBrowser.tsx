@@ -201,7 +201,8 @@ export function GoogleDriveBrowser({
     )
   }
 
-  const isInitialLoading = loading && folders.length === 0 && assets.length === 0
+  // 콜드 로딩과 폴더 전환을 구분하지 않는다. 재조회 중에는 목록을 비우고
+  // 가운데에 로딩만 표시한다.
   const isEmpty = !loading && folders.length === 0 && playableAssets.length === 0
 
   return (
@@ -218,15 +219,18 @@ export function GoogleDriveBrowser({
           type="button"
           aria-label="Google Drive 새로고침"
           onClick={() => loadContents(folderId)}
-          className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground hover:bg-white/5 hover:text-foreground"
+          disabled={loading}
+          className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground hover:bg-white/5 hover:text-foreground disabled:cursor-default disabled:opacity-60"
         >
           <RefreshCw className="size-4" />
         </button>
       </div>
 
       <div className={density === 'compact' ? 'flex-1 overflow-y-auto px-2.5 pb-2' : 'flex-1 overflow-y-auto px-5 pb-3'}>
-        {isInitialLoading ? (
-          <p className="py-6 text-center text-sm text-text-dim">불러오는 중...</p>
+        {loading ? (
+          <div className="flex h-full min-h-[220px] flex-col items-center justify-center text-sm text-text-dim">
+            불러오는 중...
+          </div>
         ) : errorMessage ? (
           <div className="flex h-full min-h-[220px] flex-col items-center justify-center px-4 text-center">
             <div className="text-sm font-extrabold text-foreground">
