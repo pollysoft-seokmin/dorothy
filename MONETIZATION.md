@@ -193,6 +193,105 @@ Dorothy는 박코치 Polly 포맷의 **암호화 자막을 복호화**한다. �
 - [인앱결제 강제금지법, 세계 최초 시행 — 전자신문](https://www.etnews.com/20220308000147)
 - [한국 앱 외부결제 도입 가이드: 26% 수수료의 진실](https://productengineer.info/camp/ko/shippen/biz/inapp-purchase-3-of-1-rule-korea)
 - [2025 국정감사: 인앱결제 ‘30% 룰’ — 메트로신문](https://www.metroseoul.co.kr/article/20251015500460)
+- [YouTube Data API captions.download](https://developers.google.com/youtube/v3/docs/captions/download)
+- [YouTube IFrame Player API](https://developers.google.com/youtube/iframe_api_reference)
+- [YouTube API Services Terms](https://developers.google.com/youtube/terms/api-services-terms-of-service)
+- [YouTube API Required Minimum Functionality](https://developers.google.com/youtube/terms/required-minimum-functionality)
+- [YouTube channel monetization policies](https://support.google.com/youtube/answer/1311392)
+
+---
+
+## 10. YouTube 기반 어학 학습 서비스 아이디어
+
+### 10.1 아이디어
+영어 학습에 적합한 YouTube 영상에 검수된 영어/한국어 자막을 붙이고, Dorothy가 해당 공개 YouTube 영상을 스트리밍 재생하면서 라인 단위 학습 UX를 제공하는 모델이다.
+
+- **YouTube**: 영상 호스팅, 스트리밍, 광고/채널 수익화
+- **Dorothy**: 라인 클릭, 문장 반복, 자동 정지, 마스킹, 언어 토글, 학습 기록, 커리큘럼, 구독 과금
+
+핵심은 Dorothy가 YouTube를 대체하는 비디오 호스팅 서비스가 아니라, **YouTube 영상 위에 얹는 문장 학습 레이어**가 되는 것이다.
+
+### 10.2 사업성 판단
+아이템 자체는 유효하다. 특히 Dorothy의 기존 강점인 시간 동기화 가사, 라인 단위 seek, 문장 반복, 마스킹 기능은 YouTube 기본 자막 UI보다 학습 효용이 높다.
+
+다만 유료 전환의 근거가 단순 "자막 보기"이면 약하다. YouTube 자체에도 자막 기능이 있으므로, Dorothy의 유료 가치는 다음 기능 묶음에서 나와야 한다.
+
+- 라인 단위 반복 재생
+- 한 문장 재생 후 자동 정지
+- 영어/한국어 자막 토글 및 병렬 표시
+- 문장/전체 자막 마스킹
+- 쉐도잉 녹음 및 비교
+- 단어장/문장장 저장
+- 복습 스케줄과 학습 진도
+- 난이도별 영상 큐레이션
+- 강사용 클래스/과제 기능
+
+### 10.3 권리/정책 리스크
+원안에서 가장 위험한 부분은 "좋은 영어 영상을 가져와 자막을 붙여 내 YouTube에 공개"하는 대목이다. 그 영상이 직접 제작물이 아니거나 명확히 라이선스 받은 콘텐츠가 아니라면 저작권 클레임, 수익화 제한, 채널 리스크가 크다.
+
+YouTube 수익화 정책은 reused content에 민감하다. 남의 영상에 자막만 붙여 재업로드하는 방식은 시청자가 원본과 의미 있게 다른 콘텐츠라고 보기 어렵고, 수익화 거절 가능성이 높다.
+
+따라서 안전한 콘텐츠 소스는 다음 중 하나로 제한하는 것이 좋다.
+
+1. 직접 제작한 영어 학습 영상
+2. 저작권자와 계약한 영상
+3. Public domain 또는 명확한 Creative Commons 영상
+4. 영어 강사/크리에이터가 자기 YouTube 채널을 Dorothy에 연결하는 모델
+
+가장 현실적인 방향은 4번이다. Dorothy가 직접 영상 권리를 떠안지 않고, 크리에이터가 자기 영상과 자막을 연결하면 Dorothy가 학습 페이지를 자동 생성해주는 B2B/B2Creator SaaS가 된다.
+
+### 10.4 기술 구조
+YouTube 영상을 Dorothy의 기존 HTML5 `<audio>/<video>` 플레이어에 직접 넣는 방식은 적절하지 않다. 대신 YouTube IFrame Player API를 별도 플레이어 소스로 두고, Dorothy의 가사/학습 UI와 시간 상태를 동기화한다.
+
+권장 소스 모델:
+
+```ts
+type PlayerSource =
+  | { kind: 'drive'; url: string; lrcUrl?: string }
+  | { kind: 'local'; file: File }
+  | { kind: 'youtube'; videoId: string; captions?: ParsedLyrics }
+```
+
+YouTube 재생 시에는 `player.getCurrentTime()`을 주기적으로 읽어 Dorothy의 `currentTime`으로 반영하고, 기존 `LyricsPanel`은 그대로 사용한다. 자막은 VTT/SRT/TTML/LRC를 `ParsedLyrics`로 변환하면 된다.
+
+YouTube 자막을 공식 API로 가져오는 경로는 제한적이다. `captions.download`는 OAuth 인증과 권한이 필요하며, 일반 공개 영상의 자막을 임의로 다운로드하는 용도가 아니라 사용자가 권한을 가진 채널/영상에 맞는 API다. 따라서 "본인 또는 연결된 크리에이터의 YouTube 채널" 모델과 잘 맞는다.
+
+### 10.5 정책상 UI 주의점
+YouTube IFrame 위에 Dorothy UI를 덮어씌워 플레이어 일부를 가리는 방식은 피해야 한다. YouTube API의 Required Minimum Functionality는 embedded player의 일부를 overlay, frame, visual element로 가리는 것을 제한한다. 학습 UI는 YouTube 플레이어 옆, 아래, 또는 별도 패널에 배치하는 것이 안전하다.
+
+### 10.6 권장 MVP
+첫 MVP는 "임의 YouTube URL 자동 자막 추출"이 아니라, 권리와 API 제약이 명확한 구조로 시작한다.
+
+1. YouTube URL 입력 또는 채널 연결
+2. YouTube IFrame Player로 영상 재생
+3. 사용자가 `.vtt`, `.srt`, `.lrc` 자막을 업로드하거나 붙여넣기
+4. Dorothy가 자막을 `ParsedLyrics`로 변환
+5. 라인 반복, 자동 정지, 마스킹, 언어 토글 제공
+6. 학습 기록/진도/문장장 저장을 유료 기능으로 게이팅
+
+다음 단계로는 YouTube OAuth를 통해 사용자가 소유하거나 관리 권한이 있는 영상의 caption track을 공식 API로 가져오는 기능을 추가한다.
+
+### 10.7 수익 모델
+YouTube와 Dorothy의 역할을 분리하면 수익 구조가 자연스럽다.
+
+- YouTube: 영상 조회수, 광고, 채널 성장
+- 크리에이터: 기존 YouTube 자산을 학습 상품으로 확장
+- Dorothy: 학습 UX, 커리큘럼, 학습 데이터, 클래스 기능에 대한 구독 과금
+
+가능한 요금제:
+
+- 개인 학습자: 월 구독, 학습 기록/복습/고급 반복 기능
+- 크리에이터: 영상 수 또는 학습 페이지 수 기준 SaaS
+- 강사/학원: 클래스, 과제, 진도 관리 기준 B2B 플랜
+
+### 10.8 결론
+YouTube 기반 Dorothy는 사업 아이템으로 가능성이 있다. 단, "남의 영상을 재업로드해 자막을 붙이는 서비스"가 아니라, **권리 있는 영상과 검수된 자막을 Dorothy의 라인 학습 UX로 상품화하는 서비스**로 정의해야 한다.
+
+가장 좋은 출발점은 다음 포지셔닝이다.
+
+> YouTube 영어 크리에이터가 자기 영상과 자막을 연결하면, Dorothy가 라인 반복 학습 페이지를 자동 생성해주는 서비스.
+
+이 방향이면 YouTube는 스트리밍과 채널 수익을 담당하고, Dorothy는 학습 경험과 구독/클래스 기능으로 수익화할 수 있다.
 
 ---
 
