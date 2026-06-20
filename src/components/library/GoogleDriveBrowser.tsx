@@ -18,7 +18,6 @@ import {
   AssetRow,
   BreadcrumbChips,
   FolderRow,
-  SectionLabel,
 } from '~/components/library/library-atoms'
 
 type Props = {
@@ -42,7 +41,6 @@ export function GoogleDriveBrowser({
   const [assets, setAssets] = useState<GoogleDriveAsset[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [unsupportedCount, setUnsupportedCount] = useState(0)
-  const [truncated, setTruncated] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [connecting, setConnecting] = useState(false)
@@ -72,13 +70,11 @@ export function GoogleDriveBrowser({
       setUnsupportedCount(
         typeof data?.unsupportedCount === 'number' ? data.unsupportedCount : 0,
       )
-      setTruncated(!!data?.nextPageToken)
     } catch (e) {
       setFolders([])
       setAssets([])
       setTotalCount(0)
       setUnsupportedCount(0)
-      setTruncated(false)
       const message = e instanceof Error ? e.message : 'Google Drive를 불러오지 못했습니다'
       setErrorMessage(message)
       toast.error(message)
@@ -237,54 +233,35 @@ export function GoogleDriveBrowser({
             )}
           </div>
         ) : (
-          <>
-            <div className={density === 'compact' ? 'px-2 pt-2 text-[11px] text-text-dim' : 'pt-2 text-xs text-text-dim'}>
-              Drive 항목 {totalCount}개 중 표시 {folders.length + playableAssets.length}개
-              {unsupportedCount > 0 ? `, 제외 ${unsupportedCount}개` : ''}
-              {truncated ? ', 일부만 표시' : ''}
-            </div>
-            {folders.length > 0 && (
-              <>
-                <SectionLabel density={density} right={`${folders.length}`}>
-                  폴더
-                </SectionLabel>
-                {folders.map((folder) => (
-                  <FolderRow
-                    key={folder.id}
-                    name={folder.name}
-                    onClick={() => openFolder(folder)}
-                    density={density}
-                  />
-                ))}
-              </>
-            )}
-
-            {playableAssets.length > 0 && (
-              <>
-                <SectionLabel density={density} right={`${playableAssets.length}`}>
-                  파일
-                </SectionLabel>
-                {playableAssets.map((asset) => (
-                  <AssetRow
-                    key={asset.id}
-                    asset={{
-                      id: asset.id,
-                      name: asset.name,
-                      mediaType: asset.mediaType,
-                      mimeType: asset.mimeType,
-                      sizeBytes: asset.sizeBytes,
-                      url: driveFileUrl(asset.id),
-                      createdAt: asset.modifiedTime ?? undefined,
-                    }}
-                    active={false}
-                    playing={false}
-                    density={density}
-                    onClick={() => playAsset(asset)}
-                  />
-                ))}
-              </>
-            )}
-          </>
+          // 섹션 구분 없이 폴더(위) → 파일(아래) 순서로 평면 나열.
+          <div className={density === 'compact' ? 'pt-1.5' : 'pt-2'}>
+            {folders.map((folder) => (
+              <FolderRow
+                key={folder.id}
+                name={folder.name}
+                onClick={() => openFolder(folder)}
+                density={density}
+              />
+            ))}
+            {playableAssets.map((asset) => (
+              <AssetRow
+                key={asset.id}
+                asset={{
+                  id: asset.id,
+                  name: asset.name,
+                  mediaType: asset.mediaType,
+                  mimeType: asset.mimeType,
+                  sizeBytes: asset.sizeBytes,
+                  url: driveFileUrl(asset.id),
+                  createdAt: asset.modifiedTime ?? undefined,
+                }}
+                active={false}
+                playing={false}
+                density={density}
+                onClick={() => playAsset(asset)}
+              />
+            ))}
+          </div>
         )}
       </div>
     </div>
