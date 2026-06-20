@@ -47,8 +47,10 @@ const TYPE_ICON: Record<LibraryMediaType | 'folder', typeof Music> = {
 
 export type LibraryTab = 'drive' | 'recent' | 'favorites'
 
+// 'Google Drive' 는 Google 정식 제품명 — 브랜드 가이드라인상 번역하지 않는다
+// (로케일 무관). '최근'/'즐겨찾기' 만 한국어.
 const TAB_DEFS: { key: LibraryTab; label: string }[] = [
-  { key: 'drive', label: 'Drive' },
+  { key: 'drive', label: 'Google Drive' },
   { key: 'recent', label: '최근' },
   { key: 'favorites', label: '즐겨찾기' },
 ]
