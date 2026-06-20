@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Cloud, RefreshCw } from 'lucide-react'
+import { Cloud, Loader2, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { authClient } from '~/lib/auth-client'
 import {
@@ -222,7 +222,11 @@ export function GoogleDriveBrowser({
           disabled={loading}
           className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground hover:bg-white/5 hover:text-foreground disabled:cursor-default disabled:opacity-60"
         >
-          <RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} />
+          {loading ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <RefreshCw className="size-4" />
+          )}
         </button>
       </div>
 
