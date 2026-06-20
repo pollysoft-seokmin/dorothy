@@ -42,21 +42,23 @@ export interface TranscodeProgress {
 }
 
 /**
- * 비디오 파일을 브라우저가 디코딩할 수 있는지 빠르게 확인한다.
+ * 주어진 URL 의 비디오를 브라우저가 디코딩할 수 있는지 빠르게 확인한다.
  * 컨테이너만 mp4고 안의 코덱이 비호환(예: MPEG-4 Part 2)인 경우
  * `loadeddata`가 발생하지 않거나 `videoWidth=0`이 된다.
+ * `preload=metadata` 라 전체 다운로드 없이 앞부분만 받아 판정한다.
  */
-export function probeVideoPlayable(file: File, timeoutMs = 8000): Promise<boolean> {
+export function probeVideoPlayableUrl(
+  url: string,
+  timeoutMs = 8000,
+): Promise<boolean> {
   return new Promise((resolve) => {
     const video = document.createElement('video')
     video.muted = true
     video.preload = 'metadata'
-    const url = URL.createObjectURL(file)
     let settled = false
     const settle = (ok: boolean) => {
       if (settled) return
       settled = true
-      URL.revokeObjectURL(url)
       video.removeAttribute('src')
       video.load()
       resolve(ok)
@@ -80,6 +82,22 @@ export function probeVideoPlayable(file: File, timeoutMs = 8000): Promise<boolea
     )
     video.src = url
   })
+}
+
+/**
+ * 로컬 File 의 재생 가능 여부 확인. ObjectURL 을 만들어 probeVideoPlayableUrl
+ * 에 위임하고, 판정 후 URL 을 해제한다.
+ */
+export async function probeVideoPlayable(
+  file: File,
+  timeoutMs = 8000,
+): Promise<boolean> {
+  const url = URL.createObjectURL(file)
+  try {
+    return await probeVideoPlayableUrl(url, timeoutMs)
+  } finally {
+    URL.revokeObjectURL(url)
+  }
 }
 
 /**

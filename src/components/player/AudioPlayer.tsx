@@ -26,6 +26,8 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
   const status = usePlayerStore((s) => s.status)
   const currentTime = usePlayerStore((s) => s.currentTime)
   const duration = usePlayerStore((s) => s.duration)
+  const isConverting = usePlayerStore((s) => s.isConverting)
+  const conversionProgress = usePlayerStore((s) => s.conversionProgress)
   const repeatCount = usePlayerStore((s) => s.repeatCount)
   const fileName = usePlayerStore((s) => s.fileName)
   const mediaType = usePlayerStore((s) => s.mediaType)
@@ -137,12 +139,23 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
       <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-4">
         {/* 미디어 엘리먼트: 비디오는 표시, 오디오는 숨김 */}
         {mediaType === 'video' ? (
-          <video
-            ref={mediaRef as React.Ref<HTMLVideoElement>}
-            className="w-full aspect-video bg-black rounded-md"
-            preload="metadata"
-            playsInline
-          />
+          // 변환 중에는 비디오 영역을 디밍하고 안내 문구를 띄운다. 진행률은
+          // 하단 progress bar / 시간 표시 위치를 재활용해 보여준다.
+          <div className="relative w-full aspect-video">
+            <video
+              ref={mediaRef as React.Ref<HTMLVideoElement>}
+              className="w-full h-full bg-black rounded-md"
+              preload="metadata"
+              playsInline
+            />
+            {isConverting && (
+              <div className="absolute inset-0 grid place-items-center rounded-md bg-black/70">
+                <p className="px-6 text-center text-sm text-white/80">
+                  재생 가능한 형식으로 변환 중…
+                </p>
+              </div>
+            )}
+          </div>
         ) : (
           <audio
             ref={mediaRef as React.Ref<HTMLAudioElement>}
@@ -205,8 +218,15 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
             duration={duration}
             disabled={disabled}
             onSeek={handleSeek}
+            isConverting={isConverting}
+            conversionProgress={conversionProgress}
           />
-          <TimeDisplay currentTime={currentTime} duration={duration} />
+          <TimeDisplay
+            currentTime={currentTime}
+            duration={duration}
+            isConverting={isConverting}
+            conversionProgress={conversionProgress}
+          />
         </div>
 
         {/* 컨트롤 — 3-col grid로 Play/Pause를 시각적 중앙에 고정하고
@@ -223,7 +243,7 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
           <div className="justify-self-center">
             <PlaybackControls
               status={status}
-              disabled={disabled}
+              disabled={disabled || isConverting}
               onPlay={play}
               onPause={pause}
             />

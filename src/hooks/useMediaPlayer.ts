@@ -3,7 +3,12 @@ import { usePlayerStore } from '~/stores/player-store'
 import { readID3Tags } from '~/lib/id3-reader'
 import { extractEmbeddedSami, extractEmbeddedSamiFromUrl } from '~/lib/sami-trailer'
 import { fetchLyricsFromUrl } from '~/lib/lrc-parser'
-import { transcodeToMp4, probeVideoPlayable } from '~/lib/transcode'
+import {
+  transcodeToMp4,
+  probeVideoPlayable,
+  probeVideoPlayableUrl,
+} from '~/lib/transcode'
+import { getCachedTranscode, putCachedTranscode } from '~/lib/transcode-cache'
 import { toast } from 'sonner'
 import type { MediaType } from '~/types'
 
@@ -346,12 +351,19 @@ export function useMediaPlayer() {
     [stopRafLoop],
   )
 
-  // 라이브러리 URL(Google Drive 프록시 등)에서 직접 로드. 트랜스코딩/태그 읽기는 생략.
+  // 라이브러리 URL(Google Drive 프록시 등)에서 직접 로드. 태그 읽기는 생략.
   // ObjectURL과 동일한 슬롯(objectUrlRef)에 보관 — revokeObjectURL은 일반 URL에
   // 대해선 no-op이므로 안전하게 공유 가능.
+  //
+  // 비디오 정책: Drive 비디오는 브라우저가 못 디코딩하는 포맷(.mpg/.mpeg/.avi…,
+  // 또는 컨테이너만 mp4고 코덱이 MPEG-4 Part 2 등)이 있어 화면이 안 나올 수 있다.
+  //  1) 캐시(IndexedDB)에 변환 결과가 있으면 즉시 재생
+  //  2) 항상 변환 대상이 아니면 스트리밍 재생 가능 여부를 프로브 → 가능하면 그대로 스트리밍
+  //  3) 비호환이면 원본을 받아 ffmpeg.wasm 으로 H.264/AAC MP4 로 변환(진행률 표시)→캐시→재생
+  // 오디오/비-Drive 는 기존처럼 즉시 스트리밍(차단 X).
+  //
   // 가사 정책: 오디오/비디오 무관하게 임베디드 SAMI trailer를 먼저 시도하고,
-  // 없으면 같은 basename의 .lrc 사이드카로 폴백. 미디어 src 적용은 즉시 진행
-  // (스트리밍 차단 X).
+  // 없으면 같은 basename의 .lrc 사이드카로 폴백. (원본 URL 기준 — 변환과 무관)
   const loadUrl = useCallback(
     (params: {
       url: string
@@ -369,10 +381,37 @@ export function useMediaPlayer() {
       if (objectUrlRef.current) {
         URL.revokeObjectURL(objectUrlRef.current)
       }
-      objectUrlRef.current = params.url
-      if (current && store.getState().mediaType === params.mediaType) {
-        current.src = params.url
+      objectUrlRef.current = null
+
+      // loadTrack 전 mediaType 캡처 — 같은 타입이면 엘리먼트 교체가 없어 src 를
+      // 현재 엘리먼트에 직접 적용해야 한다(교체 시엔 아래 effect 가 적용).
+      const prevMediaType = store.getState().mediaType
+
+      // Drive 비디오만 비호환 가능성이 있어 변환 경로를 고려한다.
+      const considerTranscode =
+        params.mediaType === 'video' &&
+        params.source === 'google_drive' &&
+        !!params.providerFileId
+
+      // 미디어 소스 적용. 엘리먼트가 교체된 경우엔 effect 가 objectUrlRef 를 집어
+      // 새 엘리먼트에 적용하므로, 여기선 objectUrlRef 갱신 + 현재 엘리먼트 직접
+      // 적용을 모두 수행한다(둘 중 실제로 유효한 쪽이 src 를 세팅).
+      const applySource = (url: string) => {
+        objectUrlRef.current = url
+        const media = mediaRef.current
+        if (media && media.src !== url) media.src = url
       }
+
+      const gen = ++lyricsLoadGenRef.current
+
+      // 빠른 경로 — 오디오/비-Drive/(아래에서 호환 판정된) 비디오는 즉시 스트리밍.
+      if (!considerTranscode) {
+        objectUrlRef.current = params.url
+        if (current && prevMediaType === params.mediaType) {
+          current.src = params.url
+        }
+      }
+
       store
         .getState()
         .loadTrack(
@@ -385,7 +424,7 @@ export function useMediaPlayer() {
           params.mimeType ?? null,
         )
 
-      const gen = ++lyricsLoadGenRef.current
+      // 가사 로드 — 원본 URL 기준(변환 여부와 무관). 비디오 변환과 병렬로 진행.
       void (async () => {
         // 1순위: 임베디드 SAMI trailer (Polly 포맷). 컨테이너 무관하므로
         // 오디오/비디오 모두 시도. 없거나 추출 실패면 null 반환.
@@ -405,6 +444,61 @@ export function useMediaPlayer() {
           }
         }
         store.getState().setLyricsLoading(false)
+      })()
+
+      if (!considerTranscode) return
+
+      // 비디오 소스 해결 — 캐시 → 프로브 → 변환 순. 비동기이며 매 단계에서
+      // gen 으로 stale(새 트랙으로 교체됨) 여부를 확인하고 빠져나간다.
+      const fileId = params.providerFileId as string
+      void (async () => {
+        // 1) 캐시된 변환 결과 재활용
+        const cached = await getCachedTranscode(fileId)
+        if (gen !== lyricsLoadGenRef.current) return
+        if (cached) {
+          applySource(URL.createObjectURL(cached))
+          return
+        }
+
+        // 2) 항상 변환 대상이 아니면 스트리밍 재생 가능 여부 프로브
+        const ext = getExt(params.name)
+        if (!ALWAYS_TRANSCODE_EXTS.has(ext)) {
+          const playable = await probeVideoPlayableUrl(params.url)
+          if (gen !== lyricsLoadGenRef.current) return
+          if (playable) {
+            applySource(params.url)
+            return
+          }
+        }
+
+        // 3) 비호환 — 원본을 받아 변환. 디밍 + 진행률 표시(store).
+        store.getState().startConversion()
+        try {
+          const resp = await fetch(params.url)
+          if (!resp.ok) throw new Error(`download failed: ${resp.status}`)
+          const blob = await resp.blob()
+          if (gen !== lyricsLoadGenRef.current) return
+          const file = new File([blob], params.name, {
+            type: blob.type || params.mimeType || 'video/mp4',
+          })
+          const out = await transcodeToMp4(file, ({ ratio }) => {
+            if (gen === lyricsLoadGenRef.current) {
+              store.getState().setConversionProgress(ratio)
+            }
+          })
+          // 변환 완료 시점에 트랙이 바뀌었으면 결과를 버린다(다음 재생 시 캐시
+          // 미스로 재변환). store 는 새 loadTrack 이 이미 정리했다.
+          if (gen !== lyricsLoadGenRef.current) return
+          // 캐시에 저장(쿼터 초과 등 실패는 무시) 후 재생 상태로 전환.
+          void putCachedTranscode(fileId, out, out.name)
+          store.getState().endConversion()
+          applySource(URL.createObjectURL(out))
+        } catch (err) {
+          if (gen !== lyricsLoadGenRef.current) return
+          console.error('drive video transcode failed:', err)
+          store.getState().endConversion()
+          toast.error('비디오 변환에 실패했습니다')
+        }
       })()
     },
     [stopRafLoop],
@@ -435,6 +529,11 @@ export function useMediaPlayer() {
     }
 
     const onError = () => {
+      // 변환 중이거나 아직 소스를 적용하기 전(빈 src)이면 무시한다. 변환 경로는
+      // 새 소스 적용 전 잠시 src 가 비거나 직전 트랙의 revoke 된 blob URL 이 남아
+      // 있을 수 있는데, 이때의 error 로 재생 상태를 리셋하면 안 된다.
+      if (store.getState().isConverting) return
+      if (!media.src && !media.currentSrc) return
       const mediaType = store.getState().mediaType
       const msg =
         mediaType === 'video'
