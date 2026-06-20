@@ -30,7 +30,10 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
   const fileName = usePlayerStore((s) => s.fileName)
   const mediaType = usePlayerStore((s) => s.mediaType)
   const metadata = usePlayerStore((s) => s.metadata)
-  const mediaAssetId = usePlayerStore((s) => s.mediaAssetId)
+  const source = usePlayerStore((s) => s.source)
+  const providerFileId = usePlayerStore((s) => s.providerFileId)
+  const providerLrcFileId = usePlayerStore((s) => s.providerLrcFileId)
+  const mimeType = usePlayerStore((s) => s.mimeType)
   const lyrics = usePlayerStore((s) => s.lyrics)
   const currentLineIndex = usePlayerStore((s) => s.currentLineIndex)
   const checkedLines = usePlayerStore((s) => s.checkedLines)
@@ -49,13 +52,15 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
   const hasFile = !!fileName
   const disabled = !hasFile
 
-  // 즐겨찾기 — 라이브러리 자산(mediaAssetId 보유)일 때만 별을 노출/토글한다.
+  // 즐겨찾기 — Google Drive에서 로드된 재생 가능 파일만 별을 노출/토글한다.
   const favItems = useFavoritesStore((s) => s.items)
   const favPendingIds = useFavoritesStore((s) => s.pendingIds)
   const loadFavorites = useFavoritesStore((s) => s.load)
   const toggleFavorite = useFavoritesStore((s) => s.toggle)
-  const isFavorite = !!mediaAssetId && favItems.some((i) => i.mediaAssetId === mediaAssetId)
-  const favoritePending = !!mediaAssetId && favPendingIds.has(mediaAssetId)
+  const canFavorite = source === 'google_drive' && !!providerFileId && !!fileName
+  const isFavorite = canFavorite && favItems.some((i) => i.fileId === providerFileId)
+  const favoritePending =
+    canFavorite && !!providerFileId && favPendingIds.has(providerFileId)
 
   // 로그인 사용자는 별 상태를 즉시 보여줄 수 있도록 마운트 시 목록을 한 번 적재.
   useEffect(() => {
@@ -63,8 +68,23 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
   }, [isLoggedIn, loadFavorites])
 
   const handleToggleFavorite = useCallback(() => {
-    if (mediaAssetId) void toggleFavorite(mediaAssetId)
-  }, [mediaAssetId, toggleFavorite])
+    if (!canFavorite || !providerFileId) return
+    void toggleFavorite({
+      fileId: providerFileId,
+      name: fileName,
+      mediaType,
+      mimeType,
+      lrcFileId: providerLrcFileId,
+    })
+  }, [
+    canFavorite,
+    fileName,
+    mediaType,
+    mimeType,
+    providerFileId,
+    providerLrcFileId,
+    toggleFavorite,
+  ])
 
   const handleMediaLoad = useCallback(
     (file: File) => loadFile(file),
@@ -151,7 +171,7 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
           fileName={fileName}
           mediaType={mediaType}
           metadata={metadata}
-          favoritable={isLoggedIn && !!mediaAssetId}
+          favoritable={isLoggedIn && canFavorite}
           isFavorite={isFavorite}
           favoritePending={favoritePending}
           onToggleFavorite={handleToggleFavorite}

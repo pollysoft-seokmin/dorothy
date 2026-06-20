@@ -9,19 +9,12 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SignupRouteImport } from './routes/signup'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ApiBlobUploadRouteImport } from './routes/api/blob/upload'
-import { Route as ApiBlobRangeRouteImport } from './routes/api/blob/range'
+import { Route as ApiGoogleDriveFileRouteImport } from './routes/api/google-drive/file'
 import { Route as ApiAuthProvidersRouteImport } from './routes/api/auth/providers'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
-const SignupRoute = SignupRouteImport.update({
-  id: '/signup',
-  path: '/signup',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -32,14 +25,9 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiBlobUploadRoute = ApiBlobUploadRouteImport.update({
-  id: '/api/blob/upload',
-  path: '/api/blob/upload',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiBlobRangeRoute = ApiBlobRangeRouteImport.update({
-  id: '/api/blob/range',
-  path: '/api/blob/range',
+const ApiGoogleDriveFileRoute = ApiGoogleDriveFileRouteImport.update({
+  id: '/api/google-drive/file',
+  path: '/api/google-drive/file',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthProvidersRoute = ApiAuthProvidersRouteImport.update({
@@ -56,80 +44,59 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/signup': typeof SignupRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/auth/providers': typeof ApiAuthProvidersRoute
-  '/api/blob/range': typeof ApiBlobRangeRoute
-  '/api/blob/upload': typeof ApiBlobUploadRoute
+  '/api/google-drive/file': typeof ApiGoogleDriveFileRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/signup': typeof SignupRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/auth/providers': typeof ApiAuthProvidersRoute
-  '/api/blob/range': typeof ApiBlobRangeRoute
-  '/api/blob/upload': typeof ApiBlobUploadRoute
+  '/api/google-drive/file': typeof ApiGoogleDriveFileRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/signup': typeof SignupRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/auth/providers': typeof ApiAuthProvidersRoute
-  '/api/blob/range': typeof ApiBlobRangeRoute
-  '/api/blob/upload': typeof ApiBlobUploadRoute
+  '/api/google-drive/file': typeof ApiGoogleDriveFileRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/login'
-    | '/signup'
     | '/api/auth/$'
     | '/api/auth/providers'
-    | '/api/blob/range'
-    | '/api/blob/upload'
+    | '/api/google-drive/file'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
-    | '/signup'
     | '/api/auth/$'
     | '/api/auth/providers'
-    | '/api/blob/range'
-    | '/api/blob/upload'
+    | '/api/google-drive/file'
   id:
     | '__root__'
     | '/'
     | '/login'
-    | '/signup'
     | '/api/auth/$'
     | '/api/auth/providers'
-    | '/api/blob/range'
-    | '/api/blob/upload'
+    | '/api/google-drive/file'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
-  SignupRoute: typeof SignupRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiAuthProvidersRoute: typeof ApiAuthProvidersRoute
-  ApiBlobRangeRoute: typeof ApiBlobRangeRoute
-  ApiBlobUploadRoute: typeof ApiBlobUploadRoute
+  ApiGoogleDriveFileRoute: typeof ApiGoogleDriveFileRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/signup': {
-      id: '/signup'
-      path: '/signup'
-      fullPath: '/signup'
-      preLoaderRoute: typeof SignupRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -144,18 +111,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/blob/upload': {
-      id: '/api/blob/upload'
-      path: '/api/blob/upload'
-      fullPath: '/api/blob/upload'
-      preLoaderRoute: typeof ApiBlobUploadRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/blob/range': {
-      id: '/api/blob/range'
-      path: '/api/blob/range'
-      fullPath: '/api/blob/range'
-      preLoaderRoute: typeof ApiBlobRangeRouteImport
+    '/api/google-drive/file': {
+      id: '/api/google-drive/file'
+      path: '/api/google-drive/file'
+      fullPath: '/api/google-drive/file'
+      preLoaderRoute: typeof ApiGoogleDriveFileRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/providers': {
@@ -178,11 +138,9 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
-  SignupRoute: SignupRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiAuthProvidersRoute: ApiAuthProvidersRoute,
-  ApiBlobRangeRoute: ApiBlobRangeRoute,
-  ApiBlobUploadRoute: ApiBlobUploadRoute,
+  ApiGoogleDriveFileRoute: ApiGoogleDriveFileRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

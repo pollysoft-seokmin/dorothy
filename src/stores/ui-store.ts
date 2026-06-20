@@ -16,7 +16,7 @@ interface UiStore {
   toggleDesktopLibrary: () => void
   closeDesktopLibrary: () => void
 
-  // 계정 정보(프로필 + 스토리지 + 최근 재생) 열림 상태 — 같은 슬라이스로
+  // 계정 정보(프로필 + 설정) 열림 상태 — 같은 슬라이스로
   // 모바일=Bottom Sheet, 데스크톱=중앙 모달이 분기된다. 슬라이스명은 모바일이
   // 먼저 만들어진 역사를 반영해 isAccountSheet 그대로 유지.
   isAccountSheetOpen: boolean

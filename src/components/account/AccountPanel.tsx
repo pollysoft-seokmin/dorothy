@@ -3,8 +3,6 @@ import { useRouter } from '@tanstack/react-router'
 import { LogOut, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { authClient, useSession } from '~/lib/auth-client'
-import { getStorageUsage } from '~/server/storage'
-import { StorageGauge } from '~/components/library/library-atoms'
 import { ThemeToggle } from '~/components/theme/ThemeToggle'
 import { usePlayerStore } from '~/stores/player-store'
 import { cn } from '~/lib/utils'
@@ -12,8 +10,6 @@ import {
   displayName as deriveDisplayName,
   avatarColor,
 } from '~/lib/user-display'
-
-type Usage = Awaited<ReturnType<typeof getStorageUsage>>
 
 // 켜짐=primary-bright 트랙 + 흰 노브. 외부 의존성 없이 인라인.
 function SettingSwitch({
@@ -131,39 +127,18 @@ interface AccountPanelProps {
   // 부모(시트/모달)가 보일 때만 true. fetch 게이트 + 세션 로그아웃 시 onClose 가드.
   active: boolean
   onClose: () => void
-  // 모바일 시트와 데스크톱 모달이 콘텐츠(프로필 + 스토리지)를 1:1 공유하므로
-  // 한 컴포넌트로 묶는다. 최근 재생은 "내 미디어"의 최근 탭으로 이동했다 (#105).
 }
 
 export function AccountPanel({ active, onClose }: AccountPanelProps) {
   const { data, refetch } = useSession()
   const router = useRouter()
 
-  const [usage, setUsage] = useState<Usage | null>(null)
   const [signingOut, setSigningOut] = useState(false)
   const [nameDialogOpen, setNameDialogOpen] = useState(false)
   const [savingName, setSavingName] = useState(false)
 
   const autoStopAfterLine = usePlayerStore((s) => s.autoStopAfterLine)
   const setAutoStopAfterLine = usePlayerStore((s) => s.setAutoStopAfterLine)
-
-  // 패널이 활성(보이는) 상태일 때만 fetch — 닫힌 채로 불필요한 호출을 막는다.
-  // 사용자/세션이 바뀌어도 다시 활성화될 때 최신 데이터를 가져온다.
-  const userId = data?.user?.id ?? null
-  useEffect(() => {
-    if (!active || !userId) return
-    let cancelled = false
-    void getStorageUsage()
-      .then((u) => {
-        if (!cancelled) setUsage(u)
-      })
-      .catch(() => {
-        // 스토리지 조회 실패는 게이지 "불러오는 중…" 유지로 갈음 — 토스트 남발 회피.
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [active, userId])
 
   // 세션이 사라지면(로그아웃 등) 부모를 닫게 한다.
   useEffect(() => {
@@ -255,26 +230,6 @@ export function AccountPanel({ active, onClose }: AccountPanelProps) {
             <Pencil className="size-3.5" />
           </button>
         </div>
-      </div>
-
-      {/* Storage — 내 미디어와 동일한 StorageGauge atom (세그먼트 바 + 범례). */}
-      <div className="mt-3 rounded-xl bg-secondary p-4">
-        {usage ? (
-          <StorageGauge
-            used={usage.used}
-            quota={usage.quota}
-            byType={usage.byType}
-          />
-        ) : (
-          <div className="flex items-baseline justify-between">
-            <div className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-text-dim">
-              스토리지
-            </div>
-            <div className="font-mono text-[11px] text-text-dim">
-              불러오는 중…
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Settings — 테마 + 재생 옵션 (#107) */}

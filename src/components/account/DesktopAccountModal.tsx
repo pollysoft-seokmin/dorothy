@@ -9,7 +9,7 @@ import { AccountPanel } from './AccountPanel'
 // 제어되며, lg 이상에서만 visible — 한 시점에 시트와 모달이 동시에 보일 수
 // 없으므로 슬라이스 분리는 불필요.
 //
-// 콘텐츠(프로필 + 스토리지 + 최근 재생)는 AccountPanel에서 1:1 동일 — 모바일
+// 콘텐츠(프로필 + 설정)는 AccountPanel에서 1:1 동일 — 모바일
 // Bottom Sheet와 동일 컨텐츠를 다른 chrome으로 감싸기만 한다.
 export function DesktopAccountModal() {
   const isOpen = useUiStore((s) => s.isAccountSheetOpen)

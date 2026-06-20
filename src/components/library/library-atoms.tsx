@@ -3,33 +3,24 @@
 // 한쪽 수정이 다른 쪽으로 자연스럽게 따라가도록 한다. density prop으로 모바일
 // (comfortable)/데스크톱(compact) 두 톤만 제공 — 더 세분화는 회의 후 결정.
 
-import { useEffect, useRef, useState } from 'react'
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
+import { useRef, useState } from 'react'
 import {
   ChevronRight,
   FileText,
   Film,
   Folder,
-  FolderPlus,
-  FolderUp,
   GripVertical,
-  MoreHorizontal,
   Music,
   Star,
   Upload,
-  UploadCloud,
 } from 'lucide-react'
 import { cn } from '~/lib/utils'
 import { NowPlayingBars } from '~/components/library/NowPlayingBars'
 import {
-  formatBytes,
   formatRelativeTime,
-  phaseLabel,
-  uploadAggregate,
   type AssetItem,
   type FavoriteItem,
   type LibraryMediaType,
-  type PendingItem,
   type RecentPlayback,
 } from '~/components/library/library-shared'
 
@@ -43,14 +34,6 @@ const TYPE_COLOR: Record<LibraryMediaType | 'folder', string> = {
   folder: 'text-foreground',
 }
 
-// StorageGauge 의 segment 색 — TYPE_COLOR 의 hex 표현. CSS background-color 로 직접
-// 쓰기 위해 별도 분리.
-const TYPE_BG_COLOR: Record<'audio' | 'video' | 'lyrics', string> = {
-  audio: '#1ED760',
-  video: '#A28DFF',
-  lyrics: '#FFB75D',
-}
-
 const TYPE_ICON: Record<LibraryMediaType | 'folder', typeof Music> = {
   audio: Music,
   video: Film,
@@ -59,94 +42,14 @@ const TYPE_ICON: Record<LibraryMediaType | 'folder', typeof Music> = {
 }
 
 // ─────────────────────────────────────────────────────────
-// StorageGauge — 6px 세그먼트 가로 바 + 라벨 + 6px 도트 범례
-// ─────────────────────────────────────────────────────────
-
-interface StorageGaugeProps {
-  used: number
-  quota: number
-  byType?: { audio: number; video: number; lyrics: number }
-}
-
-export function StorageGauge({ used, quota, byType }: StorageGaugeProps) {
-  const safeQuota = quota > 0 ? quota : 1
-  const usedPct = Math.min(1, used / safeQuota)
-  const pctLabel = Math.round(usedPct * 100)
-
-  // byType 제공 시 음악/영상/가사를 quota 대비 비율로 분할 — 모든 비율의 합은
-  // usedPct 이하(반올림 오차 무시). byType 미제공 시 단일 그린 세그먼트.
-  const segments: { key: string; ratio: number; color: string; label: string }[] =
-    byType
-      ? [
-          { key: 'audio', ratio: byType.audio / safeQuota, color: TYPE_BG_COLOR.audio, label: '음악' },
-          { key: 'video', ratio: byType.video / safeQuota, color: TYPE_BG_COLOR.video, label: '영상' },
-          { key: 'lyrics', ratio: byType.lyrics / safeQuota, color: TYPE_BG_COLOR.lyrics, label: '가사' },
-        ]
-      : [
-          { key: 'used', ratio: usedPct, color: TYPE_BG_COLOR.audio, label: '사용 중' },
-        ]
-
-  return (
-    <div className="w-full">
-      {/* numbers row */}
-      <div className="mb-1.5 flex items-baseline justify-between">
-        <div className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-text-dim">
-          스토리지
-        </div>
-        <div className="font-mono text-[11px] font-semibold">
-          <span className="text-foreground">{formatBytes(used)}</span>
-          <span className="text-text-dim"> / {formatBytes(quota)}</span>
-          <span className="ml-2 text-muted-foreground">{pctLabel}%</span>
-        </div>
-      </div>
-
-      {/* gauge bar */}
-      <div className="relative flex h-1.5 overflow-hidden rounded-full bg-accent">
-        {segments.map((seg, i) => (
-          <div
-            key={seg.key}
-            className={i < segments.length - 1 ? 'border-r border-black/35' : ''}
-            style={{
-              width: `${seg.ratio * 100}%`,
-              height: '100%',
-              background: seg.color,
-            }}
-          />
-        ))}
-      </div>
-
-      {/* legend (only when breakdown is available) */}
-      {byType && (
-        <div className="mt-1.5 flex gap-3.5">
-          {segments.map((seg) => (
-            <div key={seg.key} className="flex items-center gap-1.5">
-              <span
-                className="size-1.5 rounded-full"
-                style={{ background: seg.color }}
-              />
-              <span className="text-[10px] font-semibold text-muted-foreground">
-                {seg.label}{' '}
-                <span className="font-mono text-text-dim">
-                  {Math.round(seg.ratio * 100)}%
-                </span>
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ─────────────────────────────────────────────────────────
 // LibraryTabs — 최근 / 폴더 / 즐겨찾기 탭바 (밑줄 인디케이터)
 // ─────────────────────────────────────────────────────────
 
-export type LibraryTab = 'recent' | 'folders' | 'favorites'
+export type LibraryTab = 'drive' | 'recent' | 'favorites'
 
 const TAB_DEFS: { key: LibraryTab; label: string }[] = [
+  { key: 'drive', label: 'Drive' },
   { key: 'recent', label: '최근' },
-  { key: 'folders', label: '폴더' },
   { key: 'favorites', label: '즐겨찾기' },
 ]
 
@@ -314,7 +217,7 @@ interface FavoritesListProps {
   loaded: boolean
   playingFileName: string | null
   onPlay: (item: FavoriteItem) => void
-  onRemove: (mediaAssetId: string) => void
+  onRemove: (fileId: string) => void
   onReorder: (orderedIds: string[]) => void
   density?: Density
 }
@@ -466,7 +369,7 @@ export function FavoritesList({
             <button
               type="button"
               aria-label="즐겨찾기 해제"
-              onClick={() => onRemove(item.mediaAssetId)}
+              onClick={() => onRemove(item.fileId)}
               className="grid size-7 shrink-0 cursor-pointer place-items-center rounded-full text-primary-bright hover:bg-white/10"
             >
               <Star className="size-[16px] fill-current" />
@@ -745,274 +648,6 @@ export function AssetRow({
         </span>
       </button>
       {actions}
-    </div>
-  )
-}
-
-interface PendingRowProps extends RowDensityProps {
-  row: PendingItem
-  onDismiss?: () => void
-}
-
-export function PendingRow({ row, onDismiss, density = 'comfortable' }: PendingRowProps) {
-  const isError = row.phase === 'error'
-  const rowCls =
-    density === 'compact'
-      ? 'gap-3 rounded-md px-2 py-2'
-      : 'gap-3.5 rounded px-1 py-2.5'
-  const nameCls = density === 'compact' ? 'text-[13px]' : 'text-[15px]'
-  const phaseCls = density === 'compact' ? 'text-[11px]' : 'text-xs'
-  const trackHeight = density === 'compact' ? 'h-[2.5px]' : 'h-[3px]'
-  return (
-    <div className={cn('flex items-center', rowCls)}>
-      <TypeTile kind={row.mediaType} density={density} />
-      <div className="min-w-0 flex-1">
-        <div
-          className={cn(
-            nameCls,
-            'truncate font-bold tracking-[-0.01em] text-muted-foreground',
-          )}
-        >
-          {row.name}
-        </div>
-        <div
-          className={cn(
-            phaseCls,
-            'mt-1 flex items-center gap-1.5 font-semibold',
-            isError ? 'text-destructive' : 'text-primary-bright',
-          )}
-        >
-          <span>{phaseLabel(row.phase)}</span>
-          {!isError && row.phase !== 'preparing' && (
-            <span className="font-mono">{Math.round(row.progress)}%</span>
-          )}
-          {isError && row.errorMessage && (
-            <span className="truncate text-text-dim">· {row.errorMessage}</span>
-          )}
-        </div>
-        {!isError && (
-          <div
-            className={cn(
-              trackHeight,
-              'mt-1.5 overflow-hidden rounded-full bg-white/[0.08]',
-            )}
-          >
-            <div
-              className="h-full rounded-full bg-primary-bright transition-[width] duration-200"
-              style={{ width: `${row.progress}%` }}
-            />
-          </div>
-        )}
-      </div>
-      {isError && onDismiss && (
-        <button
-          type="button"
-          onClick={onDismiss}
-          className="text-xs text-text-dim hover:text-foreground cursor-pointer"
-        >
-          닫기
-        </button>
-      )}
-    </div>
-  )
-}
-
-// ─────────────────────────────────────────────────────────
-// UploadSummaryCell — 업로드 진행을 단일 셀로 요약. 활성 항목이 있을 때만 렌더.
-// 전체 배치 진행률(완료/실패=1, 현재 파일=progress/전체) 게이지 + 현재 파일 + 실패 요약.
-// items 는 활성+done(+error) 전부 — 전체/진행률 계산용.
-// ─────────────────────────────────────────────────────────
-
-interface UploadSummaryCellProps extends RowDensityProps {
-  items: PendingItem[]
-}
-
-export function UploadSummaryCell({ items, density = 'comfortable' }: UploadSummaryCellProps) {
-  const { total, processed, errorCount, active, pct } = uploadAggregate(items)
-  if (total === 0) return null
-
-  const pad = density === 'compact' ? 'px-2.5 py-2.5' : 'px-3 py-3'
-  const trackHeight = density === 'compact' ? 'h-[3px]' : 'h-[4px]'
-
-  return (
-    <div className={cn('rounded-lg border border-border bg-secondary/60', pad)}>
-      <div className="flex items-center gap-2">
-        <UploadCloud className="size-4 shrink-0 text-primary-bright" />
-        <span className="text-[12px] font-extrabold tracking-[-0.01em] text-foreground">
-          업로드 중
-        </span>
-        <span className="font-mono text-[11px] text-text-dim">
-          {processed}/{total}
-        </span>
-        <span className="ml-auto font-mono text-[12px] font-bold text-primary-bright">
-          {pct}%
-        </span>
-      </div>
-      <div className="mt-1 flex items-center gap-1.5 text-[11px] font-semibold">
-        {active ? (
-          <>
-            <span
-              className="min-w-0 truncate text-muted-foreground"
-              title={active.name}
-            >
-              {active.name}
-            </span>
-            <span className="shrink-0 text-text-dim">· {phaseLabel(active.phase)}</span>
-          </>
-        ) : (
-          <span className="text-muted-foreground">마무리 중…</span>
-        )}
-        {errorCount > 0 && (
-          <span className="ml-auto shrink-0 font-bold text-destructive">
-            {errorCount}개 실패
-          </span>
-        )}
-      </div>
-      <div className={cn(trackHeight, 'mt-2 overflow-hidden rounded-full bg-white/[0.08]')}>
-        <div
-          className="h-full rounded-full bg-primary-bright transition-[width] duration-200"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-    </div>
-  )
-}
-
-// ─────────────────────────────────────────────────────────
-// LibraryActionsMenu — 브레드크럼 우측 "..." 메뉴 (폴더 추가 / 파일 업로드)
-// ─────────────────────────────────────────────────────────
-
-export function LibraryActionsMenu({
-  onCreateFolder,
-  onUpload,
-  onUploadFolder,
-}: {
-  onCreateFolder: () => void
-  onUpload: () => void
-  // 데스크톱 전용 — 폴더 구조 업로드. 미전달 시 메뉴 항목을 숨긴다(모바일).
-  onUploadFolder?: () => void
-}) {
-  return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger asChild>
-        <button
-          type="button"
-          aria-label="폴더 작업 메뉴"
-          className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-full text-muted-foreground hover:bg-white/10 hover:text-foreground data-[state=open]:bg-white/10"
-        >
-          <MoreHorizontal className="size-[18px]" />
-        </button>
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          align="end"
-          sideOffset={6}
-          className="z-[70] min-w-[10rem] rounded-md border bg-popover py-1 shadow-md"
-        >
-          <DropdownMenu.Item
-            className="flex cursor-pointer items-center gap-2.5 px-3 py-2 text-sm outline-none data-[highlighted]:bg-accent"
-            onSelect={onCreateFolder}
-          >
-            <FolderPlus className="size-4" />
-            폴더 추가
-          </DropdownMenu.Item>
-          <DropdownMenu.Item
-            className="flex cursor-pointer items-center gap-2.5 px-3 py-2 text-sm outline-none data-[highlighted]:bg-accent"
-            onSelect={onUpload}
-          >
-            <Upload className="size-4" />
-            파일 업로드
-          </DropdownMenu.Item>
-          {onUploadFolder && (
-            <DropdownMenu.Item
-              className="flex cursor-pointer items-center gap-2.5 px-3 py-2 text-sm outline-none data-[highlighted]:bg-accent"
-              onSelect={onUploadFolder}
-            >
-              <FolderUp className="size-4" />
-              폴더 업로드
-            </DropdownMenu.Item>
-          )}
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Root>
-  )
-}
-
-// ─────────────────────────────────────────────────────────
-// CreateFolderDialog — 폴더명 입력 팝업(모달). 오버레이 + 중앙 카드.
-// ─────────────────────────────────────────────────────────
-
-export function CreateFolderDialog({
-  open,
-  submitting,
-  onClose,
-  onSubmit,
-}: {
-  open: boolean
-  submitting: boolean
-  onClose: () => void
-  onSubmit: (name: string) => void
-}) {
-  const [name, setName] = useState('')
-
-  // 열릴 때마다 입력값 초기화.
-  useEffect(() => {
-    if (open) setName('')
-  }, [open])
-
-  if (!open) return null
-
-  const submit = () => {
-    const trimmed = name.trim()
-    if (trimmed) onSubmit(trimmed)
-  }
-
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <button
-        type="button"
-        aria-label="닫기"
-        onClick={onClose}
-        className="absolute inset-0 bg-black/55"
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="새 폴더 만들기"
-        className="relative w-full max-w-xs rounded-2xl border border-border bg-card p-5 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
-      >
-        <h2 className="text-base font-extrabold tracking-[-0.02em] text-foreground">
-          새 폴더
-        </h2>
-        <input
-          autoFocus
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') submit()
-            if (e.key === 'Escape') onClose()
-          }}
-          placeholder="폴더 이름"
-          className="mt-3.5 h-11 w-full rounded-full border border-border bg-accent px-4 text-sm font-semibold text-foreground placeholder:text-text-dim focus:border-primary-bright focus:outline-none"
-        />
-        <div className="mt-4 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="cursor-pointer rounded-full px-4 py-2 text-sm font-bold text-muted-foreground hover:text-foreground"
-          >
-            취소
-          </button>
-          <button
-            type="button"
-            onClick={submit}
-            disabled={submitting || !name.trim()}
-            className="cursor-pointer rounded-full bg-primary-bright px-5 py-2 text-sm font-extrabold text-background hover:bg-primary disabled:opacity-50"
-          >
-            만들기
-          </button>
-        </div>
-      </div>
     </div>
   )
 }

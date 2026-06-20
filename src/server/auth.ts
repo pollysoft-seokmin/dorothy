@@ -30,17 +30,14 @@ export const auth = betterAuth({
       verification: verificationTable,
     },
   }),
-  emailAndPassword: {
-    enabled: true,
-    autoSignIn: true,
-    minPasswordLength: 8,
-  },
   socialProviders:
     googleOAuthConfig
       ? {
           google: {
             clientId: googleOAuthConfig.clientId,
             clientSecret: googleOAuthConfig.clientSecret,
+            accessType: 'offline',
+            prompt: 'consent',
           },
         }
       : undefined,

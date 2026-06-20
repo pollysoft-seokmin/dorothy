@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { authClient } from '~/lib/auth-client'
+import { GOOGLE_DRIVE_SCOPES } from '~/lib/google-drive'
 
 type ProviderConfig = {
   google: boolean
@@ -42,6 +43,7 @@ export function GoogleSignInButton() {
       const { error } = await authClient.signIn.social({
         provider: 'google',
         callbackURL: '/',
+        scopes: GOOGLE_DRIVE_SCOPES,
       })
       if (error) {
         toast.error(error.message ?? 'Google 로그인에 실패했습니다')

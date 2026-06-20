@@ -1,14 +1,11 @@
 import {
-  bigint,
   boolean,
   index,
   integer,
   pgTable,
   text,
   timestamp,
-  unique,
   uniqueIndex,
-  type AnyPgColumn,
 } from 'drizzle-orm/pg-core'
 
 
@@ -97,57 +94,14 @@ export const playbackHistory = pgTable(
     artist: text('artist'),
     album: text('album'),
     fileName: text('file_name').notNull(),
+    source: text('source').notNull().default('google_drive'),
+    providerFileId: text('provider_file_id'),
+    providerLrcFileId: text('provider_lrc_file_id'),
+    mediaType: text('media_type'),
     durationSeconds: integer('duration_seconds'),
     lastPlayedAt: timestamp('last_played_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('playback_history_user_recent_idx').on(t.userId, t.lastPlayedAt)],
-)
-
-export const folder = pgTable(
-  'folder',
-  {
-    id: text('id').primaryKey(),
-    userId: text('user_id')
-      .notNull()
-      .references(() => user.id, { onDelete: 'cascade' }),
-    parentId: text('parent_id').references((): AnyPgColumn => folder.id, {
-      onDelete: 'cascade',
-    }),
-    name: text('name').notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [
-    index('folder_user_parent_idx').on(t.userId, t.parentId),
-    // 실제 DB의 제약은 `UNIQUE NULLS NOT DISTINCT` 로 설정돼 있어 root 폴더
-    // (parent_id IS NULL) 의 (user_id, name) 중복도 차단된다. 다만 drizzle-kit
-    // 0.31.10의 introspect 가 `NULLS NOT DISTINCT` 옵션을 읽지 못해, 여기에
-    // `.nullsNotDistinct()` 를 적으면 `pnpm db:push` 가 매번 제약 재생성을
-    // 시도하는 false-positive drift 를 만들었다. 표기만 제거해 diff 충돌을
-    // 막고, DB 측의 NULLS NOT DISTINCT 는 그대로 유지한다.
-    unique('folder_user_parent_name_unique').on(t.userId, t.parentId, t.name),
-  ],
-)
-
-export const mediaAsset = pgTable(
-  'media_asset',
-  {
-    id: text('id').primaryKey(),
-    userId: text('user_id')
-      .notNull()
-      .references(() => user.id, { onDelete: 'cascade' }),
-    folderId: text('folder_id').references(() => folder.id, { onDelete: 'cascade' }),
-    name: text('name').notNull(),
-    mediaType: text('media_type').notNull(),
-    mimeType: text('mime_type').notNull(),
-    sizeBytes: bigint('size_bytes', { mode: 'number' }).notNull(),
-    blobUrl: text('blob_url').notNull(),
-    blobPathname: text('blob_pathname').notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [
-    index('media_asset_user_folder_idx').on(t.userId, t.folderId),
-    index('media_asset_user_recent_idx').on(t.userId, t.createdAt),
-  ],
 )
 
 export const favorite = pgTable(
@@ -157,9 +111,15 @@ export const favorite = pgTable(
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
-    mediaAssetId: text('media_asset_id')
-      .notNull()
-      .references(() => mediaAsset.id, { onDelete: 'cascade' }),
+    source: text('source').notNull().default('google_drive'),
+    // 즐겨찾기는 항상 실제 Drive 파일을 가리킨다. NOT NULL 이라야 아래 unique
+    // index 가 멱등성을 보장한다(Postgres 는 NULL 을 distinct 로 취급하므로
+    // nullable 이면 중복 차단이 안 된다).
+    providerFileId: text('provider_file_id').notNull(),
+    providerLrcFileId: text('provider_lrc_file_id'),
+    name: text('name'),
+    mediaType: text('media_type'),
+    mimeType: text('mime_type'),
     // 사용자가 지정한 표시 순서. 작을수록 위. 추가 시 (max+1) 로 끝에 붙고,
     // reorderFavorites 가 0..n-1 로 재배치한다.
     position: integer('position').notNull(),
@@ -167,8 +127,11 @@ export const favorite = pgTable(
   },
   (t) => [
     index('favorite_user_position_idx').on(t.userId, t.position),
-    // 같은 자산을 두 번 즐겨찾기할 수 없다. toggle 의 멱등성 근거.
-    uniqueIndex('favorite_user_asset_unique').on(t.userId, t.mediaAssetId),
+    uniqueIndex('favorite_user_provider_file_unique').on(
+      t.userId,
+      t.source,
+      t.providerFileId,
+    ),
   ],
 )
 
@@ -176,6 +139,4 @@ export type User = typeof user.$inferSelect
 export type Session = typeof session.$inferSelect
 export type UserPreferences = typeof userPreferences.$inferSelect
 export type PlaybackHistory = typeof playbackHistory.$inferSelect
-export type Folder = typeof folder.$inferSelect
-export type MediaAsset = typeof mediaAsset.$inferSelect
 export type Favorite = typeof favorite.$inferSelect
