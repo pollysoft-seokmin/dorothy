@@ -110,26 +110,51 @@ export const appendPlaybackHistory = createServerFn({ method: 'POST' })
   })
   .handler(async ({ data }) => {
     const user = await requireUser()
+    // 최근 재생은 다시 재생 가능한 Drive 파일만 의미가 있다. provider_file_id 가
+    // 없는 재생(로컬 파일 등)은 URL 복원이 불가하므로 기록하지 않는다(#129).
+    const source = data.source ?? 'local'
+    if (source !== 'google_drive' || !data.providerFileId) {
+      return { skipped: true as const }
+    }
+
     const { db } = await import('./db/client')
     const { playbackHistory } = await import('./db/schema')
     const id = crypto.randomUUID()
-    await db.insert(playbackHistory).values({
-      id,
-      userId: user.id,
-      fileName: data.fileName,
-      title: data.title ?? null,
-      artist: data.artist ?? null,
-      album: data.album ?? null,
-      // 로컬 파일 재생 등 출처 미지정은 'local' 로 기록한다. 과거엔 'google_drive'
-      // 로 잘못 강제돼 providerFileId 가 없는데도 Drive 파일로 보여 재생 불가
-      // 항목이 최근 목록에 노출됐다(#129).
-      source: data.source ?? 'local',
-      providerFileId: data.providerFileId ?? null,
-      providerLrcFileId: data.providerLrcFileId ?? null,
-      mediaType: data.mediaType ?? null,
-      durationSeconds: data.durationSeconds ?? null,
-    })
-    return { id }
+    // 파일별 1행 upsert — 같은 파일 재생 시 새 행을 쌓지 않고 last_played_at 과
+    // 메타데이터만 갱신한다(append-only 무한증가 제거, #131).
+    await db
+      .insert(playbackHistory)
+      .values({
+        id,
+        userId: user.id,
+        fileName: data.fileName,
+        title: data.title ?? null,
+        artist: data.artist ?? null,
+        album: data.album ?? null,
+        source,
+        providerFileId: data.providerFileId,
+        providerLrcFileId: data.providerLrcFileId ?? null,
+        mediaType: data.mediaType ?? null,
+        durationSeconds: data.durationSeconds ?? null,
+      })
+      .onConflictDoUpdate({
+        target: [
+          playbackHistory.userId,
+          playbackHistory.source,
+          playbackHistory.providerFileId,
+        ],
+        set: {
+          fileName: data.fileName,
+          title: data.title ?? null,
+          artist: data.artist ?? null,
+          album: data.album ?? null,
+          providerLrcFileId: data.providerLrcFileId ?? null,
+          mediaType: data.mediaType ?? null,
+          durationSeconds: data.durationSeconds ?? null,
+          lastPlayedAt: new Date(),
+        },
+      })
+    return { ok: true as const }
   })
 
 export const getRecentPlaybacks = createServerFn({ method: 'GET' }).handler(
@@ -137,11 +162,10 @@ export const getRecentPlaybacks = createServerFn({ method: 'GET' }).handler(
     const user = await requireUser()
     const { db } = await import('./db/client')
     const { playbackHistory } = await import('./db/schema')
-    const { and, desc, eq, isNotNull } = await import('drizzle-orm')
+    const { and, desc, eq } = await import('drizzle-orm')
 
-    // 최근 탭은 클릭 시 재생이 목적이므로, 다시 재생 가능한 Drive 기록만
-    // 노출한다. 로컬 재생이나 마이그레이션 이전의 providerFileId 없는 기록은
-    // URL 을 복원할 수 없어 제외(#129).
+    // 파일별 1행 upsert(#131) 라 read-time dedup 이 불필요하다. 재생 가능한
+    // Drive 기록만 최신순 20개(#129).
     const rows = await db
       .select({
         id: playbackHistory.id,
@@ -161,21 +185,11 @@ export const getRecentPlaybacks = createServerFn({ method: 'GET' }).handler(
         and(
           eq(playbackHistory.userId, user.id),
           eq(playbackHistory.source, 'google_drive'),
-          isNotNull(playbackHistory.providerFileId),
         ),
       )
       .orderBy(desc(playbackHistory.lastPlayedAt))
-      .limit(100)
+      .limit(20)
 
-    const seen = new Set<string>()
-    const unique = []
-    for (const row of rows) {
-      const key = `${row.source}:${row.providerFileId}`
-      if (seen.has(key)) continue
-      seen.add(key)
-      unique.push(row)
-      if (unique.length >= 20) break
-    }
-    return unique
+    return rows
   },
 )

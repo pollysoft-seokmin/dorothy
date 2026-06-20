@@ -95,13 +95,23 @@ export const playbackHistory = pgTable(
     album: text('album'),
     fileName: text('file_name').notNull(),
     source: text('source').notNull().default('google_drive'),
-    providerFileId: text('provider_file_id'),
+    // 최근 재생은 "파일별 1행" 으로 관리한다(append-only 로그 아님). 재생 시
+    // (user, source, provider_file_id) 로 upsert 하여 last_played_at 만 갱신하므로
+    // provider_file_id 는 항상 존재해야 하고, 아래 unique index 가 dedup 을 보장한다.
+    providerFileId: text('provider_file_id').notNull(),
     providerLrcFileId: text('provider_lrc_file_id'),
     mediaType: text('media_type'),
     durationSeconds: integer('duration_seconds'),
     lastPlayedAt: timestamp('last_played_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index('playback_history_user_recent_idx').on(t.userId, t.lastPlayedAt)],
+  (t) => [
+    index('playback_history_user_recent_idx').on(t.userId, t.lastPlayedAt),
+    uniqueIndex('playback_history_user_file_unique').on(
+      t.userId,
+      t.source,
+      t.providerFileId,
+    ),
+  ],
 )
 
 export const favorite = pgTable(
