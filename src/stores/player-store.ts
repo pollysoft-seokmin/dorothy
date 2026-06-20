@@ -20,6 +20,12 @@ export interface PlayerStore {
   currentTime: number
   duration: number
 
+  // 변환(트랜스코딩) 상태 — Drive 비호환 비디오를 ffmpeg.wasm 으로 변환하는 동안
+  // 재생 화면을 디밍하고 진행 게이지/시간 표시를 변환 진행률로 대체한다.
+  // 변환이 끝나면 endConversion 으로 끄고 일반 재생 상태로 전환한다.
+  isConverting: boolean
+  conversionProgress: number // 0.0 ~ 1.0
+
   // 파일 정보
   fileName: string
   mediaType: MediaType
@@ -62,6 +68,9 @@ export interface PlayerStore {
   setStatus: (status: PlayStatus) => void
   setCurrentTime: (time: number) => void
   setDuration: (duration: number) => void
+  startConversion: () => void
+  setConversionProgress: (progress: number) => void
+  endConversion: () => void
   cycleRepeat: () => void
   loadTrack: (
     fileName: string,
@@ -103,6 +112,8 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
   status: 'idle',
   currentTime: 0,
   duration: 0,
+  isConverting: false,
+  conversionProgress: 0,
   fileName: '',
   mediaType: 'audio',
   metadata: null,
@@ -124,6 +135,9 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
   setStatus: (status) => set({ status }),
   setCurrentTime: (currentTime) => set({ currentTime }),
   setDuration: (duration) => set({ duration }),
+  startConversion: () => set({ isConverting: true, conversionProgress: 0 }),
+  setConversionProgress: (progress) => set({ conversionProgress: progress }),
+  endConversion: () => set({ isConverting: false, conversionProgress: 0 }),
   cycleRepeat: () =>
     set((s) => {
       const next = nextRepeat(s.repeatCount)
@@ -158,6 +172,8 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
       status: 'idle',
       currentTime: 0,
       duration: 0,
+      isConverting: false,
+      conversionProgress: 0,
       lyrics: null,
       currentLineIndex: -1,
       lyricsLoading: true,
@@ -245,6 +261,8 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
       status: 'idle',
       currentTime: 0,
       duration: 0,
+      isConverting: false,
+      conversionProgress: 0,
       fileName: '',
       mediaType: 'audio',
       metadata: null,
