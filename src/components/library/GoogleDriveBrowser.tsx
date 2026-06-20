@@ -36,7 +36,12 @@ export function GoogleDriveBrowser({
   const [connected, setConnected] = useState<boolean | null>(null)
   const [hasDriveScope, setHasDriveScope] = useState(false)
   const [folderId, setFolderId] = useState<string | null>(null)
-  const [crumbs, setCrumbs] = useState<DriveCrumb[]>([{ id: null, name: '내 드라이브' }])
+  // 폴더 메타(id → 이름/부모) 누적. 브레드크럼은 이 관계로부터 현재 folderId 의
+  // 실제 경로를 파생해 그린다 — 클릭 시퀀스(액션)에 의존하지 않으므로 더블클릭에도
+  // 경로가 중복되지 않는다.
+  const [folderMeta, setFolderMeta] = useState<
+    Record<string, { name: string; parentId: string | null }>
+  >({})
   const [folders, setFolders] = useState<GoogleDriveFolder[]>([])
   const [assets, setAssets] = useState<GoogleDriveAsset[]>([])
   const [totalCount, setTotalCount] = useState(0)
@@ -64,8 +69,15 @@ export function GoogleDriveBrowser({
         data: { folderId: id },
       })
       setErrorMessage(null)
-      setFolders(Array.isArray(data?.folders) ? data.folders : [])
+      const nextFolders = Array.isArray(data?.folders) ? data.folders : []
+      setFolders(nextFolders)
       setAssets(Array.isArray(data?.assets) ? data.assets : [])
+      // 방금 나열한 폴더(id)의 자식 폴더들은 부모가 id 다 → 경로 파생용 메타 기록.
+      setFolderMeta((prev) => {
+        const next = { ...prev }
+        for (const f of nextFolders) next[f.id] = { name: f.name, parentId: id }
+        return next
+      })
       setTotalCount(typeof data?.totalCount === 'number' ? data.totalCount : 0)
       setUnsupportedCount(
         typeof data?.unsupportedCount === 'number' ? data.unsupportedCount : 0,
@@ -108,18 +120,30 @@ export function GoogleDriveBrowser({
     }
   }, [])
 
+  // 네비게이션은 folderId 만 바꾼다. 경로(crumbs)는 folderId+folderMeta 에서
+  // 파생되므로, 같은 폴더로의 더블클릭은 동일 folderId 설정 → 멱등(중복 없음).
   const openFolder = useCallback((folder: GoogleDriveFolder) => {
     setFolderId(folder.id)
-    setCrumbs((prev) => [...prev, { id: folder.id, name: folder.name }])
   }, [])
 
   const selectCrumb = useCallback((id: string | null) => {
     setFolderId(id)
-    setCrumbs((prev) => {
-      const index = prev.findIndex((c) => c.id === id)
-      return index === -1 ? [{ id: null, name: '내 드라이브' }] : prev.slice(0, index + 1)
-    })
   }, [])
+
+  // 현재 folderId 의 실제 부모 체인을 따라 경로를 구성(루트 → 현재).
+  const crumbs = useMemo<DriveCrumb[]>(() => {
+    const chain: DriveCrumb[] = []
+    const seen = new Set<string>()
+    let cur = folderId
+    while (cur != null && !seen.has(cur)) {
+      seen.add(cur)
+      const meta = folderMeta[cur]
+      if (!meta) break
+      chain.unshift({ id: cur, name: meta.name })
+      cur = meta.parentId
+    }
+    return [{ id: null, name: '내 드라이브' }, ...chain]
+  }, [folderId, folderMeta])
 
   const playableAssets = useMemo(
     () => (Array.isArray(assets) ? assets : []).filter((a) => a.mediaType !== 'lyrics'),
