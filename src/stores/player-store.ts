@@ -24,9 +24,11 @@ export interface PlayerStore {
   fileName: string
   mediaType: MediaType
   metadata: TrackMetadata | null
-  // 라이브러리에서 로드된 경우의 자산 id. 로컬 파일(비로그인) 재생 시엔 null.
-  // 즐겨찾기 별(★) 토글이 이 id 로 favorite 을 매핑한다.
-  mediaAssetId: string | null
+  // 로그인 라이브러리는 Google Drive 파일 id 를 기준으로 즐겨찾기/최근 재생을 매핑한다.
+  source: 'google_drive' | null
+  providerFileId: string | null
+  providerLrcFileId: string | null
+  mimeType: string | null
 
   // 가사
   lyrics: ParsedLyrics | null
@@ -65,7 +67,10 @@ export interface PlayerStore {
     fileName: string,
     mediaType: MediaType,
     metadata: TrackMetadata | null,
-    mediaAssetId?: string | null,
+    source?: 'google_drive' | null,
+    providerFileId?: string | null,
+    providerLrcFileId?: string | null,
+    mimeType?: string | null,
   ) => void
   loadLyrics: (lyrics: ParsedLyrics) => void
   setLyricsLoading: (loading: boolean) => void
@@ -101,7 +106,10 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
   fileName: '',
   mediaType: 'audio',
   metadata: null,
-  mediaAssetId: null,
+  source: null,
+  providerFileId: null,
+  providerLrcFileId: null,
+  mimeType: null,
   lyrics: null,
   currentLineIndex: -1,
   lyricsLoading: false,
@@ -130,12 +138,23 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
       }
       return { repeatCount: next, repeatCurrent: 0 }
     }),
-  loadTrack: (fileName, mediaType, metadata, mediaAssetId = null) =>
+  loadTrack: (
+    fileName,
+    mediaType,
+    metadata,
+    source = null,
+    providerFileId = null,
+    providerLrcFileId = null,
+    mimeType = null,
+  ) =>
     set({
       fileName,
       mediaType,
       metadata,
-      mediaAssetId,
+      source,
+      providerFileId,
+      providerLrcFileId,
+      mimeType,
       status: 'idle',
       currentTime: 0,
       duration: 0,
@@ -229,7 +248,10 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
       fileName: '',
       mediaType: 'audio',
       metadata: null,
-      mediaAssetId: null,
+      source: null,
+      providerFileId: null,
+      providerLrcFileId: null,
+      mimeType: null,
       lyrics: null,
       currentLineIndex: -1,
       lyricsLoading: false,

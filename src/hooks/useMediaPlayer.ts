@@ -346,7 +346,7 @@ export function useMediaPlayer() {
     [stopRafLoop],
   )
 
-  // 라이브러리(Vercel Blob URL)에서 직접 로드. 트랜스코딩/태그 읽기는 생략.
+  // 라이브러리 URL(Google Drive 프록시 등)에서 직접 로드. 트랜스코딩/태그 읽기는 생략.
   // ObjectURL과 동일한 슬롯(objectUrlRef)에 보관 — revokeObjectURL은 일반 URL에
   // 대해선 no-op이므로 안전하게 공유 가능.
   // 가사 정책: 오디오/비디오 무관하게 임베디드 SAMI trailer를 먼저 시도하고,
@@ -358,7 +358,10 @@ export function useMediaPlayer() {
       name: string
       mediaType: MediaType
       lrcUrl?: string
-      mediaAssetId?: string
+      source?: 'google_drive'
+      providerFileId?: string
+      providerLrcFileId?: string
+      mimeType?: string
     }) => {
       const current = mediaRef.current
       if (current) current.pause()
@@ -370,7 +373,17 @@ export function useMediaPlayer() {
       if (current && store.getState().mediaType === params.mediaType) {
         current.src = params.url
       }
-      store.getState().loadTrack(params.name, params.mediaType, null, params.mediaAssetId ?? null)
+      store
+        .getState()
+        .loadTrack(
+          params.name,
+          params.mediaType,
+          null,
+          params.source ?? null,
+          params.providerFileId ?? null,
+          params.providerLrcFileId ?? null,
+          params.mimeType ?? null,
+        )
 
       const gen = ++lyricsLoadGenRef.current
       void (async () => {

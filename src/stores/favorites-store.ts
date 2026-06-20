@@ -15,12 +15,17 @@ interface FavoritesStore {
   // null 아님(빈 배열로 시작)이되, 최초 fetch 완료 여부를 loaded 로 구분.
   loaded: boolean
   loading: boolean
-  // mediaAssetId 별 토글 진행 중 여부 — 별 아이콘 중복 클릭 방지.
   pendingIds: Set<string>
 
   load: (opts?: { force?: boolean }) => Promise<void>
-  isFavorite: (mediaAssetId: string | null) => boolean
-  toggle: (mediaAssetId: string) => Promise<void>
+  isFavorite: (fileId: string | null) => boolean
+  toggle: (input: {
+    fileId: string
+    name: string
+    mediaType: 'audio' | 'video'
+    mimeType?: string | null
+    lrcFileId?: string | null
+  }) => Promise<void>
   // 드래그 종료 시 새 순서(favorite.id 배열)로 커밋. 낙관적 갱신 후 서버 반영.
   reorder: (orderedIds: string[]) => Promise<void>
   reset: () => void
@@ -47,26 +52,26 @@ export const useFavoritesStore = create<FavoritesStore>((set, get) => ({
     }
   },
 
-  isFavorite: (mediaAssetId) =>
-    mediaAssetId != null &&
-    get().items.some((i) => i.mediaAssetId === mediaAssetId),
+  isFavorite: (fileId) =>
+    fileId != null && get().items.some((i) => i.fileId === fileId),
 
-  toggle: async (mediaAssetId) => {
+  toggle: async (input) => {
+    const fileId = input.fileId
     const { pendingIds } = get()
-    if (pendingIds.has(mediaAssetId)) return
-    set({ pendingIds: new Set(pendingIds).add(mediaAssetId) })
+    if (pendingIds.has(fileId)) return
+    set({ pendingIds: new Set(pendingIds).add(fileId) })
 
-    const wasFavorite = get().items.some((i) => i.mediaAssetId === mediaAssetId)
+    const wasFavorite = get().items.some((i) => i.fileId === fileId)
     const prev = get().items
 
     // 제거는 낙관적으로 즉시 반영(되돌릴 정보가 충분). 추가는 서버가 돌려준
-    // 전체 item(blobUrl/lrcUrl 포함)이 필요하므로 응답 후 반영한다.
+    // 전체 item(url/lrcUrl 포함)이 필요하므로 응답 후 반영한다.
     if (wasFavorite) {
-      set({ items: prev.filter((i) => i.mediaAssetId !== mediaAssetId) })
+      set({ items: prev.filter((i) => i.fileId !== fileId) })
     }
 
     try {
-      const res = await toggleFavorite({ data: { mediaAssetId } })
+      const res = await toggleFavorite({ data: input })
       if (res.favorited && res.item) {
         set((s) => ({ items: [...s.items, res.item] }))
       }
@@ -78,7 +83,7 @@ export const useFavoritesStore = create<FavoritesStore>((set, get) => ({
     } finally {
       set((s) => {
         const next = new Set(s.pendingIds)
-        next.delete(mediaAssetId)
+        next.delete(fileId)
         return { pendingIds: next }
       })
     }

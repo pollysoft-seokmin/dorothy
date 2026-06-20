@@ -26,7 +26,7 @@ Dorothy는 사용자가 로컬 미디어 파일(MP3 오디오·MP4/WebM/MOV 비�
 | 가사 표시 | LRC 파일 로드 시 카라오케 스타일 시간 동기화 가사 (오디오/비디오 공통) |
 | ID3 메타데이터 | MP3의 제목, 아티스트, 앨범 아트 썸네일 표시 (오디오 한정) |
 | 키보드 단축키 | Space, 화살표, M 등 기본 단축키 지원 |
-| 회원가입/로그인 | 이메일+비밀번호, Google OAuth (개인화용) |
+| 로그인 | Google OAuth (Google Drive 읽기 권한 포함) |
 | 개인화 | 로그인 사용자에 한해 볼륨/테마 환경설정과 재생 이력을 서버에 저장 |
 
 ### 1.2 설계 원칙
@@ -716,7 +716,6 @@ export async function readID3Tags(file: File): Promise<TrackMetadata | null>
 | 경로 | 종류 | 설명 |
 |------|------|------|
 | `/login` | 클라이언트 | 이메일/비번 로그인 + Google 버튼 |
-| `/signup` | 클라이언트 | 이메일/이름/비번 가입, 가입 후 자동 로그인 |
 | `/account` | 클라이언트 (보호) | 이메일 표시 + 최근 재생 목록 |
 | `/api/auth/$` | 서버 핸들러 | Better Auth가 모든 GET/POST 라우팅 (`auth.handler`) |
 

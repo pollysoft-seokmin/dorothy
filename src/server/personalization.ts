@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import { requireUser } from './session'
 
 const VALID_LYRICS_LANGUAGES = ['en-ko', 'en', 'ko'] as const
 type LyricsLanguagePref = (typeof VALID_LYRICS_LANGUAGES)[number]
@@ -34,32 +35,28 @@ const isHistoryInput = (
   artist?: string | null
   album?: string | null
   durationSeconds?: number | null
+  source?: string | null
+  providerFileId?: string | null
+  providerLrcFileId?: string | null
+  mediaType?: 'audio' | 'video' | null
 } => {
   if (typeof v !== 'object' || v === null) return false
   const o = v as Record<string, unknown>
-  return typeof o.fileName === 'string' && o.fileName.length > 0
-}
-
-const isResolveInput = (v: unknown): v is { fileName: string } => {
-  if (typeof v !== 'object' || v === null) return false
-  const o = v as Record<string, unknown>
-  return typeof o.fileName === 'string' && o.fileName.length > 0
-}
-
-// 파일명에서 확장자 제거 — sibling LRC 조회 시 stem 비교용. 서버 측은 client
-// helper(library-shared)에 의존하지 않도록 인라인.
-function basenameNoExt(name: string): string {
-  const dot = name.lastIndexOf('.')
-  return dot <= 0 ? name : name.slice(0, dot)
-}
-
-async function requireUser() {
-  const { getCurrentSession } = await import('./session')
-  const session = await getCurrentSession()
-  if (!session?.user) {
-    throw new Response('Unauthorized', { status: 401 })
-  }
-  return session.user
+  return (
+    typeof o.fileName === 'string' &&
+    o.fileName.length > 0 &&
+    (o.source === undefined || o.source === null || typeof o.source === 'string') &&
+    (o.providerFileId === undefined ||
+      o.providerFileId === null ||
+      typeof o.providerFileId === 'string') &&
+    (o.providerLrcFileId === undefined ||
+      o.providerLrcFileId === null ||
+      typeof o.providerLrcFileId === 'string') &&
+    (o.mediaType === undefined ||
+      o.mediaType === null ||
+      o.mediaType === 'audio' ||
+      o.mediaType === 'video')
+  )
 }
 
 export const getMyPreferences = createServerFn({ method: 'GET' }).handler(
@@ -123,76 +120,16 @@ export const appendPlaybackHistory = createServerFn({ method: 'POST' })
       title: data.title ?? null,
       artist: data.artist ?? null,
       album: data.album ?? null,
+      // 로컬 파일 재생 등 출처 미지정은 'local' 로 기록한다. 과거엔 'google_drive'
+      // 로 잘못 강제돼 providerFileId 가 없는데도 Drive 파일로 보여 재생 불가
+      // 항목이 최근 목록에 노출됐다(#129).
+      source: data.source ?? 'local',
+      providerFileId: data.providerFileId ?? null,
+      providerLrcFileId: data.providerLrcFileId ?? null,
+      mediaType: data.mediaType ?? null,
       durationSeconds: data.durationSeconds ?? null,
     })
     return { id }
-  })
-
-// 최근 재생 행에서 파일명을 받아 현재 라이브러리의 자산으로 해석해 재생 정보를
-// 반환한다. playback_history 는 mediaAssetId 를 들고 있지 않으므로, 동일 유저의
-// mediaAsset 중 같은 이름의 가장 최근 행을 매핑한다 — 라이브러리 UI 의 재생
-// 흐름과 동일한 { url, name, mediaType, lrcUrl? } 페이로드를 만든다.
-// 매칭 실패 시 Response 404 — UI 가 토스트로 안내하고 이력은 유지한다.
-export const resolveRecentPlayback = createServerFn({ method: 'POST' })
-  .inputValidator((data: unknown) => {
-    if (!isResolveInput(data)) throw new Error('Invalid resolve payload')
-    return data
-  })
-  .handler(async ({ data }) => {
-    const user = await requireUser()
-    const { db } = await import('./db/client')
-    const { mediaAsset } = await import('./db/schema')
-    const { and, desc, eq, inArray, isNull } = await import('drizzle-orm')
-
-    const [asset] = await db
-      .select({
-        id: mediaAsset.id,
-        name: mediaAsset.name,
-        mediaType: mediaAsset.mediaType,
-        blobUrl: mediaAsset.blobUrl,
-        folderId: mediaAsset.folderId,
-      })
-      .from(mediaAsset)
-      .where(
-        and(
-          eq(mediaAsset.userId, user.id),
-          eq(mediaAsset.name, data.fileName),
-          inArray(mediaAsset.mediaType, ['audio', 'video']),
-        ),
-      )
-      .orderBy(desc(mediaAsset.createdAt))
-      .limit(1)
-
-    if (!asset) {
-      throw new Response('Asset not found', { status: 404 })
-    }
-
-    // sibling LRC — 라이브러리 UI 와 동일하게 같은 폴더 내 동일 stem 의 lyrics
-    // 자산을 짝지어 LRC 가사를 함께 로드시킨다. folderId null(root) 도 동일 처리.
-    const stem = basenameNoExt(asset.name)
-    const folderClause =
-      asset.folderId === null
-        ? isNull(mediaAsset.folderId)
-        : eq(mediaAsset.folderId, asset.folderId)
-    const siblings = await db
-      .select({ name: mediaAsset.name, blobUrl: mediaAsset.blobUrl })
-      .from(mediaAsset)
-      .where(
-        and(
-          eq(mediaAsset.userId, user.id),
-          eq(mediaAsset.mediaType, 'lyrics'),
-          folderClause,
-        ),
-      )
-    const sibling = siblings.find((s) => basenameNoExt(s.name) === stem)
-
-    return {
-      url: asset.blobUrl,
-      name: asset.name,
-      mediaType: asset.mediaType === 'video' ? ('video' as const) : ('audio' as const),
-      lrcUrl: sibling?.blobUrl,
-      mediaAssetId: asset.id,
-    }
   })
 
 export const getRecentPlaybacks = createServerFn({ method: 'GET' }).handler(
@@ -200,30 +137,45 @@ export const getRecentPlaybacks = createServerFn({ method: 'GET' }).handler(
     const user = await requireUser()
     const { db } = await import('./db/client')
     const { playbackHistory } = await import('./db/schema')
-    const { desc, eq } = await import('drizzle-orm')
+    const { and, desc, eq, isNotNull } = await import('drizzle-orm')
 
-    // 같은 파일을 여러 번 재생/로드해도 최근 기록 하나만 보여준다 (#90).
-    // Postgres DISTINCT ON 으로 fileName 별로 lastPlayedAt 가장 큰 행을 뽑고,
-    // ORDER BY 의 leftmost 컬럼은 fileName 이어야 한다는 제약 때문에 정렬은
-    // 알파벳순으로 나온다. UI 노출 순서(최근순) 는 JS 측에서 재정렬한 뒤 상위
-    // 20개로 자른다 — 사용자의 총 unique 파일 수가 보통 수십~수백 수준이라
-    // 별도 LIMIT subquery 없이도 비용이 크지 않다.
+    // 최근 탭은 클릭 시 재생이 목적이므로, 다시 재생 가능한 Drive 기록만
+    // 노출한다. 로컬 재생이나 마이그레이션 이전의 providerFileId 없는 기록은
+    // URL 을 복원할 수 없어 제외(#129).
     const rows = await db
-      .selectDistinctOn([playbackHistory.fileName], {
+      .select({
         id: playbackHistory.id,
         title: playbackHistory.title,
         artist: playbackHistory.artist,
         album: playbackHistory.album,
         fileName: playbackHistory.fileName,
+        source: playbackHistory.source,
+        providerFileId: playbackHistory.providerFileId,
+        providerLrcFileId: playbackHistory.providerLrcFileId,
+        mediaType: playbackHistory.mediaType,
         durationSeconds: playbackHistory.durationSeconds,
         lastPlayedAt: playbackHistory.lastPlayedAt,
       })
       .from(playbackHistory)
-      .where(eq(playbackHistory.userId, user.id))
-      .orderBy(playbackHistory.fileName, desc(playbackHistory.lastPlayedAt))
+      .where(
+        and(
+          eq(playbackHistory.userId, user.id),
+          eq(playbackHistory.source, 'google_drive'),
+          isNotNull(playbackHistory.providerFileId),
+        ),
+      )
+      .orderBy(desc(playbackHistory.lastPlayedAt))
+      .limit(100)
 
-    return rows
-      .sort((a, b) => b.lastPlayedAt.getTime() - a.lastPlayedAt.getTime())
-      .slice(0, 20)
+    const seen = new Set<string>()
+    const unique = []
+    for (const row of rows) {
+      const key = `${row.source}:${row.providerFileId}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      unique.push(row)
+      if (unique.length >= 20) break
+    }
+    return unique
   },
 )

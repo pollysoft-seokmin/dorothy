@@ -1,9 +1,29 @@
 import { createServerFn } from '@tanstack/react-start'
+import { driveFileUrl } from '~/lib/google-drive'
+import { requireUser } from './session'
 
-const isToggleInput = (v: unknown): v is { mediaAssetId: string } => {
+const SOURCE = 'google_drive'
+
+type ToggleInput = {
+  fileId: string
+  name: string
+  mediaType: 'audio' | 'video'
+  mimeType?: string | null
+  lrcFileId?: string | null
+}
+
+const isToggleInput = (v: unknown): v is ToggleInput => {
   if (typeof v !== 'object' || v === null) return false
   const o = v as Record<string, unknown>
-  return typeof o.mediaAssetId === 'string' && o.mediaAssetId.length > 0
+  return (
+    typeof o.fileId === 'string' &&
+    o.fileId.length > 0 &&
+    typeof o.name === 'string' &&
+    o.name.length > 0 &&
+    (o.mediaType === 'audio' || o.mediaType === 'video') &&
+    (o.mimeType === undefined || o.mimeType === null || typeof o.mimeType === 'string') &&
+    (o.lrcFileId === undefined || o.lrcFileId === null || typeof o.lrcFileId === 'string')
+  )
 }
 
 const isReorderInput = (v: unknown): v is { orderedIds: string[] } => {
@@ -15,74 +35,50 @@ const isReorderInput = (v: unknown): v is { orderedIds: string[] } => {
   )
 }
 
-function basenameNoExt(name: string): string {
-  const dot = name.lastIndexOf('.')
-  return dot <= 0 ? name : name.slice(0, dot)
-}
 
-async function requireUser() {
-  const { getCurrentSession } = await import('./session')
-  const session = await getCurrentSession()
-  if (!session?.user) {
-    throw new Response('Unauthorized', { status: 401 })
-  }
-  return session.user
-}
-
-// 즐겨찾기 목록 — position 오름차순. 각 자산의 sibling LRC(같은 폴더·동일 stem)를
-// 라이브러리/최근재생과 동일하게 짝지어 lrcUrl 을 함께 반환한다(가사 사이드카 폴백).
 export const getFavorites = createServerFn({ method: 'GET' }).handler(
   async () => {
     const user = await requireUser()
     const { db } = await import('./db/client')
-    const { favorite, mediaAsset } = await import('./db/schema')
-    const { and, asc, eq } = await import('drizzle-orm')
+    const { favorite } = await import('./db/schema')
+    const { and, asc, eq, isNotNull } = await import('drizzle-orm')
 
     const rows = await db
       .select({
         id: favorite.id,
-        mediaAssetId: mediaAsset.id,
-        name: mediaAsset.name,
-        mediaType: mediaAsset.mediaType,
-        blobUrl: mediaAsset.blobUrl,
-        folderId: mediaAsset.folderId,
+        fileId: favorite.providerFileId,
+        lrcFileId: favorite.providerLrcFileId,
+        name: favorite.name,
+        mediaType: favorite.mediaType,
+        mimeType: favorite.mimeType,
         position: favorite.position,
       })
       .from(favorite)
-      .innerJoin(mediaAsset, eq(favorite.mediaAssetId, mediaAsset.id))
-      .where(eq(favorite.userId, user.id))
+      .where(
+        and(
+          eq(favorite.userId, user.id),
+          eq(favorite.source, SOURCE),
+          isNotNull(favorite.providerFileId),
+        ),
+      )
       .orderBy(asc(favorite.position))
 
-    // 가사 자산을 한 번에 받아 (folderId, stem) 으로 매칭 — 즐겨찾기별 개별 쿼리 회피.
-    const lyrics = await db
-      .select({
-        name: mediaAsset.name,
-        blobUrl: mediaAsset.blobUrl,
-        folderId: mediaAsset.folderId,
-      })
-      .from(mediaAsset)
-      .where(and(eq(mediaAsset.userId, user.id), eq(mediaAsset.mediaType, 'lyrics')))
-
-    return rows.map((r) => {
-      const stem = basenameNoExt(r.name)
-      const sibling = lyrics.find(
-        (l) => l.folderId === r.folderId && basenameNoExt(l.name) === stem,
-      )
-      return {
+    return rows
+      .filter((r) => r.fileId && r.name && (r.mediaType === 'audio' || r.mediaType === 'video'))
+      .map((r) => ({
         id: r.id,
-        mediaAssetId: r.mediaAssetId,
-        name: r.name,
+        fileId: r.fileId!,
+        name: r.name!,
         mediaType: r.mediaType === 'video' ? ('video' as const) : ('audio' as const),
-        blobUrl: r.blobUrl,
-        lrcUrl: sibling?.blobUrl,
+        mimeType: r.mimeType ?? undefined,
+        url: driveFileUrl(r.fileId!),
+        lrcFileId: r.lrcFileId ?? undefined,
+        lrcUrl: r.lrcFileId ? driveFileUrl(r.lrcFileId) : undefined,
         position: r.position,
-      }
-    })
+      }))
   },
 )
 
-// 토글 — 이미 즐겨찾기면 삭제, 아니면 (max position + 1) 로 끝에 추가.
-// 추가 시 자산이 본인 소유의 audio/video 인지 검증한다.
 export const toggleFavorite = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => {
     if (!isToggleInput(data)) throw new Error('Invalid favorite payload')
@@ -91,8 +87,8 @@ export const toggleFavorite = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     const user = await requireUser()
     const { db } = await import('./db/client')
-    const { favorite, mediaAsset } = await import('./db/schema')
-    const { and, eq, inArray, sql } = await import('drizzle-orm')
+    const { favorite } = await import('./db/schema')
+    const { and, eq, sql } = await import('drizzle-orm')
 
     const [existing] = await db
       .select({ id: favorite.id })
@@ -100,7 +96,8 @@ export const toggleFavorite = createServerFn({ method: 'POST' })
       .where(
         and(
           eq(favorite.userId, user.id),
-          eq(favorite.mediaAssetId, data.mediaAssetId),
+          eq(favorite.source, SOURCE),
+          eq(favorite.providerFileId, data.fileId),
         ),
       )
       .limit(1)
@@ -110,74 +107,47 @@ export const toggleFavorite = createServerFn({ method: 'POST' })
       return { favorited: false as const }
     }
 
-    const [asset] = await db
-      .select({
-        id: mediaAsset.id,
-        name: mediaAsset.name,
-        mediaType: mediaAsset.mediaType,
-        blobUrl: mediaAsset.blobUrl,
-        folderId: mediaAsset.folderId,
-      })
-      .from(mediaAsset)
-      .where(
-        and(
-          eq(mediaAsset.id, data.mediaAssetId),
-          eq(mediaAsset.userId, user.id),
-          inArray(mediaAsset.mediaType, ['audio', 'video']),
-        ),
-      )
-      .limit(1)
-    if (!asset) throw new Response('Asset not found', { status: 404 })
-
     const [{ max }] = await db
       .select({ max: sql<number>`coalesce(max(${favorite.position}), -1)::int` })
       .from(favorite)
-      .where(eq(favorite.userId, user.id))
+      .where(and(eq(favorite.userId, user.id), eq(favorite.source, SOURCE)))
     const position = Number(max ?? -1) + 1
 
     const id = crypto.randomUUID()
-    await db.insert(favorite).values({
-      id,
-      userId: user.id,
-      mediaAssetId: asset.id,
-      position,
-    })
-
-    // sibling LRC 매칭 — getFavorites 와 동일 규칙.
-    const stem = basenameNoExt(asset.name)
-    const folderClause =
-      asset.folderId === null
-        ? sql`${mediaAsset.folderId} is null`
-        : eq(mediaAsset.folderId, asset.folderId)
-    const siblings = await db
-      .select({ name: mediaAsset.name, blobUrl: mediaAsset.blobUrl })
-      .from(mediaAsset)
-      .where(
-        and(
-          eq(mediaAsset.userId, user.id),
-          eq(mediaAsset.mediaType, 'lyrics'),
-          folderClause,
-        ),
-      )
-    const sibling = siblings.find((s) => basenameNoExt(s.name) === stem)
+    // 동시 더블탭/중복 요청 경쟁: 위 존재 체크를 둘 다 통과한 뒤 두 insert 가
+    // 들어오면 두 번째는 (user_id, source, provider_file_id) unique 를 위반한다.
+    // onConflictDoNothing 으로 멱등 처리 — 이미 즐겨찾기된 상태이므로 결과는 동일.
+    await db
+      .insert(favorite)
+      .values({
+        id,
+        userId: user.id,
+        source: SOURCE,
+        providerFileId: data.fileId,
+        providerLrcFileId: data.lrcFileId ?? null,
+        name: data.name,
+        mediaType: data.mediaType,
+        mimeType: data.mimeType ?? null,
+        position,
+      })
+      .onConflictDoNothing()
 
     return {
       favorited: true as const,
       item: {
         id,
-        mediaAssetId: asset.id,
-        name: asset.name,
-        mediaType: asset.mediaType === 'video' ? ('video' as const) : ('audio' as const),
-        blobUrl: asset.blobUrl,
-        lrcUrl: sibling?.blobUrl,
+        fileId: data.fileId,
+        name: data.name,
+        mediaType: data.mediaType,
+        mimeType: data.mimeType ?? undefined,
+        url: driveFileUrl(data.fileId),
+        lrcFileId: data.lrcFileId ?? undefined,
+        lrcUrl: data.lrcFileId ? driveFileUrl(data.lrcFileId) : undefined,
         position,
       },
     }
   })
 
-// 순서 재배치 — orderedIds 는 favorite.id 의 새 순서. 본인 소유 행만 0..n-1 로
-// 재할당한다. orderedIds 에 없는 행은 건드리지 않으나, 클라이언트는 항상 전체
-// 목록을 보내므로 누락은 발생하지 않는다.
 export const reorderFavorites = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => {
     if (!isReorderInput(data)) throw new Error('Invalid reorder payload')
@@ -198,6 +168,7 @@ export const reorderFavorites = createServerFn({ method: 'POST' })
             and(
               eq(favorite.id, data.orderedIds[i]),
               eq(favorite.userId, user.id),
+              eq(favorite.source, SOURCE),
             ),
           )
       }

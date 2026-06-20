@@ -279,10 +279,7 @@ function normalizeForCompare(s: string): string {
 /**
  * URL 기반 변형 — 끝부분(기본 1MB)만 받아 SAMI trailer 추출.
  *
- * Vercel Blob의 public 엔드포인트는 CORS 프리플라이트에서 Range 헤더를 허용
- * 목록에 포함시키지 않는다. 따라서 브라우저에서 직접 fetch하면 OPTIONS가
- * 실패한다. 대신 자체 서버 프록시(`/api/blob/range`)를 거쳐 받는다 — 프록시는
- * 인증된 사용자가 본인 자산에 한해 후방 N바이트를 받을 수 있게 한다.
+ * Google Drive 파일 프록시는 Range 요청을 지원하므로 후방 N바이트만 받는다.
  *
  * trailer가 1MB를 초과하는 매우 큰 자막일 경우 null이 반환되며, 호출자는
  * null을 "임베디드 없음"으로 취급해 .lrc fallback으로 진행하면 된다.
@@ -292,8 +289,12 @@ export async function extractEmbeddedSamiFromUrl(
   rangeBytes = 1024 * 1024,
 ): Promise<ParsedLyrics | null> {
   try {
-    const proxy = `/api/blob/range?url=${encodeURIComponent(url)}&bytes=${rangeBytes}`
-    const res = await fetch(proxy)
+    const parsed = new URL(url, window.location.origin)
+    const init =
+      parsed.pathname === '/api/google-drive/file'
+        ? { headers: { Range: `bytes=-${rangeBytes}` } }
+        : undefined
+    const res = await fetch(url, init)
     if (!res.ok) return null
     const blob = await res.blob()
     return await extractEmbeddedSami(blob)

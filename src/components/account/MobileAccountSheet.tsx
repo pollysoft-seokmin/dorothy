@@ -5,7 +5,7 @@ import { useUiStore } from '~/stores/ui-store'
 import { AccountPanel } from './AccountPanel'
 
 // 모바일 전용 — 헤더 우측 아바타 탭으로 하단에서 슬라이드 업.
-// 콘텐츠 블록(프로필 + 스토리지 + 최근 재생)은 AccountPanel에 위임.
+// 콘텐츠 블록(프로필 + 설정)은 AccountPanel에 위임.
 // 데스크톱(≥lg)은 같은 슬라이스(isAccountSheetOpen)로 DesktopAccountModal이 뜬다.
 export function MobileAccountSheet() {
   const isOpen = useUiStore((s) => s.isAccountSheetOpen)

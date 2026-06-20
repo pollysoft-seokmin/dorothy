@@ -9,7 +9,7 @@
 | Production URL | https://dorothy-teal.vercel.app |
 | Vercel Application Preset | Nitro (자동 감지) |
 | Neon region | AWS `ap-southeast-1` (Singapore), pooled connection |
-| OAuth | 이메일+비번만 활성, Google 미연결 (env 비움) |
+| OAuth | Google OAuth 필수, Google Drive API 사용 |
 
 ## 1. Neon Postgres 생성
 
@@ -55,7 +55,8 @@ openssl rand -base64 32
 6. Authorized redirect URIs:
    - `http://localhost:3000/api/auth/callback/google`
    - `https://<your-vercel-domain>/api/auth/callback/google`
-7. 발급된 Client ID / Client secret을 `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`에 설정
+7. **Google Drive API**를 활성화하고 OAuth 동의 화면에 `https://www.googleapis.com/auth/drive.readonly` 범위를 추가
+8. 발급된 Client ID / Client secret을 `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`에 설정
 
 > Vercel preview 도메인(`*-username.vercel.app`)에서도 OAuth를 쓰려면 해당 URL을 위 두 곳에 추가하고, `BETTER_AUTH_TRUSTED_ORIGINS`에 콤마 구분으로 등록.
 
@@ -70,7 +71,7 @@ openssl rand -base64 32
    - `BETTER_AUTH_SECRET` (로컬과 분리해서 새로 발급 권장)
    - `BETTER_AUTH_URL` = 프로덕션 도메인 — **첫 배포 전엔 placeholder**(`https://placeholder.vercel.app`)로 두고, 첫 배포 후 자동 할당된 도메인으로 갱신 후 재배포
    - `BETTER_AUTH_TRUSTED_ORIGINS` (선택, preview 도메인 등)
-   - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` (선택, 비우면 Google 로그인 버튼만 비활성)
+   - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`
 6. Deploy → 첫 배포 완료 후 도메인 확정 → `BETTER_AUTH_URL` 갱신 + (Google 쓰면) Console redirect URI 업데이트 → Redeploy
 
 > 갱신은 Settings → Environment Variables에서 값 수정 후 Deployments 탭 → 최신 배포 `⋯` → **Redeploy**.
@@ -78,9 +79,9 @@ openssl rand -base64 32
 ## 6. 배포 후 검증
 
 1. `https://<도메인>` 접근 → 헤더 우상단 "로그인" 보이면 정상
-2. `/signup`에서 이메일+비번 가입 → 메인으로 리다이렉트되며 로그인 상태 유지
-3. 트랙 재생 → `/account`에서 "최근 재생"에 해당 트랙이 떠야 함
-4. Google 버튼 클릭 → Google 동의 화면 → 콜백 후 로그인됨
+2. Google 버튼 클릭 → Drive 읽기 권한 동의 → 콜백 후 로그인됨
+3. 내 미디어 Drive 탭에서 Google Drive 루트 폴더와 재생 가능한 파일이 표시되어야 함
+4. 트랙 재생 후 최근 탭과 즐겨찾기 토글이 동작해야 함
 
 ## 환경변수 요약
 
@@ -90,14 +91,14 @@ openssl rand -base64 32
 | `BETTER_AUTH_SECRET` | O | `openssl rand -base64 32` |
 | `BETTER_AUTH_URL` | O | 프로덕션 도메인 (스킴 포함) |
 | `BETTER_AUTH_TRUSTED_ORIGINS` | X | preview 도메인 등 콤마 구분 |
-| `GOOGLE_CLIENT_ID` | X | 없으면 Google 로그인 버튼 비활성 |
-| `GOOGLE_CLIENT_SECRET` | X | Client ID와 함께 설정 필요 |
+| `GOOGLE_CLIENT_ID` | O | Google OAuth client ID |
+| `GOOGLE_CLIENT_SECRET` | O | Google OAuth client secret |
 
 ## 로컬 개발 빠른 시작
 
 ```bash
 cp .env.example .env.local
-# .env.local에 DATABASE_URL, BETTER_AUTH_SECRET, (선택) GOOGLE_CLIENT_ID/SECRET 채우기
+# .env.local에 DATABASE_URL, BETTER_AUTH_SECRET, GOOGLE_CLIENT_ID/SECRET 채우기
 pnpm install
 pnpm db:push          # 스키마 적용 (한 번만)
 pnpm dev              # http://localhost:3000

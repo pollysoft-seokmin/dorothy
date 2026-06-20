@@ -1,18 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import {
-  getRecentPlaybacks,
-  resolveRecentPlayback,
-} from '~/server/personalization'
+import { getRecentPlaybacks } from '~/server/personalization'
+import { driveFileUrl, type DrivePlayParams } from '~/lib/google-drive'
 import type { RecentPlayback } from '~/components/library/library-shared'
-
-type PlayPayload = {
-  url: string
-  name: string
-  mediaType: 'audio' | 'video'
-  lrcUrl?: string
-  mediaAssetId?: string
-}
 
 // 최근 재생 목록 fetch + 행 클릭 시 resolve→재생. "내 미디어"의 최근 탭이
 // 데스크톱/모바일에서 공유하는 로직 (#105). 라이브러리는 player 와 같은 트리에
@@ -23,7 +13,7 @@ export function useRecentPlaybacks({
 }: {
   // 최근 탭이 보이는 동안만 true — 다른 탭/닫힘 상태에서 불필요한 fetch 방지.
   active: boolean
-  onResolved: (payload: PlayPayload) => void
+  onResolved: (payload: DrivePlayParams) => void
 }) {
   const [recent, setRecent] = useState<RecentPlayback[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -56,17 +46,22 @@ export function useRecentPlaybacks({
       if (resolvingId) return
       setResolvingId(row.id)
       try {
-        const payload = await resolveRecentPlayback({
-          data: { fileName: row.fileName },
-        })
-        onResolvedRef.current(payload)
-      } catch (e) {
-        // 404 → Response 객체로 던지므로 status 분기로 안내 문구를 갈음.
-        if (e instanceof Response && e.status === 404) {
-          toast.error('더 이상 라이브러리에 없는 파일입니다')
-        } else {
-          toast.error('재생 정보를 가져오지 못했습니다')
+        if (row.source !== 'google_drive' || !row.providerFileId) {
+          toast.error('Google Drive 파일 기록만 다시 재생할 수 있습니다')
+          return
         }
+        const mediaType = row.mediaType === 'video' ? 'video' : 'audio'
+        onResolvedRef.current({
+          url: driveFileUrl(row.providerFileId),
+          name: row.fileName,
+          mediaType,
+          lrcUrl: row.providerLrcFileId ? driveFileUrl(row.providerLrcFileId) : undefined,
+          source: 'google_drive',
+          providerFileId: row.providerFileId,
+          providerLrcFileId: row.providerLrcFileId ?? undefined,
+        })
+      } catch {
+        toast.error('재생 정보를 가져오지 못했습니다')
       } finally {
         setResolvingId(null)
       }
