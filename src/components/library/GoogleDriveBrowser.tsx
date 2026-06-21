@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Cloud, Loader2, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { authClient } from '~/lib/auth-client'
@@ -7,7 +7,7 @@ import {
   driveFileUrl,
   type DrivePlayParams,
 } from '~/lib/google-drive'
-import { getOrCreateVideoThumbnail } from '~/lib/video-thumbnail'
+import { useVideoThumbnails } from '~/hooks/useVideoThumbnails'
 import { basenameNoExt } from '~/components/library/library-shared'
 import {
   getGoogleDriveStatus,
@@ -151,42 +151,10 @@ export function GoogleDriveBrowser({
     [assets],
   )
 
-  // 캐시된(트랜스코딩된) 비디오의 썸네일 object URL: fileId → url.
-  // 목록에 보이는 비디오만 lazy 로 추출하고, 캐시에 없는 영상은 건너뛴다(아이콘 폴백).
-  const [thumbs, setThumbs] = useState<Record<string, string>>({})
-  const thumbsRef = useRef(thumbs)
-  thumbsRef.current = thumbs
-
-  useEffect(() => {
-    let cancelled = false
-    const videos = playableAssets.filter((a) => a.mediaType === 'video')
-    void (async () => {
-      for (const a of videos) {
-        if (cancelled) return
-        if (thumbsRef.current[a.id]) continue
-        const blob = await getOrCreateVideoThumbnail(a.id)
-        if (cancelled || !blob) continue
-        const url = URL.createObjectURL(blob)
-        setThumbs((prev) => {
-          if (prev[a.id]) {
-            URL.revokeObjectURL(url)
-            return prev
-          }
-          return { ...prev, [a.id]: url }
-        })
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [playableAssets])
-
-  // 언마운트 시 생성한 object URL 정리(누수 방지).
-  useEffect(() => {
-    return () => {
-      for (const url of Object.values(thumbsRef.current)) URL.revokeObjectURL(url)
-    }
-  }, [])
+  // 캐시된(트랜스코딩된) 비디오의 썸네일 object URL: fileId → url (아이콘 폴백).
+  const thumbs = useVideoThumbnails(
+    playableAssets.map((a) => ({ id: a.id, isVideo: a.mediaType === 'video' })),
+  )
 
   const playAsset = useCallback(
     (asset: GoogleDriveAsset) => {
