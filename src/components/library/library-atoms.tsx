@@ -456,18 +456,22 @@ interface TypeTileProps {
   kind: LibraryMediaType | 'folder'
   playing?: boolean
   density?: Density
+  // 비디오 썸네일 object URL. 있으면 아이콘 대신 이미지를 채운다.
+  thumbnailUrl?: string
 }
 
-export function TypeTile({ kind, playing, density = 'comfortable' }: TypeTileProps) {
+export function TypeTile({ kind, playing, density = 'comfortable', thumbnailUrl }: TypeTileProps) {
   const Icon = TYPE_ICON[kind]
   const color = playing ? 'text-primary-bright' : TYPE_COLOR[kind]
   const sizeClass = density === 'compact' ? 'size-9 rounded-md' : 'size-11 rounded-lg'
   const iconSizeClass = density === 'compact' ? 'size-[17px]' : 'size-5'
   const barsSize = density === 'compact' ? 14 : 18
   return (
-    <div className={cn(sizeClass, 'grid shrink-0 place-items-center bg-secondary', color)}>
+    <div className={cn(sizeClass, 'relative grid shrink-0 place-items-center overflow-hidden bg-secondary', color)}>
       {playing ? (
         <NowPlayingBars playing size={barsSize} />
+      ) : thumbnailUrl ? (
+        <img src={thumbnailUrl} alt="" className="absolute inset-0 size-full object-cover" />
       ) : (
         <Icon className={iconSizeClass} />
       )}
@@ -597,6 +601,8 @@ interface AssetRowProps extends RowDensityProps {
   playing: boolean
   onClick: () => void
   actions?: React.ReactNode
+  // 비디오 썸네일 object URL (있을 때만). 없으면 미디어 타입 아이콘 폴백.
+  thumbnailUrl?: string
 }
 
 export function AssetRow({
@@ -606,6 +612,7 @@ export function AssetRow({
   onClick,
   actions,
   density = 'comfortable',
+  thumbnailUrl,
 }: AssetRowProps) {
   const kind = (asset.mediaType === 'lyrics'
     ? 'lyrics'
@@ -635,7 +642,7 @@ export function AssetRow({
           isLyrics ? 'cursor-default' : 'cursor-pointer',
         )}
       >
-        <TypeTile kind={kind} playing={playing} density={density} />
+        <TypeTile kind={kind} playing={playing} density={density} thumbnailUrl={thumbnailUrl} />
         <span className="min-w-0 flex-1">
           <span
             className={cn(
