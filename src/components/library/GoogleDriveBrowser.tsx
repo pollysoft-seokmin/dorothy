@@ -220,7 +220,7 @@ export function GoogleDriveBrowser({
           aria-label="Google Drive 새로고침"
           onClick={() => loadContents(folderId)}
           disabled={loading}
-          className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground hover:bg-white/5 hover:text-foreground disabled:cursor-default disabled:opacity-60"
+          className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground hover:bg-foreground/5 hover:text-foreground disabled:cursor-default disabled:opacity-60"
         >
           {loading ? (
             <Loader2 className="size-4 animate-spin" />

@@ -35,7 +35,7 @@ export function RepeatControl({
         // 다크 배경에서 버튼 영역이 보이도록 hover 시 화이트 10% 둥근 하이라이트.
         // off 상태는 화이트로 다크 톤에 맞추고, on 상태는 Spotify 패턴대로 그린 인디케이터.
         className={cn(
-          'size-10 shrink-0 rounded-full hover:bg-white/10 [&_svg]:size-5',
+          'size-10 shrink-0 rounded-full hover:bg-foreground/10 [&_svg]:size-5',
           isRepeating
             ? 'text-primary hover:text-primary'
             : 'text-foreground hover:text-foreground',

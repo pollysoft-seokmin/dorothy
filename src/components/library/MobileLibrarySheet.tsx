@@ -110,7 +110,7 @@ export function MobileLibrarySheet({ userId: _userId, onPlay }: Props) {
               type="button"
               aria-label="닫기"
               onClick={close}
-              className="grid size-9 place-items-center rounded-full text-muted-foreground hover:bg-white/5 hover:text-foreground"
+              className="grid size-9 place-items-center rounded-full text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
             >
               <X className="size-5" />
             </button>

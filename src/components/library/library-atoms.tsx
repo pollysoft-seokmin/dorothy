@@ -149,7 +149,7 @@ export function RecentPlaybackList({
               onClick={() => onPlay(row)}
               disabled={isResolving}
               className={cn(
-                'flex w-full items-center rounded-md text-left hover:bg-white/5 disabled:opacity-60 cursor-pointer',
+                'flex w-full items-center rounded-md text-left hover:bg-foreground/5 disabled:opacity-60 cursor-pointer',
                 rowCls,
               )}
             >
@@ -319,10 +319,10 @@ export function FavoritesList({
               'group flex items-center',
               rowCls,
               isDragging
-                ? 'bg-white/[0.06] ring-1 ring-primary/40'
+                ? 'bg-foreground/[0.06] ring-1 ring-primary/40'
                 : isPlaying
                   ? 'bg-primary/10'
-                  : 'hover:bg-white/[0.04]',
+                  : 'hover:bg-foreground/[0.04]',
             )}
           >
             <button
@@ -372,7 +372,7 @@ export function FavoritesList({
               type="button"
               aria-label="즐겨찾기 해제"
               onClick={() => onRemove(item.fileId)}
-              className="grid size-7 shrink-0 cursor-pointer place-items-center rounded-full text-primary-bright hover:bg-white/10"
+              className="grid size-7 shrink-0 cursor-pointer place-items-center rounded-full text-primary-bright hover:bg-foreground/10"
             >
               <Star className="size-[16px] fill-current" />
             </button>
@@ -419,7 +419,7 @@ export function LibraryEmptyDropZone({
           'flex flex-1 cursor-pointer flex-col items-center justify-center gap-3.5 rounded-2xl border-2 border-dashed px-8 text-center transition-colors',
           dragging
             ? 'border-primary bg-primary/5'
-            : 'border-white/15 bg-white/[0.025] hover:border-white/25 hover:bg-white/[0.04]',
+            : 'border-foreground/15 bg-foreground/[0.025] hover:border-foreground/25 hover:bg-foreground/[0.04]',
         )}
       >
         <div className="grid size-16 place-items-center rounded-full bg-primary-soft text-primary-bright">
@@ -504,7 +504,7 @@ export function BreadcrumbChips({ crumbs, onSelect, density = 'comfortable' }: B
                 pillCls,
                 'inline-flex shrink-0 items-center gap-1.5 font-bold tracking-[-0.01em] cursor-pointer transition-colors',
                 active
-                  ? 'bg-white/10 text-foreground'
+                  ? 'bg-foreground/10 text-foreground'
                   : 'text-muted-foreground hover:text-foreground',
               )}
             >
@@ -565,7 +565,7 @@ export function FolderRow({ name, onClick, actions, density = 'comfortable' }: F
       : 'gap-3.5 rounded px-1 py-2.5'
   const nameCls = density === 'compact' ? 'text-[13px]' : 'text-[15px]'
   return (
-    <div className={cn('group flex items-center', rowCls, 'hover:bg-white/[0.04]')}>
+    <div className={cn('group flex items-center', rowCls, 'hover:bg-foreground/[0.04]')}>
       <button
         type="button"
         onClick={onClick}
@@ -623,7 +623,7 @@ export function AssetRow({
       className={cn(
         'group flex items-center',
         rowCls,
-        active ? 'bg-primary/10' : 'hover:bg-white/[0.04]',
+        active ? 'bg-primary/10' : 'hover:bg-foreground/[0.04]',
       )}
     >
       <button

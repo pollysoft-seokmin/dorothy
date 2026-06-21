@@ -60,7 +60,7 @@ export function DesktopAccountModal() {
         role="dialog"
         aria-modal="true"
         aria-label="내 계정"
-        className={`relative flex w-[440px] max-h-[680px] flex-col rounded-2xl border border-white/[0.06] bg-card text-foreground shadow-[0_30px_80px_rgba(0,0,0,0.6)] transition-transform duration-200 ease-out ${
+        className={`relative flex w-[440px] max-h-[680px] flex-col rounded-2xl border border-foreground/[0.06] bg-card text-foreground shadow-[0_30px_80px_rgba(0,0,0,0.6)] transition-transform duration-200 ease-out ${
           isOpen ? 'scale-100' : 'scale-95'
         }`}
       >
@@ -73,7 +73,7 @@ export function DesktopAccountModal() {
             type="button"
             onClick={close}
             aria-label="닫기"
-            className="grid size-8 place-items-center rounded-full bg-white/10 text-foreground hover:bg-white/15 cursor-pointer"
+            className="grid size-8 place-items-center rounded-full bg-foreground/10 text-foreground hover:bg-foreground/15 cursor-pointer"
           >
             <X className="size-[18px]" />
           </button>
