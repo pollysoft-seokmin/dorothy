@@ -102,6 +102,25 @@ export async function extractVideoThumbnail(
 }
 
 /**
+ * 변환 직후처럼 이미 Blob 을 들고 있을 때, 썸네일을 미리 추출해 캐시에 넣는다.
+ * 이미 캐시돼 있으면 건너뛴다. 목록을 열기 전에 미리 준비(prewarm)하는 용도라
+ * 실패는 조용히 무시한다(다음에 목록에서 lazy 로 재시도됨).
+ */
+export async function cacheVideoThumbnail(
+  fileId: string,
+  blob: Blob,
+): Promise<void> {
+  if (!fileId) return
+  try {
+    if (await getCachedThumbnail(fileId)) return
+    const thumb = await extractVideoThumbnail(blob)
+    if (thumb) await putCachedThumbnail(fileId, thumb)
+  } catch {
+    // 무시 — prewarm 은 최적화일 뿐
+  }
+}
+
+/**
  * fileId 에 해당하는 썸네일을 반환한다.
  * 1) 썸네일 캐시 hit → 그대로 반환
  * 2) transcode-cache 에 영상이 있으면 프레임 추출 후 캐시에 저장하고 반환
