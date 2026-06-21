@@ -9,6 +9,7 @@ import {
   probeVideoPlayableUrl,
 } from '~/lib/transcode'
 import { getCachedTranscode, putCachedTranscode } from '~/lib/transcode-cache'
+import { cacheVideoThumbnail } from '~/lib/video-thumbnail'
 import { toast } from 'sonner'
 import type { MediaType } from '~/types'
 
@@ -521,6 +522,9 @@ export function useMediaPlayer() {
           if (gen !== lyricsLoadGenRef.current) return
           // 캐시에 저장(쿼터 초과 등 실패는 무시) 후 재생 상태로 전환.
           void putCachedTranscode(fileId, out, out.name)
+          // 변환 완료 시점에 목록용 썸네일도 미리 추출·캐시(비차단). 재생을 막지
+          // 않도록 fire-and-forget.
+          void cacheVideoThumbnail(fileId, out)
           store.getState().endConversion()
           applySource(URL.createObjectURL(out))
         } catch (err) {
