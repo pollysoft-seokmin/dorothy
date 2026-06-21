@@ -4,9 +4,13 @@ import { requireUser } from './session'
 const VALID_LYRICS_LANGUAGES = ['en-ko', 'en', 'ko'] as const
 type LyricsLanguagePref = (typeof VALID_LYRICS_LANGUAGES)[number]
 
+const VALID_VIEW_MODES = ['default', 'split', 'theater'] as const
+type ViewModePref = (typeof VALID_VIEW_MODES)[number]
+
 const DEFAULT_PREFS = {
   theme: 'system' as const,
   lyricsLanguage: 'en-ko' as LyricsLanguagePref,
+  viewMode: 'default' as ViewModePref,
 }
 
 function isLyricsLanguage(v: unknown): v is LyricsLanguagePref {
@@ -16,14 +20,23 @@ function isLyricsLanguage(v: unknown): v is LyricsLanguagePref {
   )
 }
 
+function isViewMode(v: unknown): v is ViewModePref {
+  return typeof v === 'string' && (VALID_VIEW_MODES as readonly string[]).includes(v)
+}
+
 const isPrefsInput = (
   v: unknown,
-): v is { theme?: string; lyricsLanguage?: LyricsLanguagePref } => {
+): v is {
+  theme?: string
+  lyricsLanguage?: LyricsLanguagePref
+  viewMode?: ViewModePref
+} => {
   if (typeof v !== 'object' || v === null) return false
   const o = v as Record<string, unknown>
   return (
     (o.theme === undefined || typeof o.theme === 'string') &&
-    (o.lyricsLanguage === undefined || isLyricsLanguage(o.lyricsLanguage))
+    (o.lyricsLanguage === undefined || isLyricsLanguage(o.lyricsLanguage)) &&
+    (o.viewMode === undefined || isViewMode(o.viewMode))
   )
 }
 
@@ -76,7 +89,10 @@ export const getMyPreferences = createServerFn({ method: 'GET' }).handler(
     const lyricsLanguage = isLyricsLanguage(row.lyricsLanguage)
       ? row.lyricsLanguage
       : DEFAULT_PREFS.lyricsLanguage
-    return { theme: row.theme, lyricsLanguage }
+    const viewMode = isViewMode(row.viewMode)
+      ? row.viewMode
+      : DEFAULT_PREFS.viewMode
+    return { theme: row.theme, lyricsLanguage, viewMode }
   },
 )
 
@@ -92,6 +108,7 @@ export const updateMyPreferences = createServerFn({ method: 'POST' })
     const next = {
       theme: data.theme ?? DEFAULT_PREFS.theme,
       lyricsLanguage: data.lyricsLanguage ?? DEFAULT_PREFS.lyricsLanguage,
+      viewMode: data.viewMode ?? DEFAULT_PREFS.viewMode,
     }
     await db
       .insert(userPreferences)
