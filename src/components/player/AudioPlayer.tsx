@@ -14,7 +14,6 @@ import { ProgressBar } from './ProgressBar'
 import { TimeDisplay } from './TimeDisplay'
 import { LanguageToggle } from './LanguageToggle'
 import { ExposeToggle } from './ExposeToggle'
-import { ViewModeToggle } from './ViewModeToggle'
 import { LyricsPanel } from '~/components/lyrics/LyricsPanel'
 
 type Props = {
@@ -57,14 +56,12 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
   const hasFile = !!fileName
   const disabled = !hasFile
 
-  // 넓은 화면(lg+) 2단 보기. 좌측 320px 영상 + 우측 자막 목록. 비디오가 있을 때만
-  // 의미가 있으므로 오디오 전용/곡 미선택이면 기본(단일 컬럼)으로 자연 강등한다.
+  // 넓은 화면(lg+) 2단 보기. 좌측 320px 영상 + 우측 자막 목록(+ 재생 컨트롤). 비디오가
+  // 있을 때만 의미가 있으므로 오디오 전용/곡 미선택이면 기본(단일 컬럼)으로 강등한다.
+  // 모드 전환 토글은 상단 헤더(AuthHeader)로 옮겨졌다.
   const isLgUp = useIsLgUp()
   const canSplit = isLgUp && hasFile && mediaType === 'video'
   const splitActive = canSplit && viewMode === 'split'
-  const handleCycleViewMode = useCallback(() => {
-    usePlayerStore.getState().cycleViewMode()
-  }, [])
 
   // 즐겨찾기 — Google Drive에서 로드된 재생 가능 파일만 별을 노출/토글한다.
   const favItems = useFavoritesStore((s) => s.items)
@@ -159,6 +156,67 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
     />
   )
 
+  // 재생 컨트롤(진행 게이지 + 시간 + 버튼). 기본 모드에서는 본문 컬럼 하단에,
+  // split 모드에서는 우측 자막 패인 하단에 붙인다. 한 번 만들어 재사용한다.
+  // 진행 게이지와 컨트롤은 시각적으로 한 덩어리이므로 gap 없음. iOS home indicator
+  // 가 있는 기기는 safe-area-inset 으로, 그 외 모바일 viewport(안드로이드 등)는 최소
+  // 24px 여백을 둬 화면 하단에 컨트롤이 붙지 않게 한다. 데스크톱은 외곽 py-10(40px)
+  // 에서 처리하므로 sm:pb-0.
+  const bottomControls = (
+    <div className="bg-background pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pb-0 flex flex-col">
+      {/* Progress Bar */}
+      <div className="flex flex-col gap-1">
+        <ProgressBar
+          currentTime={currentTime}
+          duration={duration}
+          disabled={disabled}
+          onSeek={handleSeek}
+          isConverting={isConverting}
+          conversionProgress={conversionProgress}
+        />
+        <TimeDisplay
+          currentTime={currentTime}
+          duration={duration}
+          isConverting={isConverting}
+          conversionProgress={conversionProgress}
+        />
+      </div>
+
+      {/* 컨트롤 — 3-col grid로 Play/Pause를 시각적 중앙에 고정하고
+          좌우 그룹의 폭 차이에 흔들리지 않게 한다. */}
+      <div className="grid grid-cols-3 items-center">
+        <div className="justify-self-start flex items-center gap-1">
+          <RepeatControl
+            repeatCount={repeatCount}
+            hasCheckedLines={checkedLines.size > 0}
+            disabled={disabled}
+            onCycleRepeat={handleCycleRepeat}
+          />
+        </div>
+        <div className="justify-self-center">
+          <PlaybackControls
+            status={status}
+            disabled={disabled || isConverting}
+            onPlay={play}
+            onPause={pause}
+          />
+        </div>
+        <div className="justify-self-end flex items-center gap-1">
+          <ExposeToggle
+            globalLineMask={globalLineMask}
+            disabled={!hasLyricLines}
+            onCycle={handleCycleGlobalLineMask}
+          />
+          <LanguageToggle
+            language={lyricsLanguage}
+            disabled={!isSamiLyrics}
+            onCycle={handleCycleLyricsLanguage}
+          />
+        </div>
+      </div>
+    </div>
+  )
+
   return (
     // h-full로 사용 가능한 세로 공간 전부 차지 — 모바일/데스크톱 통일.
     // 외곽 sm:py-10은 데스크톱에서 위/아래 breathing room 보존.
@@ -243,76 +301,16 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
           {!splitActive && lyricsPanel}
         </div>
 
-        {/* 하단 영역 - 진행 게이지 + 시간 + 컨트롤. 진행 게이지와 컨트롤은
-            시각적으로 한 덩어리이므로 gap 없음. iOS home indicator 가 있는 기기는
-            safe-area-inset 으로, 그 외 모바일 viewport(안드로이드 등)는 최소 24px
-            여백을 둬 화면 하단에 컨트롤이 붙지 않게 한다. 데스크톱은 외곽 py-10
-            (40px) 에서 처리하므로 sm:pb-0. */}
-        <div className="bg-background pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pb-0 flex flex-col">
-          {/* Progress Bar */}
-          <div className="flex flex-col gap-1">
-            <ProgressBar
-              currentTime={currentTime}
-              duration={duration}
-              disabled={disabled}
-              onSeek={handleSeek}
-              isConverting={isConverting}
-              conversionProgress={conversionProgress}
-            />
-            <TimeDisplay
-              currentTime={currentTime}
-              duration={duration}
-              isConverting={isConverting}
-              conversionProgress={conversionProgress}
-            />
-          </div>
-
-          {/* 컨트롤 — 3-col grid로 Play/Pause를 시각적 중앙에 고정하고
-              좌우 그룹의 폭 차이에 흔들리지 않게 한다. */}
-          <div className="grid grid-cols-3 items-center">
-            <div className="justify-self-start flex items-center gap-1">
-              <RepeatControl
-                repeatCount={repeatCount}
-                hasCheckedLines={checkedLines.size > 0}
-                disabled={disabled}
-                onCycleRepeat={handleCycleRepeat}
-              />
-            </div>
-            <div className="justify-self-center">
-              <PlaybackControls
-                status={status}
-                disabled={disabled || isConverting}
-                onPlay={play}
-                onPause={pause}
-              />
-            </div>
-            <div className="justify-self-end flex items-center gap-1">
-              {/* 뷰 모드 토글 — 2단이 의미 있는 넓은 화면 + 비디오일 때만 노출 */}
-              {canSplit && (
-                <ViewModeToggle
-                  viewMode={viewMode}
-                  onCycle={handleCycleViewMode}
-                />
-              )}
-              <ExposeToggle
-                globalLineMask={globalLineMask}
-                disabled={!hasLyricLines}
-                onCycle={handleCycleGlobalLineMask}
-              />
-              <LanguageToggle
-                language={lyricsLanguage}
-                disabled={!isSamiLyrics}
-                onCycle={handleCycleLyricsLanguage}
-              />
-            </div>
-          </div>
-        </div>
+        {/* 재생 컨트롤 — 기본 모드에서는 본문(영상) 컬럼 하단에 둔다.
+            split 모드에서는 우측 자막 패인 하단으로 이동한다. */}
+        {!splitActive && bottomControls}
       </div>
 
-      {/* 우측 패인 — split 에서만 자막 목록. media 조상 체인 안정화를 위해 패인
-          자체는 항상 트리에 두고 가시성/내용만 분기한다. */}
-      <div className={splitActive ? 'flex-1 min-h-0 flex flex-col' : 'hidden'}>
+      {/* 우측 패인 — split 에서만 자막 목록 + 재생 컨트롤. media 조상 체인 안정화를
+          위해 패인 자체는 항상 트리에 두고 가시성/내용만 분기한다. */}
+      <div className={splitActive ? 'flex-1 min-h-0 flex flex-col gap-4' : 'hidden'}>
         {splitActive && lyricsPanel}
+        {splitActive && bottomControls}
       </div>
     </div>
   )
