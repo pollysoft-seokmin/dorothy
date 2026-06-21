@@ -62,7 +62,7 @@ export function GoogleSignInButton() {
       type="button"
       onClick={onGoogle}
       disabled={disabled}
-      className="flex w-full items-center justify-center gap-2.5 rounded-full border border-white/30 text-sm font-bold text-foreground transition-colors hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer"
+      className="flex w-full items-center justify-center gap-2.5 rounded-full border border-foreground/30 text-sm font-bold text-foreground transition-colors hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer"
       style={{ height: 52 }}
     >
       <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden>

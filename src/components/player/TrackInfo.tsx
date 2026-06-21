@@ -32,8 +32,8 @@ function FavoriteStar({
       className={cn(
         'grid size-8 shrink-0 place-items-center rounded-full transition-colors cursor-pointer disabled:opacity-50',
         isFavorite
-          ? 'text-primary-bright hover:bg-white/10'
-          : 'text-muted-foreground hover:bg-white/10 hover:text-foreground',
+          ? 'text-primary-bright hover:bg-foreground/10'
+          : 'text-muted-foreground hover:bg-foreground/10 hover:text-foreground',
       )}
     >
       <Star className={cn('size-[18px]', isFavorite && 'fill-current')} />

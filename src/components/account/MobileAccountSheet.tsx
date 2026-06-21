@@ -67,7 +67,7 @@ export function MobileAccountSheet() {
       >
         {/* Drag handle (visual only) */}
         <div className="flex justify-center pt-2">
-          <div className="h-1 w-9 rounded-full bg-white/25" />
+          <div className="h-1 w-9 rounded-full bg-foreground/25" />
         </div>
 
         {/* Header */}
@@ -79,7 +79,7 @@ export function MobileAccountSheet() {
             type="button"
             onClick={close}
             aria-label="닫기"
-            className="grid size-8 place-items-center rounded-full bg-white/10 text-foreground hover:bg-white/15 cursor-pointer"
+            className="grid size-8 place-items-center rounded-full bg-foreground/10 text-foreground hover:bg-foreground/15 cursor-pointer"
           >
             <X className="size-4" />
           </button>
@@ -95,7 +95,7 @@ export function MobileAccountSheet() {
           aria-hidden
           className="flex justify-center pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1"
         >
-          <div className="h-[5px] w-[134px] rounded-full bg-white/50" />
+          <div className="h-[5px] w-[134px] rounded-full bg-foreground/50" />
         </div>
       </aside>
     </div>
