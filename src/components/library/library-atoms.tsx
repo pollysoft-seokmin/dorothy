@@ -15,6 +15,7 @@ import {
   Upload,
 } from 'lucide-react'
 import { cn } from '~/lib/utils'
+import { useVideoThumbnails } from '~/hooks/useVideoThumbnails'
 import { NowPlayingBars } from '~/components/library/NowPlayingBars'
 import {
   formatRelativeTime,
@@ -117,6 +118,14 @@ export function RecentPlaybackList({
   onPlay,
   density = 'comfortable',
 }: RecentPlaybackListProps) {
+  // 비디오 행의 캐시된 썸네일(providerFileId 키). 훅 규칙상 early-return 이전에 호출.
+  const thumbs = useVideoThumbnails(
+    (rows ?? []).map((r) => ({
+      id: r.providerFileId,
+      isVideo: r.mediaType === 'video' || VIDEO_EXT_RE.test(r.fileName),
+    })),
+  )
+
   if (error)
     return (
       <p className="py-6 text-center text-sm text-destructive">
@@ -142,6 +151,7 @@ export function RecentPlaybackList({
         const isLoaded = row.fileName === playingFileName
         const Icon = VIDEO_EXT_RE.test(row.fileName) ? Film : Music
         const isResolving = resolvingId === row.id
+        const thumb = row.providerFileId ? thumbs[row.providerFileId] : undefined
         return (
           <li key={row.id}>
             <button
@@ -153,13 +163,17 @@ export function RecentPlaybackList({
                 rowCls,
               )}
             >
-              <div className="grid size-10 shrink-0 place-items-center rounded bg-accent">
-                <Icon
-                  className={cn(
-                    'size-[18px]',
-                    isLoaded ? 'text-primary-bright' : 'text-muted-foreground',
-                  )}
-                />
+              <div className="relative grid size-10 shrink-0 place-items-center overflow-hidden rounded bg-accent">
+                {thumb ? (
+                  <img src={thumb} alt="" className="absolute inset-0 size-full object-cover" />
+                ) : (
+                  <Icon
+                    className={cn(
+                      'size-[18px]',
+                      isLoaded ? 'text-primary-bright' : 'text-muted-foreground',
+                    )}
+                  />
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <div
