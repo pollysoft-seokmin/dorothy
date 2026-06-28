@@ -464,9 +464,10 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
     </div>
   )
 
-  // 미디어 블록(본문 컬럼 첫 자식). video↔audio 사이에서도, 단일↔split 사이에서도
-  // 미디어 엘리먼트의 트리 위치를 안정적으로 유지한다(재마운트=재생 초기화 방지):
-  // <audio> 는 항상 첫 자식으로 두고, 앨범 커버는 split 일 때만 뒤에 덧붙인다.
+  // 미디어 블록. video↔audio 사이에서도, 단일↔split 사이에서도 미디어 엘리먼트의
+  // children 배열 위치를 안정적으로 유지한다(재마운트=재생 초기화 방지): TrackInfo
+  // 다음 고정 위치에 두고, <audio> 는 fragment 의 첫 자식, 앨범 커버는 split 일 때만
+  // 뒤에 덧붙인다.
   const mediaBlock =
     mediaType === 'video' ? (
       videoStage
@@ -498,6 +499,19 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
       >
         {/* 본문 영역 — 위에서부터 정렬(split 영상도 상단 정렬), 넘치면 스크롤. */}
         <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-4">
+          {/* 곡 정보(제목 + 즐겨찾기) — 영상 위에 표시. <TrackInfo/> 는 곡 미선택 시
+              내부적으로 null 을 반환하지만 children 배열 슬롯은 유지되므로, 아래
+              mediaBlock 의 위치(=재마운트 안정성)에는 영향이 없다. */}
+          <TrackInfo
+            fileName={fileName}
+            mediaType={mediaType}
+            metadata={metadata}
+            favoritable={isLoggedIn && canFavorite}
+            isFavorite={isFavorite}
+            favoritePending={favoritePending}
+            onToggleFavorite={handleToggleFavorite}
+          />
+
           {mediaBlock}
 
           {/* 파일 선택 — 비로그인 사용자만. 로그인 시에는 라이브러리에서 처리 */}
@@ -511,17 +525,6 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
               내 미디어에서 재생할 오디오/비디오를 선택하세요.
             </p>
           )}
-
-          {/* 곡 정보 */}
-          <TrackInfo
-            fileName={fileName}
-            mediaType={mediaType}
-            metadata={metadata}
-            favoritable={isLoggedIn && canFavorite}
-            isFavorite={isFavorite}
-            favoritePending={favoritePending}
-            onToggleFavorite={handleToggleFavorite}
-          />
 
           {/* 가사 — 단일 컬럼에서만 본문 안에 둔다(split 은 우측 패인). */}
           {!splitActive && lyricsPanel}
