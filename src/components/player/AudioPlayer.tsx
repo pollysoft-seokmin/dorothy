@@ -274,9 +274,11 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
     >
       <video
         ref={mediaRef as React.Ref<HTMLVideoElement>}
-        // 전체화면에선 화면 가로폭을 꽉 채운다(세로는 비율 유지 object-contain).
+        // 전체화면에선 영상이 화면 전체 영역을 채운다. object-contain 은 비율이 다른
+        // 영상에서 레터박스(검은 여백)가 생겨 폭이 안 차므로, object-cover 로 화면을
+        // 꽉 채우고 비율 차이는 가장자리를 크롭한다(왜곡 없음).
         className={
-          isFullscreen ? 'w-full h-full object-contain' : 'w-full h-full bg-black'
+          isFullscreen ? 'w-full h-full object-cover' : 'w-full h-full bg-black'
         }
         preload="metadata"
         playsInline
