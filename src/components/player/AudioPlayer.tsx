@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Maximize2, Minimize2, Music, Play, Pause } from 'lucide-react'
+import {
+  Maximize2,
+  Minimize2,
+  Music,
+  Play,
+  Pause,
+  ChevronsLeft,
+  ChevronsRight,
+} from 'lucide-react'
 import { cn } from '~/lib/utils'
+import { formatTime } from '~/lib/format-time'
 import { usePlayerStore } from '~/stores/player-store'
 import { useFavoritesStore } from '~/stores/favorites-store'
 import type { useMediaPlayer } from '~/hooks/useMediaPlayer'
@@ -170,6 +179,35 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
     [seek, play, status],
   )
 
+  // 전체화면 << : 현재 라인 시작에서 0.5초 미만이면 이전 라인으로, 0.5초 이상이면
+  // 현재 라인의 처음으로 이동(음악 플레이어의 "이전 곡" 관례). 최신 값은 store 에서
+  // 직접 읽어 stale 클로저를 피한다.
+  const handlePrevLine = useCallback(() => {
+    const { lyrics, currentLineIndex, currentTime } = usePlayerStore.getState()
+    const lines = lyrics?.lines
+    if (!lines || lines.length === 0) return
+    if (currentLineIndex < 0) {
+      seek(0)
+      return
+    }
+    const within = currentTime - lines[currentLineIndex].time
+    if (within < 0.5) {
+      const prev = currentLineIndex - 1
+      seek(prev >= 0 ? lines[prev].time : 0)
+    } else {
+      seek(lines[currentLineIndex].time)
+    }
+  }, [seek])
+
+  // 전체화면 >> : 다음 라인으로 이동(intro 면 첫 라인).
+  const handleNextLine = useCallback(() => {
+    const { lyrics, currentLineIndex } = usePlayerStore.getState()
+    const lines = lyrics?.lines
+    if (!lines || lines.length === 0) return
+    const next = currentLineIndex + 1
+    if (next < lines.length) seek(lines[next].time)
+  }, [seek])
+
   useKeyboardShortcuts({ play, pause, seek })
   usePreferencesSync()
   usePlaybackHistorySync()
@@ -317,25 +355,50 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
           )}
           onMouseMove={showOverlay}
         >
-          {/* 중앙 play/stop — 반투명 검정 원 + 흰색 아이콘 */}
+          {/* 중앙 컨트롤 — << 이전라인 / play·stop(크게) / >> 다음라인.
+              모두 반투명 검정 원 + 흰색 아이콘. play/stop 이 가장 크고 <<·>> 는 약간 작다. */}
           <div className="flex-1 grid place-items-center">
-            <button
-              type="button"
-              onClick={status === 'playing' ? pause : play}
-              disabled={isConverting}
-              aria-label={status === 'playing' ? '일시정지' : '재생'}
-              className="grid size-20 place-items-center rounded-full bg-black/50 text-white hover:bg-black/60 disabled:opacity-40"
-            >
-              {status === 'playing' ? (
-                <Pause className="size-9" fill="currentColor" strokeWidth={0} />
-              ) : (
-                <Play
-                  className="size-9 translate-x-[2px]"
-                  fill="currentColor"
-                  strokeWidth={0}
-                />
-              )}
-            </button>
+            <div className="flex items-center gap-6">
+              <button
+                type="button"
+                onClick={handlePrevLine}
+                disabled={!hasLyricLines}
+                aria-label="이전 자막"
+                title="이전 자막"
+                className="grid size-14 place-items-center rounded-full bg-black/50 text-white hover:bg-black/60 disabled:opacity-40"
+              >
+                <ChevronsLeft className="size-7" />
+              </button>
+
+              <button
+                type="button"
+                onClick={status === 'playing' ? pause : play}
+                disabled={isConverting}
+                aria-label={status === 'playing' ? '일시정지' : '재생'}
+                className="grid size-24 place-items-center rounded-full bg-black/50 text-white hover:bg-black/60 disabled:opacity-40"
+              >
+                {status === 'playing' ? (
+                  <Pause className="size-11" fill="currentColor" strokeWidth={0} />
+                ) : (
+                  <Play
+                    className="size-11 translate-x-[2px]"
+                    fill="currentColor"
+                    strokeWidth={0}
+                  />
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleNextLine}
+                disabled={!hasLyricLines}
+                aria-label="다음 자막"
+                title="다음 자막"
+                className="grid size-14 place-items-center rounded-full bg-black/50 text-white hover:bg-black/60 disabled:opacity-40"
+              >
+                <ChevronsRight className="size-7" />
+              </button>
+            </div>
           </div>
 
           {/* 하단 바 — 반투명 검정 배경. 현재 가사 1줄 + 진행 게이지 + 시간/옵션/해제 */}
@@ -357,19 +420,11 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
               conversionProgress={conversionProgress}
             />
             <div className="flex items-center justify-between text-white">
-              <TimeDisplay
-                currentTime={currentTime}
-                duration={duration}
-                isConverting={isConverting}
-                conversionProgress={conversionProgress}
-              />
+              {/* 현재 시간 / 전체 시간 */}
+              <span className="text-sm tabular-nums text-white">
+                {formatTime(currentTime)} / {formatTime(duration)}
+              </span>
               <div className="flex items-center gap-1">
-                <RepeatControl
-                  repeatCount={repeatCount}
-                  hasCheckedLines={checkedLines.size > 0}
-                  disabled={disabled}
-                  onCycleRepeat={handleCycleRepeat}
-                />
                 <ExposeToggle
                   globalLineMask={globalLineMask}
                   disabled={!hasLyricLines}
