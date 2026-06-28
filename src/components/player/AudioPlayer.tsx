@@ -330,14 +330,14 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
         </div>
       )}
 
-      {/* 전체화면 진입 버튼 — 평상시(비전체화면) 우하단. */}
+      {/* 전체화면 진입 버튼 — 평상시(비전체화면) 영상 좌하단 오버레이. */}
       {!isFullscreen && !isConverting && (
         <button
           type="button"
           onClick={toggleFullscreen}
           aria-label="전체화면"
           title="전체화면"
-          className="absolute bottom-2 right-2 rounded-md bg-black/50 p-1.5 text-white hover:bg-black/70"
+          className="absolute bottom-2 left-2 rounded-md bg-black/50 p-1.5 text-white hover:bg-black/70"
         >
           <Maximize2 className="size-5" />
         </button>
