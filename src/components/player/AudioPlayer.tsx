@@ -265,7 +265,11 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
         'relative bg-black overflow-hidden',
         isFullscreen
           ? 'w-full h-full grid place-items-center'
-          : 'w-full aspect-video rounded-md',
+          : // split 좌측 패널에서는 영상 폭을 320px 로 고정한다. 단일 컬럼/전체화면은
+            // 폭을 채운다.
+            splitActive
+            ? 'w-[320px] max-w-full aspect-video rounded-md'
+            : 'w-full aspect-video rounded-md',
         isFullscreen && !overlayVisible && 'cursor-none',
       )}
     >
@@ -380,9 +384,10 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
     </div>
   )
 
-  // 앨범 커버 — 오디오 split 좌측 패널. 아트가 없으면 음표 플레이스홀더.
+  // 앨범 커버 — 오디오 split 좌측 패널. 좌측 영상(320px)과 폭을 맞춘다. 아트가
+  // 없으면 음표 플레이스홀더.
   const albumCover = (
-    <div className="mx-auto grid aspect-square w-full max-w-[420px] place-items-center overflow-hidden rounded-lg bg-muted">
+    <div className="mx-auto grid aspect-square w-[320px] max-w-full place-items-center overflow-hidden rounded-lg bg-muted">
       {metadata?.albumArt ? (
         <img
           src={metadata.albumArt}
@@ -423,7 +428,7 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
       <div
         className={
           splitActive
-            ? 'flex-1 min-w-0 min-h-0 flex flex-col gap-4'
+            ? 'w-[360px] shrink-0 min-h-0 flex flex-col gap-4'
             : 'flex-1 min-h-0 flex flex-col gap-8'
         }
       >
@@ -472,9 +477,7 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
           위해 패인 자체는 항상 트리에 두고 가시성/내용만 분기한다. */}
       <div
         className={
-          splitActive
-            ? 'w-[380px] shrink-0 min-h-0 flex flex-col gap-4'
-            : 'hidden'
+          splitActive ? 'flex-1 min-w-0 min-h-0 flex flex-col gap-4' : 'hidden'
         }
       >
         {splitActive && lyricsPanel}
