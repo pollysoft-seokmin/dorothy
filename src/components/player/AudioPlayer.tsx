@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Maximize, Minimize, Music } from 'lucide-react'
+import { Maximize2, Minimize2, Music } from 'lucide-react'
 import { cn } from '~/lib/utils'
 import { usePlayerStore } from '~/stores/player-store'
 import { useFavoritesStore } from '~/stores/favorites-store'
@@ -301,7 +301,7 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
           title="전체화면"
           className="absolute bottom-2 right-2 rounded-md bg-black/50 p-1.5 text-white hover:bg-black/70"
         >
-          <Maximize className="size-5" />
+          <Maximize2 className="size-5" />
         </button>
       )}
 
@@ -374,7 +374,7 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
                   title="전체화면 해제"
                   className="grid size-10 shrink-0 place-items-center rounded-full text-primary hover:bg-foreground/10"
                 >
-                  <Minimize className="size-6" />
+                  <Minimize2 className="size-6" />
                 </button>
               </div>
             </div>
@@ -432,14 +432,8 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
             : 'flex-1 min-h-0 flex flex-col gap-8'
         }
       >
-        {/* 본문 스크롤/정렬 영역. split 에선 세로 가운데 정렬, 단일에선 스크롤. */}
-        <div
-          className={
-            splitActive
-              ? 'flex-1 min-h-0 flex flex-col justify-center gap-4'
-              : 'flex-1 min-h-0 overflow-y-auto flex flex-col gap-4'
-          }
-        >
+        {/* 본문 영역 — 위에서부터 정렬(split 영상도 상단 정렬), 넘치면 스크롤. */}
+        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-4">
           {mediaBlock}
 
           {/* 파일 선택 — 비로그인 사용자만. 로그인 시에는 라이브러리에서 처리 */}
