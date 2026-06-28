@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Maximize2, Minimize2, Music } from 'lucide-react'
+import { Maximize2, Minimize2, Music, Play, Pause } from 'lucide-react'
 import { cn } from '~/lib/utils'
 import { usePlayerStore } from '~/stores/player-store'
 import { useFavoritesStore } from '~/stores/favorites-store'
@@ -264,9 +264,8 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
       className={cn(
         'relative bg-black overflow-hidden',
         isFullscreen
-          ? 'w-full h-full grid place-items-center'
-          : // split 좌측 패널에서는 영상 폭을 320px 로 고정한다. 단일 컬럼/전체화면은
-            // 폭을 채운다.
+          ? 'w-full h-full'
+          : // split 좌측 패널에서는 영상 폭을 320px 로 고정한다. 단일 컬럼은 폭을 채운다.
             splitActive
             ? 'w-[320px] max-w-full aspect-video rounded-md'
             : 'w-full aspect-video rounded-md',
@@ -275,10 +274,9 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
     >
       <video
         ref={mediaRef as React.Ref<HTMLVideoElement>}
+        // 전체화면에선 화면 가로폭을 꽉 채운다(세로는 비율 유지 object-contain).
         className={
-          isFullscreen
-            ? 'max-h-full max-w-full object-contain'
-            : 'w-full h-full bg-black'
+          isFullscreen ? 'w-full h-full object-contain' : 'w-full h-full bg-black'
         }
         preload="metadata"
         playsInline
@@ -306,27 +304,40 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
       )}
 
       {/* 전체화면 오버레이 — 유튜브 유사. play/stop 중앙, 진행 게이지+옵션 하단.
-          dark 클래스로 항상 다크 토큰을 강제해 어두운 영상 위에서도 컨트롤이 보이게 한다. */}
+          컨트롤 영역은 반투명 검정 배경, 모든 아이콘/버튼은 흰색([&_svg]:text-white 로
+          공용 컨트롤의 text-primary 까지 일괄 흰색 강제). dark 클래스로 슬라이더 등
+          토큰도 다크값을 쓰게 한다. */}
       {isFullscreen && (
         <div
           className={cn(
-            'dark absolute inset-0 flex flex-col text-white transition-opacity duration-300',
+            'dark absolute inset-0 flex flex-col text-white transition-opacity duration-300 [&_svg]:text-white',
             overlayVisible ? 'opacity-100' : 'opacity-0 pointer-events-none',
           )}
           onMouseMove={showOverlay}
         >
-          {/* 중앙 play/stop */}
+          {/* 중앙 play/stop — 반투명 검정 원 + 흰색 아이콘 */}
           <div className="flex-1 grid place-items-center">
-            <PlaybackControls
-              status={status}
+            <button
+              type="button"
+              onClick={status === 'playing' ? pause : play}
               disabled={isConverting}
-              onPlay={play}
-              onPause={pause}
-            />
+              aria-label={status === 'playing' ? '일시정지' : '재생'}
+              className="grid size-20 place-items-center rounded-full bg-black/50 text-white hover:bg-black/60 disabled:opacity-40"
+            >
+              {status === 'playing' ? (
+                <Pause className="size-9" fill="currentColor" strokeWidth={0} />
+              ) : (
+                <Play
+                  className="size-9 translate-x-[2px]"
+                  fill="currentColor"
+                  strokeWidth={0}
+                />
+              )}
+            </button>
           </div>
 
-          {/* 하단 바 — 현재 가사 1줄 + 진행 게이지 + 시간/옵션/전체화면 해제 */}
-          <div className="bg-gradient-to-t from-black/80 via-black/40 to-transparent px-6 pb-6 pt-16 flex flex-col gap-2">
+          {/* 하단 바 — 반투명 검정 배경. 현재 가사 1줄 + 진행 게이지 + 시간/옵션/해제 */}
+          <div className="bg-black/50 px-6 pb-6 pt-4 flex flex-col gap-2">
             {overlayLine?.primary && (
               <div className="mb-1 text-center drop-shadow">
                 <p className="text-lg font-medium">{overlayLine.primary}</p>
@@ -343,7 +354,7 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
               isConverting={isConverting}
               conversionProgress={conversionProgress}
             />
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between text-white">
               <TimeDisplay
                 currentTime={currentTime}
                 duration={duration}
@@ -372,7 +383,7 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
                   onClick={toggleFullscreen}
                   aria-label="전체화면 해제"
                   title="전체화면 해제"
-                  className="grid size-10 shrink-0 place-items-center rounded-full text-primary hover:bg-foreground/10"
+                  className="grid size-10 shrink-0 place-items-center rounded-full text-white hover:bg-white/15"
                 >
                   <Minimize2 className="size-6" />
                 </button>
