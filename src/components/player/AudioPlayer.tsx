@@ -303,10 +303,8 @@ export function AudioPlayer({ player, isLoggedIn }: Props) {
         'relative bg-black overflow-hidden',
         isFullscreen
           ? 'w-full h-full'
-          : // split 좌측 패널에서는 영상 폭을 320px 로 고정한다. 단일 컬럼은 폭을 채운다.
-            splitActive
-            ? 'w-[320px] max-w-full aspect-video rounded-md'
-            : 'w-full aspect-video rounded-md',
+          : // 비전체화면: 영상이 컬럼 폭을 꽉 채운다(split 좌측 패널/단일 컬럼 공통).
+            'w-full aspect-video rounded-md',
         isFullscreen && !overlayVisible && 'cursor-none',
       )}
     >
