@@ -30,7 +30,6 @@ export function usePreferencesSync() {
       if (cancelled) return
       usePlayerStore.setState({
         lyricsLanguage: prefs.lyricsLanguage,
-        viewMode: prefs.viewMode,
       })
       hydratedRef.current = true
     })
@@ -44,15 +43,9 @@ export function usePreferencesSync() {
     let timer: ReturnType<typeof setTimeout> | null = null
     const unsub = usePlayerStore.subscribe((s, prev) => {
       if (!hydratedRef.current) return
-      if (
-        s.lyricsLanguage === prev.lyricsLanguage &&
-        s.viewMode === prev.viewMode
-      )
-        return
+      if (s.lyricsLanguage === prev.lyricsLanguage) return
       if (timer) clearTimeout(timer)
-      // updateMyPreferences 는 받은 필드만이 아니라 환경설정 한 행을 통째로 덮어쓰므로
-      // 어느 한쪽만 바뀌어도 두 값을 함께 보내 다른 쪽이 default 로 초기화되지 않게 한다.
-      const payload = { lyricsLanguage: s.lyricsLanguage, viewMode: s.viewMode }
+      const payload = { lyricsLanguage: s.lyricsLanguage }
       timer = setTimeout(() => {
         void updateMyPreferences({ data: payload }).catch(() => {})
       }, DEBOUNCE_MS)

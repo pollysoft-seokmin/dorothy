@@ -2,9 +2,7 @@ import { Link, useRouterState } from '@tanstack/react-router'
 import { Library, LogIn, Plus } from 'lucide-react'
 import { Button } from '~/components/ui/button'
 import { DorothyMark } from '~/components/brand/DorothyMark'
-import { ViewModeToggle } from '~/components/player/ViewModeToggle'
 import { useSession } from '~/lib/auth-client'
-import { useIsLgUp } from '~/hooks/useIsLgUp'
 import { useUiStore } from '~/stores/ui-store'
 import { usePlayerStore } from '~/stores/player-store'
 import { displayName, avatarColor } from '~/lib/user-display'
@@ -56,15 +54,6 @@ export function AuthHeader() {
   const playerFileName = usePlayerStore((s) => s.fileName)
   const showAddMedia = !data?.user && !!playerFileName
 
-  // 2단/단일 보기 전환 토글. 2단이 의미 있는 조건에서만 노출한다: index 라우트 +
-  // 넓은 화면(lg) + 비디오 재생 중. player-store 는 전역이라 트리와 무관하게 읽는다.
-  const playerMediaType = usePlayerStore((s) => s.mediaType)
-  const viewMode = usePlayerStore((s) => s.viewMode)
-  const isLgUp = useIsLgUp()
-  const showViewModeToggle =
-    pathname === '/' && isLgUp && !!playerFileName && playerMediaType === 'video'
-  const cycleViewMode = usePlayerStore((s) => s.cycleViewMode)
-
   // 라이브러리 토글은 미디어 라이브러리를 가진 index 라우트 + 로그인 상태에서만
   // 의미가 있다. 다른 라우트에선 라이브러리가 마운트되지 않아 클릭해도 아무 일이
   // 일어나지 않으므로 아예 숨긴다. 모바일(햄버거 드로어)/데스크톱(좌측 패널)
@@ -111,10 +100,6 @@ export function AuthHeader() {
           <DorothyMark size={22} />
           <span>Dorothy</span>
         </Link>
-        {/* 2단/단일 보기 전환 — 넓은 화면 + 비디오 재생 시에만 (#153). */}
-        {showViewModeToggle && (
-          <ViewModeToggle viewMode={viewMode} onCycle={cycleViewMode} />
-        )}
       </div>
       <div className="flex items-center gap-2 text-sm">
         {isPending ? (

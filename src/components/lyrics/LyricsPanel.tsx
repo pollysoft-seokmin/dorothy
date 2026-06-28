@@ -30,7 +30,7 @@ function normalizeWhitespace(s: string): string {
   return s.replace(/\s+/g, ' ').trim()
 }
 
-function pickLineTexts(
+export function pickLineTexts(
   line: LyricLineType,
   language: LyricsLanguage,
 ): { primary: string; secondary?: string } {

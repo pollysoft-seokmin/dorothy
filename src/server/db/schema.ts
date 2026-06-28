@@ -80,8 +80,6 @@ export const userPreferences = pgTable('user_preferences', {
     .references(() => user.id, { onDelete: 'cascade' }),
   theme: text('theme').notNull().default('system'),
   lyricsLanguage: text('lyrics_language').notNull().default('en-ko'),
-  // 넓은 화면 보기 모드. 'default'=단일 컬럼, 'split'=2단(영상/자막), 'theater'=풀스크린(후속).
-  viewMode: text('view_mode').notNull().default('default'),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 

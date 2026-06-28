@@ -14,13 +14,6 @@ export type LyricsLanguage = (typeof LYRICS_LANGUAGE_CYCLE)[number]
 // 전체 토글(globalLineMask)과 라인별 override(lineMaskStates) 모두 이 도메인을 사용한다.
 export type LineMaskState = 0 | 1 | 2
 
-// 넓은 화면 보기 모드. 사용자 환경설정으로 DB에 영구 저장된다(personalization).
-// 'default'=단일 컬럼(좁은 화면은 항상 이것), 'split'=2단(좌 영상/우 자막).
-// 'theater'(풀스크린)는 후속 작업(#152 옵션 B)에서 사이클에 추가한다.
-export type ViewMode = 'default' | 'split' | 'theater'
-// 토글이 순환하는 모드 목록. theater 는 아직 미구현이라 제외한다.
-export const VIEW_MODE_CYCLE = ['default', 'split'] as const
-
 export interface PlayerStore {
   // 재생 상태
   status: PlayStatus
@@ -67,11 +60,6 @@ export interface PlayerStore {
   // 트랙/가사 로드/reset에서는 초기화하지 않는다.
   lyricsLanguage: LyricsLanguage
 
-  // 넓은 화면 보기 모드 — 사용자 환경설정으로 영구 저장되므로 트랙/가사 로드/reset
-  // 에서는 초기화하지 않는다. 실제 2단 적용 여부는 뷰포트(lg)·미디어 종류와
-  // 함께 판단한다(AudioPlayer).
-  viewMode: ViewMode
-
   // 재생 옵션 — 한 문장(가사 라인) 재생이 끝나면 자동으로 멈춘다(shadowing 기본값).
   // localStorage 로 영속하며 트랙/가사 로드·reset 에서는 초기화하지 않는다 (#107).
   autoStopAfterLine: boolean
@@ -103,8 +91,6 @@ export interface PlayerStore {
   cycleGlobalLineMask: () => void
   cycleLyricsLanguage: () => void
   setLyricsLanguage: (language: LyricsLanguage) => void
-  cycleViewMode: () => void
-  setViewMode: (mode: ViewMode) => void
   setAutoStopAfterLine: (value: boolean) => void
   initPlaybackPrefs: () => void
   reset: () => void
@@ -120,12 +106,6 @@ function nextRepeat(current: RepeatCount): RepeatCount {
 function nextLyricsLanguage(current: LyricsLanguage): LyricsLanguage {
   const i = LYRICS_LANGUAGE_CYCLE.indexOf(current)
   return LYRICS_LANGUAGE_CYCLE[(i + 1) % LYRICS_LANGUAGE_CYCLE.length]
-}
-
-function nextViewMode(current: ViewMode): ViewMode {
-  // 미구현 모드(theater 등)에서 들어오면 0번부터 시작.
-  const i = (VIEW_MODE_CYCLE as readonly ViewMode[]).indexOf(current)
-  return VIEW_MODE_CYCLE[(i + 1) % VIEW_MODE_CYCLE.length]
 }
 
 export const usePlayerStore = create<PlayerStore>((set) => ({
@@ -150,7 +130,6 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
   lineMaskStates: new Map<number, LineMaskState>(),
   globalLineMask: 0,
   lyricsLanguage: 'en-ko',
-  viewMode: 'default',
   autoStopAfterLine: true,
 
   setStatus: (status) => set({ status }),
@@ -257,8 +236,6 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
   cycleLyricsLanguage: () =>
     set((s) => ({ lyricsLanguage: nextLyricsLanguage(s.lyricsLanguage) })),
   setLyricsLanguage: (language) => set({ lyricsLanguage: language }),
-  cycleViewMode: () => set((s) => ({ viewMode: nextViewMode(s.viewMode) })),
-  setViewMode: (mode) => set({ viewMode: mode }),
   setAutoStopAfterLine: (value) => {
     if (typeof window !== 'undefined') {
       try {
